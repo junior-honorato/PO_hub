@@ -22,9 +22,23 @@ def init_db():
                 title TEXT NOT NULL,
                 externalStatus TEXT NOT NULL,
                 createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-                updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+                updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                promisedDate TEXT,
+                followUpDate TEXT,
+                managerNotes TEXT
             )
         """)
+
+        # Garante migração para novos campos se o banco já existia
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(demands)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if "promisedDate" not in columns:
+            conn.execute("ALTER TABLE demands ADD COLUMN promisedDate TEXT")
+        if "followUpDate" not in columns:
+            conn.execute("ALTER TABLE demands ADD COLUMN followUpDate TEXT")
+        if "managerNotes" not in columns:
+            conn.execute("ALTER TABLE demands ADD COLUMN managerNotes TEXT")
 
         # Tabela Annotations (Apontamentos/Histórico local)
         conn.execute("""

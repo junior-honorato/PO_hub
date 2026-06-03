@@ -44,6 +44,11 @@ class TagCreate(BaseModel):
 class DependencyCreate(BaseModel):
     blocker_id: str
 
+class DemandUpdate(BaseModel):
+    promisedDate: str = None
+    followUpDate: str = None
+    managerNotes: str = None
+
 # Dados Mockados para fallback (usados apenas se não houver credenciais configuradas)
 MOCK_JIRA_DEMANDS = [
     {"origin": "Jira", "externalId": "JIRA-101", "title": "Migração da infraestrutura local para GCP", "externalStatus": "Em Progresso"},
@@ -328,6 +333,9 @@ def list_demands():
                 "externalStatus": row["externalStatus"],
                 "createdAt": row["createdAt"],
                 "updatedAt": row["updatedAt"],
+                "promisedDate": row["promisedDate"],
+                "followUpDate": row["followUpDate"],
+                "managerNotes": row["managerNotes"],
                 "tags": row["tags_str"].split(",") if row["tags_str"] else [],
                 "externalUrl": get_external_url(row["origin"], row["externalId"]),
                 "blockers": blockers_map.get(row["externalId"], []),
@@ -373,6 +381,9 @@ def get_demand(external_id: str):
             "externalStatus": demand["externalStatus"],
             "createdAt": demand["createdAt"],
             "updatedAt": demand["updatedAt"],
+            "promisedDate": demand["promisedDate"],
+            "followUpDate": demand["followUpDate"],
+            "managerNotes": demand["managerNotes"],
             "annotations": annotations_rows,
             "tags": tags,
             "externalUrl": get_external_url(demand["origin"], demand["externalId"]),
@@ -471,6 +482,35 @@ def delete_dependency(external_id: str, blocker_id: str):
     except Exception as e:
         print(f"Erro ao deletar dependência: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao deletar dependência.")
+
+@app.patch("/api/demands/{external_id}")
+def update_demand(external_id: str, payload: DemandUpdate):
+    try:
+        demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,))
+        if not demand:
+            raise HTTPException(status_code=404, detail="Demanda não encontrada no banco local.")
+            
+        update_fields = []
+        params = []
+        data = payload.dict(exclude_unset=True)
+        for key, val in data.items():
+            update_fields.append(f"{key} = ?")
+            params.append(val)
+            
+        if not update_fields:
+            return {"success": True, "message": "Nenhum campo para atualizar."}
+            
+        params.append(external_id)
+        execute_query(
+            f"UPDATE demands SET {', '.join(update_fields)} WHERE externalId = ?",
+            tuple(params)
+        )
+        return {"success": True}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao atualizar demanda {external_id}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao atualizar a demanda.")
 
 # Monta o diretório static na raiz `/` (DEVE vir após as rotas da API)
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
