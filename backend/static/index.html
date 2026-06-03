@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PO Hub - Consolidador de Backlogs</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Custom CSS for Scrollbars & Animations -->
+  <style>
+    /* Custom Scrollbar for sleek UI */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    
+    /* Smooth Transitions */
+    .drawer-transition {
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fade-enter {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: fadeInUp 0.3s forwards;
+    }
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+
+  <!-- React & Babel CDNs for browser compilation -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 font-sans antialiased overflow-hidden">
+  <div id="root" class="h-full"></div>
+
+  <!-- React code starts here -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Componente de Ícone Lucide genérico para React (Evita DOMException do removeChild)
+    function Icon({ name, className = "w-5 h-5", ...props }) {
+      const ref = React.useRef(null);
+      useEffect(() => {
+        if (ref.current && window.lucide) {
+          ref.current.innerHTML = `<i data-lucide="${name}" class="${className}"></i>`;
+          window.lucide.createIcons({
+            root: ref.current
+          });
+        }
+      }, [name, className]);
+      return <span ref={ref} className="inline-flex items-center justify-center" {...props}></span>;
+    }
+
+    // Componente Sidebar
+    function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, lastSyncStatus }) {
+      return (
+        <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full z-20">
+          {/* Logo */}
+          <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+            <div className="bg-gradient-to-tr from-brand-600 to-indigo-400 p-2 rounded-xl text-white shadow-md shadow-brand-500/20">
+              <Icon name="layout-dashboard" className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg leading-none tracking-tight">PO Hub</h1>
+              <span className="text-xs text-slate-400 font-medium">Consolidador Local</span>
+            </div>
+          </div>
+
+          {/* Navegação */}
+          <nav className="flex-1 px-4 py-6 space-y-1">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                activeTab === 'dashboard'
+                  ? 'bg-slate-900 text-white border-l-4 border-brand-500 shadow-sm'
+                  : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+              }`}
+            >
+              <Icon name="grid" className="w-5 h-5" />
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('demands')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                activeTab === 'demands'
+                  ? 'bg-slate-900 text-white border-l-4 border-brand-500 shadow-sm'
+                  : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+              }`}
+            >
+              <Icon name="list-todo" className="w-5 h-5" />
+              Demandas
+            </button>
+          </nav>
+
+          {/* Sincronização e Rodapé */}
+          <div className="p-4 border-t border-slate-800 bg-slate-950/50">
+            <button
+              onClick={onSync}
+              disabled={isSyncing}
+              className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-brand-600 to-indigo-500 hover:from-brand-500 hover:to-indigo-400 active:scale-95 transition-all shadow-lg shadow-brand-600/20 disabled:opacity-50 disabled:pointer-events-none`}
+            >
+              <Icon name="refresh-cw" className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar APIs'}
+            </button>
+            
+            {lastSyncStatus && (
+              <div className="mt-3 text-center">
+                <span className="text-[10px] text-slate-500 block">
+                  Última Sync: {lastSyncStatus.time}
+                </span>
+                <span className="text-[10px] text-indigo-400 font-semibold mt-0.5 block">
+                  {lastSyncStatus.source}
+                </span>
+              </div>
+            )}
+          </div>
+        </aside>
+      );
+    }
+
+    // Componente de Cards de Métricas
+    function MetricCards({ demands }) {
+      const total = demands.length;
+      const jiraCount = demands.filter(d => d.origin === 'Jira').length;
+      const azureCount = demands.filter(d => d.origin === 'Azure').length;
+      const tagCount = new Set(demands.flatMap(d => d.tags)).size;
+
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group hover:border-slate-700/80 transition-all duration-300">
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-300">
+              <Icon name="layers" className="w-24 h-24" />
+            </div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total de Demandas</p>
+            <h3 className="text-3xl font-bold mt-2 text-white">{total}</h3>
+            <span className="text-xs text-indigo-400 mt-2 block font-medium">Consolidado local</span>
+          </div>
+
+          <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group hover:border-slate-700/80 transition-all duration-300">
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-300">
+              <Icon name="columns" className="w-24 h-24" />
+            </div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Jira Epics</p>
+            <h3 className="text-3xl font-bold mt-2 text-sky-400">{jiraCount}</h3>
+            <span className="text-xs text-slate-500 mt-2 block">Originadas no Jira API</span>
+          </div>
+
+          <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group hover:border-slate-700/80 transition-all duration-300">
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-300">
+              <Icon name="git-pull-request" className="w-24 h-24" />
+            </div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Azure DevOps Backlog</p>
+            <h3 className="text-3xl font-bold mt-2 text-emerald-400">{azureCount}</h3>
+            <span className="text-xs text-slate-500 mt-2 block">Histórias e bugs sincronizados</span>
+          </div>
+
+          <div className="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group hover:border-slate-700/80 transition-all duration-300">
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-300">
+              <Icon name="tags" className="w-24 h-24" />
+            </div>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tags Customizadas</p>
+            <h3 className="text-3xl font-bold mt-2 text-purple-400">{tagCount}</h3>
+            <span className="text-xs text-slate-500 mt-2 block">Criadas localmente</span>
+          </div>
+        </div>
+      );
+    }
+
+    // Componente Tabela de Demandas
+    function DemandTable({ demands, onSelectDemand }) {
+      const [search, setSearch] = useState('');
+      const [originFilter, setOriginFilter] = useState('All');
+      const [selectedTag, setSelectedTag] = useState('');
+      const [selectedStatus, setSelectedStatus] = useState('');
+      const [sortBy, setSortBy] = useState('updated-desc');
+
+      // Extrai todas as tags únicas
+      const allTags = Array.from(new Set(demands.flatMap(d => d.tags)));
+      // Extrai todos os status únicos
+      const allStatuses = Array.from(new Set(demands.map(d => d.externalStatus).filter(Boolean)));
+
+      const handleSort = (field) => {
+        if (field === 'id') {
+          setSortBy(sortBy === 'id-asc' ? 'id-desc' : 'id-asc');
+        } else if (field === 'title') {
+          setSortBy(sortBy === 'title-asc' ? 'title-desc' : 'title-asc');
+        } else if (field === 'status') {
+          setSortBy(sortBy === 'status-asc' ? 'status-desc' : 'status-asc');
+        }
+      };
+
+      const renderSortIcon = (field) => {
+        if (field === 'id') {
+          if (sortBy === 'id-asc') return <Icon name="arrow-up" className="w-3.5 h-3.5 ml-1.5" />;
+          if (sortBy === 'id-desc') return <Icon name="arrow-down" className="w-3.5 h-3.5 ml-1.5" />;
+        } else if (field === 'title') {
+          if (sortBy === 'title-asc') return <Icon name="arrow-up" className="w-3.5 h-3.5 ml-1.5" />;
+          if (sortBy === 'title-desc') return <Icon name="arrow-down" className="w-3.5 h-3.5 ml-1.5" />;
+        } else if (field === 'status') {
+          if (sortBy === 'status-asc') return <Icon name="arrow-up" className="w-3.5 h-3.5 ml-1.5" />;
+          if (sortBy === 'status-desc') return <Icon name="arrow-down" className="w-3.5 h-3.5 ml-1.5" />;
+        }
+        return <Icon name="arrow-up-down" className="w-3.5 h-3.5 ml-1.5 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />;
+      };
+
+      const filteredDemands = demands.filter(d => {
+        const matchesSearch = d.title.toLowerCase().includes(search.toLowerCase()) || d.externalId.toLowerCase().includes(search.toLowerCase());
+        const matchesOrigin = originFilter === 'All' || d.origin === originFilter;
+        const matchesTag = !selectedTag || d.tags.includes(selectedTag);
+        const matchesStatus = !selectedStatus || d.externalStatus === selectedStatus;
+        return matchesSearch && matchesOrigin && matchesTag && matchesStatus;
+      });
+
+      const sortedDemands = [...filteredDemands].sort((a, b) => {
+        if (sortBy === 'updated-desc') {
+          return new Date(b.updatedAt.replace(' ', 'T')) - new Date(a.updatedAt.replace(' ', 'T'));
+        }
+        if (sortBy === 'updated-asc') {
+          return new Date(a.updatedAt.replace(' ', 'T')) - new Date(b.updatedAt.replace(' ', 'T'));
+        }
+        if (sortBy === 'title-asc') {
+          return a.title.localeCompare(b.title, 'pt-BR');
+        }
+        if (sortBy === 'title-desc') {
+          return b.title.localeCompare(a.title, 'pt-BR');
+        }
+        if (sortBy === 'id-asc') {
+          return a.externalId.localeCompare(b.externalId, undefined, { numeric: true, sensitivity: 'base' });
+        }
+        if (sortBy === 'id-desc') {
+          return b.externalId.localeCompare(a.externalId, undefined, { numeric: true, sensitivity: 'base' });
+        }
+        if (sortBy === 'status-asc') {
+          return (a.externalStatus || '').localeCompare(b.externalStatus || '', 'pt-BR');
+        }
+        if (sortBy === 'status-desc') {
+          return (b.externalStatus || '').localeCompare(a.externalStatus || '', 'pt-BR');
+        }
+        return 0;
+      });
+
+      return (
+        <div className="space-y-4">
+          {/* Barra de Filtros */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/20 p-4 border border-slate-800/60 rounded-2xl backdrop-blur-sm">
+            <div className="flex-1 relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                <Icon name="search" className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar por título ou ID..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+              />
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Filtro por Origem */}
+              <select
+                value={originFilter}
+                onChange={e => setOriginFilter(e.target.value)}
+                className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+              >
+                <option value="All">Origem</option>
+                <option value="Jira">Jira Only</option>
+                <option value="Azure">Azure DevOps</option>
+              </select>
+
+              {/* Filtro por Tags */}
+              <select
+                value={selectedTag}
+                onChange={e => setSelectedTag(e.target.value)}
+                className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+              >
+                <option value="">Tags</option>
+                {allTags.map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+
+              {/* Filtro por Status */}
+              <select
+                value={selectedStatus}
+                onChange={e => setSelectedStatus(e.target.value)}
+                className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+              >
+                <option value="">Status</option>
+                {allStatuses.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+
+              {/* Ordenação */}
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
+                className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+              >
+                <option value="updated-desc">Última Sync (Recente)</option>
+                <option value="updated-asc">Última Sync (Antigo)</option>
+                <option value="title-asc">Título (A-Z)</option>
+                <option value="title-desc">Título (Z-A)</option>
+                <option value="id-asc">ID (Crescente)</option>
+                <option value="id-desc">ID (Decrescente)</option>
+                <option value="status-asc">Status (A-Z)</option>
+                <option value="status-desc">Status (Z-A)</option>
+              </select>
+              
+              {/* Limpar Filtros */}
+              {(search || originFilter !== 'All' || selectedTag || selectedStatus || sortBy !== 'updated-desc') && (
+                <button
+                  onClick={() => { setSearch(''); setOriginFilter('All'); setSelectedTag(''); setSelectedStatus(''); setSortBy('updated-desc'); }}
+                  className="p-2 text-slate-400 hover:text-white bg-slate-900 rounded-xl transition-colors"
+                  title="Limpar filtros"
+                >
+                  <Icon name="x" className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Grid/Table Wrapper */}
+          <div className="bg-slate-900/20 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800/80 bg-slate-900/30 text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
+                    <th 
+                      className="px-6 py-4 cursor-pointer hover:bg-slate-800/40 transition-colors group"
+                      onClick={() => handleSort('id')}
+                    >
+                      <div className="flex items-center">
+                        ID / Origem
+                        {renderSortIcon('id')}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-4 cursor-pointer hover:bg-slate-800/40 transition-colors group"
+                      onClick={() => handleSort('title')}
+                    >
+                      <div className="flex items-center">
+                        Demanda
+                        {renderSortIcon('title')}
+                      </div>
+                    </th>
+                    <th 
+                      className="px-6 py-4 cursor-pointer hover:bg-slate-800/40 transition-colors group"
+                      onClick={() => handleSort('status')}
+                    >
+                      <div className="flex items-center">
+                        Status Externo
+                        {renderSortIcon('status')}
+                      </div>
+                    </th>
+                    <th className="px-6 py-4">Tags Locais</th>
+                    <th className="px-6 py-4 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-sm text-slate-300">
+                  {sortedDemands.length > 0 ? (
+                    sortedDemands.map(demand => (
+                      <tr
+                        key={demand.externalId}
+                        onClick={() => onSelectDemand(demand.externalId)}
+                        className="hover:bg-slate-900/30 cursor-pointer transition-colors group"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2.5">
+                            <span className={`w-2.5 h-2.5 rounded-full ${
+                              demand.origin === 'Jira' ? 'bg-sky-400' : 'bg-emerald-400'
+                            }`} />
+                            <div>
+                              <span className="font-semibold text-white block">{demand.externalId}</span>
+                              <span className="text-xs text-slate-500 block">{demand.origin}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 max-w-md">
+                          <p className="truncate font-medium text-slate-200 group-hover:text-white transition-colors">
+                            {demand.title}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            demand.externalStatus === 'Concluído' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Done'
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              : demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing'
+                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                              : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                          }`}>
+                            {demand.externalStatus}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {demand.tags.length > 0 ? (
+                              demand.tags.map(tag => (
+                                <span key={tag} className="text-[10px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-md">
+                                  {tag}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-slate-600">-</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                          <button className="text-slate-400 group-hover:text-brand-400 group-hover:translate-x-1 transition-all p-1">
+                            <Icon name="arrow-right" className="w-5 h-5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="text-center py-12 text-slate-500">
+                        <Icon name="inbox" className="w-12 h-12 mx-auto text-slate-700 mb-3" />
+                        Nenhuma demanda encontrada para os critérios selecionados.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Componente Slide-Over Drawer (Painel de Detalhes)
+    function DemandDrawer({ demandId, isOpen, onClose, onRefreshDemands }) {
+      const [demand, setDemand] = useState(null);
+      const [note, setNote] = useState('');
+      const [tagInput, setTagInput] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      useEffect(() => {
+        if (isOpen && demandId) {
+          loadDemandDetail();
+        } else {
+          setDemand(null);
+        }
+      }, [demandId, isOpen]);
+
+      const loadDemandDetail = async () => {
+        setLoading(true);
+        try {
+          const res = await fetch(`/api/demands/${demandId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setDemand(data);
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleAddNote = async (e) => {
+        e.preventDefault();
+        if (!note.trim()) return;
+
+        try {
+          const res = await fetch(`/api/demands/${demandId}/annotations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: note })
+          });
+          if (res.ok) {
+            setNote('');
+            loadDemandDetail();
+            onRefreshDemands();
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      const handleAddTag = async (e) => {
+        e.preventDefault();
+        const tag = tagInput.trim().toLowerCase();
+        if (!tag || demand.tags.includes(tag)) return;
+
+        try {
+          const res = await fetch(`/api/demands/${demandId}/tags`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tag })
+          });
+          if (res.ok) {
+            setTagInput('');
+            loadDemandDetail();
+            onRefreshDemands();
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      const handleRemoveTag = async (tag) => {
+        try {
+          const res = await fetch(`/api/demands/${demandId}/tags/${tag}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            loadDemandDetail();
+            onRefreshDemands();
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      const formatDate = (isoString) => {
+        if (!isoString) return '-';
+        try {
+          const cleanIso = isoString.replace(' ', 'T');
+          const d = new Date(cleanIso.indexOf('T') !== -1 ? cleanIso : cleanIso + 'T00:00:00');
+          if (isNaN(d.getTime())) {
+            return isoString;
+          }
+          return d.toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        } catch (e) {
+          console.error("Erro ao formatar data:", e);
+          return isoString;
+        }
+      };
+
+      if (!isOpen) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
+          {/* Backdrop */}
+          <div
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200"
+          />
+          
+          {/* Drawer Panel */}
+          <div className="relative w-full max-w-lg bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col h-full z-10">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${
+                  demand?.origin === 'Jira' ? 'bg-sky-400' : 'bg-emerald-400'
+                }`} />
+                <span className="text-xs text-slate-400 uppercase tracking-widest font-semibold">
+                  {demand?.origin} / {demand?.externalId}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {demand?.externalUrl && (
+                  <a
+                    href={demand.externalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl transition-all"
+                    title={`Ver no ${demand.origin}`}
+                  >
+                    <Icon name="external-link" className="w-3.5 h-3.5" />
+                    Ver no {demand.origin}
+                  </a>
+                )}
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all"
+                >
+                  <Icon name="x" className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+                <Icon name="refresh-cw" className="w-8 h-8 animate-spin text-brand-500 mb-2" />
+                Carregando detalhes...
+              </div>
+            ) : demand ? (
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                
+                {/* Demand Title & Status */}
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <h2 className="text-xl font-bold text-white leading-snug">{demand.title}</h2>
+                    {demand.externalUrl && (
+                      <a
+                        href={demand.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-slate-400 hover:text-white transition-colors pt-1 flex-shrink-0"
+                        title={`Abrir no ${demand.origin}`}
+                      >
+                        <Icon name="external-link" className="w-5 h-5" />
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-slate-500" />
+                      Status: <strong className="text-slate-200">{demand.externalStatus}</strong>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Icon name="clock" className="w-3.5 h-3.5" />
+                      Última Atualização: <strong className="text-slate-200">{formatDate(demand.updatedAt)}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="border-slate-800" />
+
+                {/* Tags Section */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <Icon name="tag" className="w-4 h-4" /> Tags Customizadas
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    {demand.tags.map(tag => (
+                      <span
+                        key={tag}
+                        className="inline-flex items-center gap-1 text-xs font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20 pl-2.5 pr-1 py-1 rounded-lg group"
+                      >
+                        {tag}
+                        <button
+                          onClick={() => handleRemoveTag(tag)}
+                          className="p-0.5 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        >
+                          <Icon name="x" className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                    
+                    {/* Add Tag Form */}
+                    <form onSubmit={handleAddTag} className="inline-flex items-center ml-1">
+                      <input
+                        type="text"
+                        placeholder="+ Nova tag"
+                        value={tagInput}
+                        onChange={e => setTagInput(e.target.value)}
+                        className="bg-slate-950 border border-slate-800/80 hover:border-slate-700 text-xs text-slate-300 placeholder-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:border-brand-500 w-24 transition-colors"
+                      />
+                    </form>
+                  </div>
+                </div>
+
+                <hr className="border-slate-800" />
+
+                {/* Add Annotation Form */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <Icon name="pencil" className="w-4 h-4" /> Novo Apontamento
+                  </h3>
+                  <form onSubmit={handleAddNote} className="space-y-3">
+                    <textarea
+                      placeholder="Adicione anotações ricas sobre o andamento, discussões de refinamento ou priorizações..."
+                      rows="3"
+                      value={note}
+                      onChange={e => setNote(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800/80 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors resize-none"
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={!note.trim()}
+                        className="bg-slate-100 hover:bg-white text-slate-950 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                      >
+                        <Icon name="plus" className="w-3.5 h-3.5" /> Salvar Apontamento
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                <hr className="border-slate-800" />
+
+                {/* Timeline History */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <Icon name="history" className="w-4 h-4" /> Histórico Local (Timeline)
+                  </h3>
+                  
+                  {demand.annotations.length > 0 ? (
+                    <div className="relative pl-6 border-l-2 border-slate-800 space-y-5 ml-2.5">
+                      {demand.annotations.map((ann, idx) => (
+                        <div key={ann.id} className="relative fade-enter">
+                          {/* Dot marker */}
+                          <span className="absolute -left-[31px] top-1.5 bg-slate-900 border-2 border-brand-500 w-4 h-4 rounded-full flex items-center justify-center">
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
+                          </span>
+                          
+                          <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-xl space-y-1.5">
+                            <span className="text-[10px] font-bold text-indigo-400 block">
+                              {formatDate(ann.createdAt)}
+                            </span>
+                            <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                              {ann.content}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
+                      Nenhum apontamento feito nesta demanda ainda.
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+
+    // Componente Dashboard Principal
+    function MainDashboard({ demands, onSelectDemand }) {
+      const total = demands.length;
+      const recentDemands = demands.slice(0, 5);
+
+      return (
+        <div className="space-y-6 flex-1 overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white tracking-tight">Painel Executivo</h2>
+              <p className="text-sm text-slate-400">Consolidação local inteligente de backlogs externos</p>
+            </div>
+            <div className="bg-slate-900/30 border border-slate-800 px-4 py-2 rounded-xl flex items-center gap-2 text-xs">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              Conectado ao SQLite local
+            </div>
+          </div>
+
+          {/* Cards de Métricas */}
+          <MetricCards demands={demands} />
+
+          {/* Linha Inferior: Grid de Resumo */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Tabela Resumida */}
+            <div className="lg:col-span-2 bg-slate-900/20 border border-slate-800/80 rounded-2xl p-6 space-y-4 backdrop-blur-md">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base text-white">Demandas Atualizadas Recentemente</h3>
+                <Icon name="arrow-up-right" className="w-5 h-5 text-slate-500" />
+              </div>
+              
+              <div className="divide-y divide-slate-800/60">
+                {recentDemands.length > 0 ? (
+                  recentDemands.map(demand => (
+                    <div
+                      key={demand.externalId}
+                      onClick={() => onSelectDemand(demand.externalId)}
+                      className="py-3.5 flex items-center justify-between hover:bg-slate-900/30 px-2 rounded-lg cursor-pointer transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`w-2 h-2 rounded-full ${
+                          demand.origin === 'Jira' ? 'bg-sky-400' : 'bg-emerald-400'
+                        }`} />
+                        <div>
+                          <p className="font-semibold text-xs text-white group-hover:text-brand-400 transition-colors">
+                            {demand.externalId}
+                          </p>
+                          <p className="text-sm text-slate-300 max-w-sm truncate mt-0.5">
+                            {demand.title}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xs font-semibold bg-slate-800 text-slate-400 px-2.5 py-0.5 rounded-full">
+                          {demand.externalStatus}
+                        </span>
+                        <Icon name="chevron-right" className="w-4 h-4 text-slate-600 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 text-slate-500 text-sm">
+                    Nenhuma demanda sincronizada. Clique em "Sincronizar APIs" para começar.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quadro de Distribuição */}
+            <div className="bg-slate-900/20 border border-slate-800/80 rounded-2xl p-6 space-y-4 backdrop-blur-md flex flex-col justify-between">
+              <div>
+                <h3 className="font-bold text-base text-white">Distribuição por Canal</h3>
+                <p className="text-xs text-slate-500 mt-1">Comparativo de volumetria sincronizada</p>
+              </div>
+
+              <div className="space-y-4 my-6">
+                <div>
+                  <div className="flex justify-between text-xs font-medium text-slate-300 mb-1.5">
+                    <span>Jira (Epics/Opportunities)</span>
+                    <span>{demands.filter(d => d.origin === 'Jira').length}</span>
+                  </div>
+                  <div className="w-full bg-slate-950 rounded-full h-2">
+                    <div
+                      className="bg-sky-400 h-2 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${total ? (demands.filter(d => d.origin === 'Jira').length / total) * 100 : 0}%`
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-xs font-medium text-slate-300 mb-1.5">
+                    <span>Azure DevOps (Stories/Bugs)</span>
+                    <span>{demands.filter(d => d.origin === 'Azure').length}</span>
+                  </div>
+                  <div className="w-full bg-slate-950 rounded-full h-2">
+                    <div
+                      className="bg-emerald-400 h-2 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${total ? (demands.filter(d => d.origin === 'Azure').length / total) * 100 : 0}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-950/50 p-4 border border-slate-800/80 rounded-xl text-center">
+                <span className="text-xs text-slate-400">Banco de dados:</span>
+                <span className="block font-bold text-sm text-indigo-400 mt-1">SQLite Local (database.db)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Componente Container da App
+    function App() {
+      const [activeTab, setActiveTab] = useState('dashboard');
+      const [demands, setDemands] = useState([]);
+      const [isSyncing, setIsSyncing] = useState(false);
+      const [selectedDemandId, setSelectedDemandId] = useState(null);
+      const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+      const [lastSyncStatus, setLastSyncStatus] = useState(null);
+
+      useEffect(() => {
+        loadDemands();
+        // Recupera status da última sincronização do localStorage
+        const savedSync = localStorage.getItem('po-hub-last-sync');
+        if (savedSync) {
+          setLastSyncStatus(JSON.parse(savedSync));
+        }
+      }, []);
+
+      const loadDemands = async () => {
+        try {
+          const res = await fetch('/api/demands');
+          if (res.ok) {
+            const data = await res.json();
+            setDemands(data);
+          }
+        } catch (e) {
+          console.error("Erro ao carregar demandas:", e);
+        }
+      };
+
+      const handleSync = async () => {
+        setIsSyncing(true);
+        try {
+          const res = await fetch('/api/sync', { method: 'POST' });
+          if (res.ok) {
+            const result = await res.json();
+            await loadDemands();
+            
+            const syncSourceMsg = (result.sources.jira === 'real' || result.sources.azure === 'real')
+              ? 'Conectado a APIs Reais'
+              : 'Sincronizado com dados Mockados';
+
+            const syncInfo = {
+              time: new Date().toLocaleTimeString('pt-BR'),
+              source: syncSourceMsg
+            };
+            
+            setLastSyncStatus(syncInfo);
+            localStorage.setItem('po-hub-last-sync', JSON.stringify(syncInfo));
+          }
+        } catch (e) {
+          console.error("Erro na sincronização:", e);
+        } finally {
+          setIsSyncing(false);
+        }
+      };
+
+      const handleSelectDemand = (id) => {
+        setSelectedDemandId(id);
+        setIsDrawerOpen(true);
+      };
+
+      return (
+        <div className="flex h-full overflow-hidden bg-slate-950">
+          {/* Sidebar */}
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onSync={handleSync}
+            isSyncing={isSyncing}
+            lastSyncStatus={lastSyncStatus}
+          />
+
+          {/* Main Content Area */}
+          <main className="flex-1 flex flex-col overflow-hidden">
+            {activeTab === 'dashboard' ? (
+              <MainDashboard demands={demands} onSelectDemand={handleSelectDemand} />
+            ) : (
+              <div className="flex-1 overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full space-y-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-white tracking-tight">Demandas Sincronizadas</h2>
+                  <p className="text-sm text-slate-400">Consolidado geral de itens de backlog com tags e filtros rápidos</p>
+                </div>
+                <DemandTable demands={demands} onSelectDemand={handleSelectDemand} />
+              </div>
+            )}
+          </main>
+
+          {/* Slide-over Drawer */}
+          <DemandDrawer
+            demandId={selectedDemandId}
+            isOpen={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+            onRefreshDemands={loadDemands}
+          />
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
