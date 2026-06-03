@@ -50,6 +50,23 @@ def run_test():
             print(f"[E2E] Screenshot da Lista de Demandas salvo em: {scr2_path}")
         except Exception as btn_err:
             print(f"[E2E] Erro ao ir para aba de demandas: {btn_err}")
+
+        # Encontra o link / botão dos Projetos no menu lateral
+        try:
+            print("[E2E] Tentando mudar para a aba 'Projetos'...")
+            projects_btn = driver.find_element(By.XPATH, "//button[contains(., 'Projetos')]")
+            projects_btn.click()
+            time.sleep(2)
+            scr4_path = os.path.join(ARTIFACTS_DIR, "step4_projects_view.png")
+            driver.save_screenshot(scr4_path)
+            print(f"[E2E] Screenshot da Visão de Projetos salvo em: {scr4_path}")
+            
+            # Volta para a aba de Demandas para o restante do teste
+            demands_btn = driver.find_element(By.XPATH, "//button[contains(., 'Demandas')]")
+            demands_btn.click()
+            time.sleep(1)
+        except Exception as btn_err:
+            print(f"[E2E] Erro ao ir para aba de projetos: {btn_err}")
             
         # Tenta encontrar uma linha da tabela de demandas
         # As linhas da tabela de demandas têm a classe 'cursor-pointer'
