@@ -46,6 +46,17 @@ def init_db():
                 FOREIGN KEY (externalId) REFERENCES demands(externalId) ON DELETE CASCADE
             )
         """)
+
+        # Tabela Dependencies (Dependências cruzadas)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS dependencies (
+                blocked_id TEXT NOT NULL,
+                blocker_id TEXT NOT NULL,
+                PRIMARY KEY (blocked_id, blocker_id),
+                FOREIGN KEY (blocked_id) REFERENCES demands(externalId) ON DELETE CASCADE,
+                FOREIGN KEY (blocker_id) REFERENCES demands(externalId) ON DELETE CASCADE
+            )
+        """)
         conn.commit()
         print("Banco de dados SQLite inicializado com sucesso.")
     except Exception as e:

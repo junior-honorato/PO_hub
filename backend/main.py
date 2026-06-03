@@ -1,6 +1,7 @@
 import os
 import base64
 import urllib3
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -39,6 +40,9 @@ class AnnotationCreate(BaseModel):
 
 class TagCreate(BaseModel):
     tag: str
+
+class DependencyCreate(BaseModel):
+    blocker_id: str
 
 # Dados Mockados para fallback (usados apenas se não houver credenciais configuradas)
 MOCK_JIRA_DEMANDS = [
@@ -263,9 +267,42 @@ def sync_demands():
         print(f"Erro ao persistir sincronização no banco: {db_err}")
         raise HTTPException(status_code=500, detail="Erro interno ao gravar demandas sincronizadas.")
 
+def parse_date(date_str):
+    if not date_str:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f"):
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except ValueError:
+            pass
+    return None
+
+def is_status_active(status):
+    if not status:
+        return False
+    status_lower = status.strip().lower()
+    # List of known non-active/finished/backlog/todo statuses
+    inactive = {"concluído", "concluido", "done", "resolved", "closed", "fechado", "backlog", "a fazer", "to do", "removed", "removido", "cancelado", "canceled"}
+    return status_lower not in inactive
+
 @app.get("/api/demands")
 def list_demands():
     try:
+        deps = fetch_all("SELECT blocked_id, blocker_id FROM dependencies")
+        blockers_map = {}
+        blocked_by_map = {}
+        for dep in deps:
+            blocked = dep["blocked_id"]
+            blocker = dep["blocker_id"]
+            
+            if blocked not in blockers_map:
+                blockers_map[blocked] = []
+            blockers_map[blocked].append(blocker)
+            
+            if blocker not in blocked_by_map:
+                blocked_by_map[blocker] = []
+            blocked_by_map[blocker].append(blocked)
+
         query = """
             SELECT d.*, group_concat(t.tag) as tags_str
             FROM demands d
@@ -275,7 +312,15 @@ def list_demands():
         """
         rows = fetch_all(query)
         demands = []
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        
         for row in rows:
+            is_stale = False
+            if is_status_active(row["externalStatus"]):
+                updated_dt = parse_date(row["updatedAt"])
+                if updated_dt and (now_utc - updated_dt > timedelta(days=5)):
+                    is_stale = True
+                    
             demands.append({
                 "externalId": row["externalId"],
                 "origin": row["origin"],
@@ -284,7 +329,10 @@ def list_demands():
                 "createdAt": row["createdAt"],
                 "updatedAt": row["updatedAt"],
                 "tags": row["tags_str"].split(",") if row["tags_str"] else [],
-                "externalUrl": get_external_url(row["origin"], row["externalId"])
+                "externalUrl": get_external_url(row["origin"], row["externalId"]),
+                "blockers": blockers_map.get(row["externalId"], []),
+                "blocked_by": blocked_by_map.get(row["externalId"], []),
+                "isStale": is_stale
             })
         return demands
     except Exception as e:
@@ -306,6 +354,18 @@ def get_demand(external_id: str):
         tags_rows = fetch_all("SELECT tag FROM tags WHERE externalId = ?", (external_id,))
         tags = [row["tag"] for row in tags_rows]
         
+        blockers_rows = fetch_all("SELECT blocker_id FROM dependencies WHERE blocked_id = ?", (external_id,))
+        blocked_by_rows = fetch_all("SELECT blocked_id FROM dependencies WHERE blocker_id = ?", (external_id,))
+        
+        blockers = [row["blocker_id"] for row in blockers_rows]
+        blocked_by = [row["blocked_id"] for row in blocked_by_rows]
+        
+        is_stale = False
+        if is_status_active(demand["externalStatus"]):
+            updated_dt = parse_date(demand["updatedAt"])
+            if updated_dt and (datetime.now(timezone.utc).replace(tzinfo=None) - updated_dt > timedelta(days=5)):
+                is_stale = True
+        
         return {
             "externalId": demand["externalId"],
             "origin": demand["origin"],
@@ -315,7 +375,10 @@ def get_demand(external_id: str):
             "updatedAt": demand["updatedAt"],
             "annotations": annotations_rows,
             "tags": tags,
-            "externalUrl": get_external_url(demand["origin"], demand["externalId"])
+            "externalUrl": get_external_url(demand["origin"], demand["externalId"]),
+            "blockers": blockers,
+            "blocked_by": blocked_by,
+            "isStale": is_stale
         }
     except HTTPException as he:
         raise he
@@ -377,6 +440,37 @@ def delete_tag(external_id: str, tag: str):
     except Exception as e:
         print(f"Erro ao remover tag: {e}")
         raise HTTPException(status_code=500, detail="Erro ao deletar tag.")
+
+@app.post("/api/demands/{external_id}/dependencies")
+def add_dependency(external_id: str, payload: DependencyCreate):
+    blocker_id = payload.blocker_id.strip()
+    if not blocker_id:
+        raise HTTPException(status_code=400, detail="O blocker_id não pode ser vazio.")
+    if external_id == blocker_id:
+        raise HTTPException(status_code=400, detail="Uma demanda não pode depender de si mesma.")
+        
+    try:
+        blocked_exist = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,))
+        blocker_exist = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (blocker_id,))
+        if not blocked_exist or not blocker_exist:
+            raise HTTPException(status_code=404, detail="Uma ou ambas as demandas não foram encontradas no banco local.")
+            
+        execute_query("INSERT OR IGNORE INTO dependencies (blocked_id, blocker_id) VALUES (?, ?)", (external_id, blocker_id))
+        return {"success": True, "blocked_id": external_id, "blocker_id": blocker_id}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao criar dependência: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao criar dependência.")
+
+@app.delete("/api/demands/{external_id}/dependencies/{blocker_id}")
+def delete_dependency(external_id: str, blocker_id: str):
+    try:
+        execute_query("DELETE FROM dependencies WHERE blocked_id = ? AND blocker_id = ?", (external_id, blocker_id))
+        return {"success": True}
+    except Exception as e:
+        print(f"Erro ao deletar dependência: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao deletar dependência.")
 
 # Monta o diretório static na raiz `/` (DEVE vir após as rotas da API)
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
