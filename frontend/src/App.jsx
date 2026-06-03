@@ -5,6 +5,7 @@ import MetricCards from './components/MetricCards';
 import DemandTable from './components/DemandTable';
 import DemandDrawer from './components/DemandDrawer';
 import ManagerSyncView from './components/ManagerSyncView';
+import ProjectView from './components/ProjectView';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -192,6 +193,8 @@ export default function App() {
               </div>
             </div>
           </div>
+        ) : activeTab === 'projects' ? (
+          <ProjectView demands={demands} onSelectDemand={handleSelectDemand} />
         ) : activeTab === 'one-on-one' ? (
           <ManagerSyncView demands={demands} onSelectDemand={handleSelectDemand} />
         ) : (

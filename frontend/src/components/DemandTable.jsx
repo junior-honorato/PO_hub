@@ -5,7 +5,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
   const [search, setSearch] = useState('');
   const [originFilter, setOriginFilter] = useState('All');
   const [selectedTag, setSelectedTag] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState([]);
   const [sortBy, setSortBy] = useState('updated-desc');
 
   // Extrai todas as tags únicas
@@ -42,7 +42,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
                           d.externalId.toLowerCase().includes(search.toLowerCase());
     const matchesOrigin = originFilter === 'All' || d.origin === originFilter;
     const matchesTag = !selectedTag || d.tags.includes(selectedTag);
-    const matchesStatus = !selectedStatus || d.externalStatus === selectedStatus;
+    const matchesStatus = selectedStatus.length === 0 || selectedStatus.includes(d.externalStatus);
     return matchesSearch && matchesOrigin && matchesTag && matchesStatus;
   });
 
@@ -115,17 +115,33 @@ export default function DemandTable({ demands, onSelectDemand }) {
             ))}
           </select>
 
-          {/* Filtro por Status */}
-          <select
-            value={selectedStatus}
-            onChange={e => setSelectedStatus(e.target.value)}
-            className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
-          >
-            <option value="">Status</option>
-            {allStatuses.map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
+          {/* Filtro por Status (Pills) */}
+          <div className="flex flex-wrap items-center gap-1.5 border border-slate-800/60 bg-slate-950/40 px-3 py-1.5 rounded-xl">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1">Status:</span>
+            {allStatuses.map(status => {
+              const isActive = selectedStatus.includes(status);
+              return (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => {
+                    if (isActive) {
+                      setSelectedStatus(selectedStatus.filter(s => s !== status));
+                    } else {
+                      setSelectedStatus([...selectedStatus, status]);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                    isActive
+                      ? 'bg-brand-500/20 text-brand-400 border-brand-500/40 hover:bg-brand-500/30'
+                      : 'bg-slate-900/40 text-slate-400 border-slate-800/80 hover:text-slate-300 hover:bg-slate-800/40'
+                  }`}
+                >
+                  {status}
+                </button>
+              );
+            })}
+          </div>
 
           {/* Ordenação */}
           <select
@@ -144,9 +160,9 @@ export default function DemandTable({ demands, onSelectDemand }) {
           </select>
 
           {/* Limpar Filtros */}
-          {(search || originFilter !== 'All' || selectedTag || selectedStatus || sortBy !== 'updated-desc') && (
+          {(search || originFilter !== 'All' || selectedTag || selectedStatus.length > 0 || sortBy !== 'updated-desc') && (
             <button
-              onClick={() => { setSearch(''); setOriginFilter('All'); setSelectedTag(''); setSelectedStatus(''); setSortBy('updated-desc'); }}
+              onClick={() => { setSearch(''); setOriginFilter('All'); setSelectedTag(''); setSelectedStatus([]); setSortBy('updated-desc'); }}
               className="p-2 text-slate-400 hover:text-white bg-slate-900 rounded-xl transition-colors"
               title="Limpar filtros"
             >
