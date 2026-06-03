@@ -77,47 +77,79 @@ export default function DemandTable({ demands, onSelectDemand }) {
   return (
     <div className="space-y-4">
       {/* Barra de Filtros */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/20 p-4 border border-slate-800/60 rounded-2xl backdrop-blur-sm">
-        <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-            <Search className="w-4 h-4" />
+      <div className="flex flex-col gap-4 bg-slate-900/20 p-4 border border-slate-800/60 rounded-2xl backdrop-blur-sm">
+        {/* Linha Principal: Pesquisa e Controles Básicos */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex-1 relative w-full lg:w-auto">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+              <Search className="w-4 h-4" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar por título ou ID..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Buscar por título ou ID..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
-          />
+          
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            {/* Filtro por Origem */}
+            <select
+              value={originFilter}
+              onChange={e => setOriginFilter(e.target.value)}
+              className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+            >
+              <option value="All">Origem</option>
+              <option value="Jira">Jira Only</option>
+              <option value="Azure">Azure DevOps</option>
+            </select>
+
+            {/* Filtro por Tags */}
+            <select
+              value={selectedTag}
+              onChange={e => setSelectedTag(e.target.value)}
+              className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+            >
+              <option value="">Tags</option>
+              {allTags.map(tag => (
+                <option key={tag} value={tag}>{tag}</option>
+              ))}
+            </select>
+
+            {/* Ordenação */}
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value)}
+              className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+            >
+              <option value="updated-desc">Última Sync (Recente)</option>
+              <option value="updated-asc">Última Sync (Antigo)</option>
+              <option value="title-asc">Título (A-Z)</option>
+              <option value="title-desc">Título (Z-A)</option>
+              <option value="id-asc">ID (Crescente)</option>
+              <option value="id-desc">ID (Decrescente)</option>
+              <option value="status-asc">Status (A-Z)</option>
+              <option value="status-desc">Status (Z-A)</option>
+            </select>
+
+            {/* Limpar Filtros */}
+            {(search || originFilter !== 'All' || selectedTag || selectedStatus.length > 0 || sortBy !== 'updated-desc') && (
+              <button
+                onClick={() => { setSearch(''); setOriginFilter('All'); setSelectedTag(''); setSelectedStatus([]); setSortBy('updated-desc'); }}
+                className="p-2 text-slate-400 hover:text-white bg-slate-900 rounded-xl transition-colors"
+                title="Limpar filtros"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Filtro por Origem */}
-          <select
-            value={originFilter}
-            onChange={e => setOriginFilter(e.target.value)}
-            className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
-          >
-            <option value="All">Origem</option>
-            <option value="Jira">Jira Only</option>
-            <option value="Azure">Azure DevOps</option>
-          </select>
 
-          {/* Filtro por Tags */}
-          <select
-            value={selectedTag}
-            onChange={e => setSelectedTag(e.target.value)}
-            className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
-          >
-            <option value="">Tags</option>
-            {allTags.map(tag => (
-              <option key={tag} value={tag}>{tag}</option>
-            ))}
-          </select>
-
-          {/* Filtro por Status (Pills) */}
-          <div className="flex flex-wrap items-center gap-1.5 border border-slate-800/60 bg-slate-950/40 px-3 py-1.5 rounded-xl">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1">Status:</span>
+        {/* Linha Secundária: Filtro de Status (Pills) */}
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-800/40 pt-3">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1">Status:</span>
+          <div className="flex flex-wrap gap-1.5">
             {allStatuses.map(status => {
               const isActive = selectedStatus.includes(status);
               return (
@@ -142,33 +174,6 @@ export default function DemandTable({ demands, onSelectDemand }) {
               );
             })}
           </div>
-
-          {/* Ordenação */}
-          <select
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-            className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
-          >
-            <option value="updated-desc">Última Sync (Recente)</option>
-            <option value="updated-asc">Última Sync (Antigo)</option>
-            <option value="title-asc">Título (A-Z)</option>
-            <option value="title-desc">Título (Z-A)</option>
-            <option value="id-asc">ID (Crescente)</option>
-            <option value="id-desc">ID (Decrescente)</option>
-            <option value="status-asc">Status (A-Z)</option>
-            <option value="status-desc">Status (Z-A)</option>
-          </select>
-
-          {/* Limpar Filtros */}
-          {(search || originFilter !== 'All' || selectedTag || selectedStatus.length > 0 || sortBy !== 'updated-desc') && (
-            <button
-              onClick={() => { setSearch(''); setOriginFilter('All'); setSelectedTag(''); setSelectedStatus([]); setSortBy('updated-desc'); }}
-              className="p-2 text-slate-400 hover:text-white bg-slate-900 rounded-xl transition-colors"
-              title="Limpar filtros"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
         </div>
       </div>
 
