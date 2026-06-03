@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import MetricCards from './components/MetricCards';
 import DemandTable from './components/DemandTable';
 import DemandDrawer from './components/DemandDrawer';
+import ManagerSyncView from './components/ManagerSyncView';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -191,6 +192,8 @@ export default function App() {
               </div>
             </div>
           </div>
+        ) : activeTab === 'one-on-one' ? (
+          <ManagerSyncView demands={demands} onSelectDemand={handleSelectDemand} />
         ) : (
           <div className="flex-1 overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full space-y-6">
             <div>

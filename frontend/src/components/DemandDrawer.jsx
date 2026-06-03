@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, RefreshCw, Clock, Tag, Pencil, Plus, History, ExternalLink } from 'lucide-react';
+import { X, RefreshCw, Clock, Tag, Pencil, Plus, History, ExternalLink, Calendar } from 'lucide-react';
 
 export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDemands }) {
   const [demand, setDemand] = useState(null);
@@ -82,6 +82,23 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleUpdateManagementField = async (field, value) => {
+    setDemand(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    try {
+      await fetch(`/api/demands/${demandId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value || null })
+      });
+      onRefreshDemands();
+    } catch (e) {
+      console.error("Erro ao atualizar campo de gestão:", e);
     }
   };
 
@@ -221,6 +238,46 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
                     className="bg-slate-950 border border-slate-800/80 hover:border-slate-700 text-xs text-slate-300 placeholder-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:border-brand-500 w-24 transition-colors"
                   />
                 </form>
+              </div>
+            </div>
+
+            <hr className="border-slate-800" />
+
+            {/* Controle de Prazos e Cobrança */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                <Calendar className="w-4 h-4" /> Controle de Prazos e Cobrança
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-medium">Promessa de Entrega</label>
+                  <input
+                    type="date"
+                    value={demand.promisedDate || ''}
+                    onChange={e => handleUpdateManagementField('promisedDate', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-medium">Agendar Próxima Cobrança</label>
+                  <input
+                    type="date"
+                    value={demand.followUpDate || ''}
+                    onChange={e => handleUpdateManagementField('followUpDate', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-medium">Resumo para a Gestora (One-on-One)</label>
+                <textarea
+                  placeholder="Pontos críticos, alinhamentos informais ou notas para a reunião de status..."
+                  rows="2"
+                  value={demand.managerNotes || ''}
+                  onChange={e => handleUpdateManagementField('managerNotes', e.target.value)}
+                  className="w-full bg-yellow-500/5 border border-yellow-500/20 hover:border-yellow-500/30 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-yellow-500/50 transition-colors resize-none"
+                />
               </div>
             </div>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Grid, ListTodo, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, lastSyncStatus }) {
   return (
@@ -38,6 +38,17 @@ export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, la
         >
           <ListTodo className="w-5 h-5" />
           Demandas
+        </button>
+        <button
+          onClick={() => setActiveTab('one-on-one')}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+            activeTab === 'one-on-one'
+              ? 'bg-slate-900 text-white border-l-4 border-brand-500 shadow-sm'
+              : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+          }`}
+        >
+          <Target className="w-5 h-5" />
+          Modo One-on-One
         </button>
       </nav>
 
