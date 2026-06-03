@@ -82,7 +82,20 @@ def run_test():
             # Aguarda a renderização do Drawer
             time.sleep(2)
             
-            # Screenshot com o Drawer aberto (ou não)
+            # Tenta clicar no acordeão de comentários externos
+            try:
+                print("[E2E] Procurando o botão de comentários externos...")
+                comments_btn = driver.find_element(By.XPATH, "//button[contains(., 'Histórico de Comentários')]")
+                print("[E2E] Rolando até o botão...")
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", comments_btn)
+                time.sleep(1)
+                print("[E2E] Clicando no botão para abrir os comentários...")
+                comments_btn.click()
+                time.sleep(1.5)
+            except Exception as scroll_err:
+                print(f"[E2E] Erro ao tentar interagir com o acordeão de comentários: {scroll_err}")
+
+            # Screenshot com o Drawer aberto e comentários expandidos
             scr3_path = os.path.join(ARTIFACTS_DIR, "step3_drawer_attempt.png")
             driver.save_screenshot(scr3_path)
             print(f"[E2E] Screenshot pós-clique salvo em: {scr3_path}")

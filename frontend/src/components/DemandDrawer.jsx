@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, RefreshCw, Clock, Tag, Pencil, Plus, History, ExternalLink, Calendar } from 'lucide-react';
+import { X, RefreshCw, Clock, Tag, Pencil, Plus, History, ExternalLink, Calendar, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDemands }) {
   const [demand, setDemand] = useState(null);
   const [note, setNote] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showExternalComments, setShowExternalComments] = useState(false);
 
   useEffect(() => {
     if (isOpen && demandId) {
       loadDemandDetail();
+      setShowExternalComments(false);
     } else {
       setDemand(null);
+      setShowExternalComments(false);
     }
   }, [demandId, isOpen]);
 
@@ -306,6 +309,44 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
                   </button>
                 </div>
               </form>
+            </div>
+
+            <hr className="border-slate-800" />
+
+            {/* Histórico de Comentários Externos (Jira/Azure) */}
+            <div className="space-y-3">
+              <button
+                type="button"
+                disabled={!demand.comments_history}
+                onClick={() => setShowExternalComments(!showExternalComments)}
+                className={`w-full flex items-center justify-between text-sm font-semibold transition-colors ${
+                  demand.comments_history
+                    ? 'text-slate-300 hover:text-white'
+                    : 'text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-indigo-400" />
+                  Histórico de Comentários Externos ({demand.origin})
+                </span>
+                {demand.comments_history ? (
+                  showExternalComments ? (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  )
+                ) : (
+                  <span className="text-[10px] bg-slate-900 text-slate-600 px-2 py-0.5 rounded-full font-medium">Sem comentários</span>
+                )}
+              </button>
+              
+              {demand.comments_history && showExternalComments && (
+                <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-xl max-h-64 overflow-y-auto custom-scrollbar">
+                  <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+                    {demand.comments_history}
+                  </p>
+                </div>
+              )}
             </div>
 
             <hr className="border-slate-800" />

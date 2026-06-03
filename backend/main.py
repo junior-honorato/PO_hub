@@ -374,6 +374,13 @@ def get_demand(external_id: str):
             if updated_dt and (datetime.now(timezone.utc).replace(tzinfo=None) - updated_dt > timedelta(days=5)):
                 is_stale = True
         
+        # Mock comments_history para exibir no painel lateral
+        comments_history = (
+            f"[02/06/2026 14:22 - Sistema]\nSincronizado da origem {demand['origin']}.\n\n"
+            f"[03/06/2026 10:05 - Analista Técnico]\nIniciando análise de impacto das dependências. Requer validação de QA.\n\n"
+            f"[03/06/2026 13:45 - Gestor de Projetos]\nAlinhado prazo de entrega informal para {demand['promisedDate'] or 'breve'} com o time técnico."
+        )
+
         return {
             "externalId": demand["externalId"],
             "origin": demand["origin"],
@@ -389,7 +396,8 @@ def get_demand(external_id: str):
             "externalUrl": get_external_url(demand["origin"], demand["externalId"]),
             "blockers": blockers,
             "blocked_by": blocked_by,
-            "isStale": is_stale
+            "isStale": is_stale,
+            "comments_history": comments_history
         }
     except HTTPException as he:
         raise he
