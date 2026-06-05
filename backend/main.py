@@ -280,44 +280,48 @@ def sync_demands():
                                     
                                 item_id = item.get("id")
                                 
-                                # Extrai e formata o histórico de comentários do Azure DevOps de forma isolada
+                                # Extrai e formata o histórico de comentários do Azure DevOps da linha do tempo/updates
                                 if item_id:
                                     try:
-                                        comments_url = f"{azure_url}/_apis/wit/workitems/{item_id}/comments?api-version=6.0-preview.3"
-                                        comments_res = requests.get(comments_url, headers=headers, verify=VERIFY_SSL, timeout=5)
-                                        if comments_res.status_code == 200:
-                                            comments_json = comments_res.json() or {}
-                                            c_items = comments_json.get("comments") or comments_json.get("value") or []
+                                        updates_url = f"{azure_url}/_apis/wit/workitems/{item_id}/updates?api-version=6.0"
+                                        updates_res = requests.get(updates_url, headers=headers, verify=VERIFY_SSL, timeout=5)
+                                        if updates_res.status_code == 200:
+                                            updates = updates_res.json().get("value", [])
                                             c_list = []
-                                            for c in c_items:
-                                                if not isinstance(c, dict):
-                                                    continue
-                                                created_by = c.get("createdBy")
-                                                author = "Usuário"
-                                                if isinstance(created_by, dict):
-                                                    author = created_by.get("displayName") or "Usuário"
-                                                
-                                                created_date = c.get("createdDate") or ""
-                                                date_formatted = format_comment_date(created_date)
-                                                
-                                                text = c.get("text") or ""
-                                                import re
-                                                text_clean = re.sub('<[^<]+?>', '', text).strip()
-                                                if text_clean:
-                                                    c_list.append(f"[{date_formatted} - {author}]\n{text_clean}")
-                                            if c_list:
-                                                comments_history = "\n\n".join(c_list)
-                                    except Exception as comments_err:
-                                        print(f"Erro ao buscar comentários do item {item_id}: {comments_err}")
-                                
-                                # Fallback para System.History no fields
-                                if not comments_history:
-                                    history_val = fields.get("System.History")
-                                    if history_val:
-                                        import re
-                                        history_clean = re.sub('<[^<]+?>', '', str(history_val)).strip()
-                                        if history_clean:
-                                            comments_history = f"[Sistema]\n{history_clean}"
+                                            for u in updates:
+                                                if isinstance(u, dict):
+                                                    u_fields = u.get("fields", {})
+                                                    if isinstance(u_fields, dict):
+                                                        hist_obj = u_fields.get("System.History")
+                                                        if isinstance(hist_obj, dict) and "newValue" in hist_obj:
+                                                            raw_text = hist_obj["newValue"]
+                                                            import re
+                                                            clean_text = re.sub('<[^<]+?>', '', str(raw_text)).strip()
+                                                            if clean_text:
+                                                                # Extrai o Autor
+                                                                changed_by = u_fields.get("System.ChangedBy")
+                                                                changed_by_val = None
+                                                                if isinstance(changed_by, dict):
+                                                                    changed_by_val = changed_by.get("newValue")
+                                                                
+                                                                autor = "Usuário"
+                                                                if isinstance(changed_by_val, dict):
+                                                                    autor = changed_by_val.get("displayName") or "Usuário"
+                                                                elif isinstance(changed_by_val, str):
+                                                                    autor = changed_by_val
+                                                                
+                                                                # Extrai a Data
+                                                                changed_date = u_fields.get("System.ChangedDate")
+                                                                changed_date_val = ""
+                                                                if isinstance(changed_date, dict):
+                                                                    changed_date_val = changed_date.get("newValue", "")
+                                                                data_formatada = format_comment_date(changed_date_val)
+                                                                
+                                                                c_list.append(f"[{data_formatada} - {autor}]\n{clean_text}")
+                                            
+                                            comments_history = "\n\n".join(c_list) if c_list else None
+                                    except Exception:
+                                        pass
                                     
                                 azure_fetched.append({
                                     "origin": "Azure",

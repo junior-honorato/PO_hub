@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, X, Inbox, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Search, X, Inbox, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function DemandTable({ demands, onSelectDemand }) {
   const [search, setSearch] = useState('');
@@ -7,6 +7,8 @@ export default function DemandTable({ demands, onSelectDemand }) {
   const [selectedTag, setSelectedTag] = useState('');
   const [selectedStatus, setSelectedStatus] = useState([]);
   const [sortBy, setSortBy] = useState('updated-desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Extrai todas as tags únicas
   const allTags = Array.from(new Set(demands.flatMap(d => d.tags)));
@@ -21,6 +23,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
     } else if (field === 'status') {
       setSortBy(sortBy === 'status-asc' ? 'status-desc' : 'status-asc');
     }
+    setCurrentPage(1);
   };
 
   const renderSortIcon = (field) => {
@@ -74,6 +77,41 @@ export default function DemandTable({ demands, onSelectDemand }) {
     return 0;
   });
 
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleOriginFilterChange = (e) => {
+    setOriginFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleTagFilterChange = (e) => {
+    setSelectedTag(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleSortByChange = (e) => {
+    setSortBy(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setOriginFilter('All');
+    setSelectedTag('');
+    setSelectedStatus([]);
+    setSortBy('updated-desc');
+    setCurrentPage(1);
+  };
+
+  const totalPages = Math.ceil(sortedDemands.length / itemsPerPage);
+  const activePage = Math.min(Math.max(currentPage, 1), Math.max(totalPages, 1));
+  const startIndex = (activePage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedDemands = sortedDemands.slice(startIndex, endIndex);
+
   return (
     <div className="space-y-4">
       {/* Barra de Filtros */}
@@ -88,7 +126,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
               type="text"
               placeholder="Buscar por título ou ID..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full bg-slate-950 border border-slate-800/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
             />
           </div>
@@ -97,7 +135,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
             {/* Filtro por Origem */}
             <select
               value={originFilter}
-              onChange={e => setOriginFilter(e.target.value)}
+              onChange={handleOriginFilterChange}
               className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
             >
               <option value="All">Origem</option>
@@ -108,7 +146,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
             {/* Filtro por Tags */}
             <select
               value={selectedTag}
-              onChange={e => setSelectedTag(e.target.value)}
+              onChange={handleTagFilterChange}
               className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
             >
               <option value="">Tags</option>
@@ -120,7 +158,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
             {/* Ordenação */}
             <select
               value={sortBy}
-              onChange={e => setSortBy(e.target.value)}
+              onChange={handleSortByChange}
               className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
             >
               <option value="updated-desc">Última Sync (Recente)</option>
@@ -136,7 +174,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
             {/* Limpar Filtros */}
             {(search || originFilter !== 'All' || selectedTag || selectedStatus.length > 0 || sortBy !== 'updated-desc') && (
               <button
-                onClick={() => { setSearch(''); setOriginFilter('All'); setSelectedTag(''); setSelectedStatus([]); setSortBy('updated-desc'); }}
+                onClick={handleClearFilters}
                 className="p-2 text-slate-400 hover:text-white bg-slate-900 rounded-xl transition-colors"
                 title="Limpar filtros"
               >
@@ -162,6 +200,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
                     } else {
                       setSelectedStatus([...selectedStatus, status]);
                     }
+                    setCurrentPage(1);
                   }}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
                     isActive
@@ -215,8 +254,8 @@ export default function DemandTable({ demands, onSelectDemand }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-sm text-slate-300">
-              {sortedDemands.length > 0 ? (
-                sortedDemands.map(demand => (
+              {paginatedDemands.length > 0 ? (
+                paginatedDemands.map(demand => (
                   <tr
                     key={demand.externalId}
                     onClick={() => onSelectDemand(demand.externalId)}
@@ -280,6 +319,67 @@ export default function DemandTable({ demands, onSelectDemand }) {
             </tbody>
           </table>
         </div>
+
+        {/* Paginação */}
+        {sortedDemands.length > 0 && (
+          <div className="px-6 py-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 select-none bg-slate-900/10">
+            <div>
+              Exibindo <span className="font-semibold text-slate-200">{Math.min(startIndex + 1, sortedDemands.length)}</span> a{' '}
+              <span className="font-semibold text-slate-200">{Math.min(endIndex, sortedDemands.length)}</span> de{' '}
+              <span className="font-semibold text-slate-200">{sortedDemands.length}</span> demandas
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={activePage === 1}
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                className="p-1.5 rounded-lg border border-slate-800/80 bg-slate-950 text-slate-400 hover:text-white hover:border-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                  const isNear = Math.abs(page - activePage) <= 1;
+                  const isFirstOrLast = page === 1 || page === totalPages;
+                  
+                  if (!isNear && !isFirstOrLast) {
+                    if (page === 2 || page === totalPages - 1) {
+                      return <span key={`ell-${page}`} className="px-1.5 text-slate-600">...</span>;
+                    }
+                    return null;
+                  }
+                  
+                  const isCurrent = page === activePage;
+                  return (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`min-w-8 h-8 px-2.5 rounded-lg text-xs font-semibold border transition-all ${
+                        isCurrent
+                          ? 'bg-brand-500/20 text-brand-400 border-brand-500/40'
+                          : 'bg-slate-950/40 text-slate-400 border-slate-800/80 hover:text-slate-300 hover:bg-slate-800/40'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <button
+                type="button"
+                disabled={activePage === totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                className="p-1.5 rounded-lg border border-slate-800/80 bg-slate-950 text-slate-400 hover:text-white hover:border-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-all"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
