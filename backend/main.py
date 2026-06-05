@@ -158,28 +158,45 @@ def sync_demands():
             if response.status_code == 200:
                 issues = response.json().get("issues", [])
                 for issue in issues:
-                    fields = issue.get("fields", {})
+                    # Explicitamente redefine/limpa a variável comments_history a cada iteração
+                    comments_history = None
+                    fields = issue.get("fields") or {}
                     
-                    # Extrai e formata o histórico de comentários do Jira
-                    comments_data = fields.get("comment", {}).get("comments", [])
+                    # Extrai e formata o histórico de comentários do Jira de forma isolada
+                    comments_data = []
+                    comment_field = fields.get("comment")
+                    if isinstance(comment_field, dict):
+                        comments_data = comment_field.get("comments") or []
+                    
                     comments_list = []
                     for c in comments_data:
-                        author = c.get("author", {}).get("displayName", "Usuário")
-                        created = c.get("created", "")
+                        if not isinstance(c, dict):
+                            continue
+                        author = c.get("author")
+                        author_name = "Usuário"
+                        if isinstance(author, dict):
+                            author_name = author.get("displayName") or "Usuário"
+                        
+                        created = c.get("created") or ""
                         date_formatted = format_comment_date(created)
-                        body = c.get("body", "")
+                        
+                        body = c.get("body")
                         if isinstance(body, dict):
                             body_text = extract_adf_text(body).strip()
                         else:
-                            body_text = str(body).strip()
-                        comments_list.append(f"[{date_formatted} - {author}]\n{body_text}")
-                    comments_history = "\n\n".join(comments_list) if comments_list else None
+                            body_text = str(body or "").strip()
+                        
+                        if body_text:
+                            comments_list.append(f"[{date_formatted} - {author_name}]\n{body_text}")
+                            
+                    if comments_list:
+                        comments_history = "\n\n".join(comments_list)
                     
                     jira_fetched.append({
                         "origin": "Jira",
                         "externalId": issue.get("key") or f"JIRA-{issue.get('id')}",
                         "title": fields.get("summary", "Sem título"),
-                        "externalStatus": fields.get("status", {}).get("name", "Sem Status"),
+                        "externalStatus": fields.get("status", {}).get("name", "Sem Status") if isinstance(fields.get("status"), dict) else "Sem Status",
                         "comments_history": comments_history
                     })
                 sync_source["jira"] = "real"
@@ -246,7 +263,13 @@ def sync_demands():
                         if detail_response.status_code == 200:
                             value = detail_response.json().get("value", [])
                             for item in value:
-                                fields = item.get("fields", {})
+                                # Explicitamente redefine/limpa a variável comments_history a cada iteração
+                                comments_history = None
+                                
+                                if not isinstance(item, dict):
+                                    continue
+                                    
+                                fields = item.get("fields") or {}
                                 item_type = fields.get("System.WorkItemType", "")
                                 if item_type == "User Story":
                                     prefix = "US: "
@@ -255,33 +278,46 @@ def sync_demands():
                                 else:
                                     prefix = f"{item_type}: " if item_type else ""
                                     
-                                # Extrai e formata o histórico de comentários do Azure DevOps
-                                comments_history = None
-                                try:
-                                    item_id = item.get("id")
-                                    comments_url = f"{azure_url}/_apis/wit/workitems/{item_id}/comments?api-version=6.0-preview.3"
-                                    comments_res = requests.get(comments_url, headers=headers, verify=VERIFY_SSL, timeout=5)
-                                    if comments_res.status_code == 200:
-                                        c_items = comments_res.json().get("comments", []) or comments_res.json().get("value", [])
-                                        c_list = []
-                                        for c in c_items:
-                                            author = c.get("createdBy", {}).get("displayName", "Usuário")
-                                            created_date = c.get("createdDate", "")
-                                            date_formatted = format_comment_date(created_date)
-                                            text = c.get("text", "")
-                                            import re
-                                            text_clean = re.sub('<[^<]+?>', '', text).strip()
-                                            c_list.append(f"[{date_formatted} - {author}]\n{text_clean}")
-                                        if c_list:
-                                            comments_history = "\n\n".join(c_list)
-                                except Exception as comments_err:
-                                    print(f"Erro ao buscar comentários do item {item.get('id')}: {comments_err}")
+                                item_id = item.get("id")
+                                
+                                # Extrai e formata o histórico de comentários do Azure DevOps de forma isolada
+                                if item_id:
+                                    try:
+                                        comments_url = f"{azure_url}/_apis/wit/workitems/{item_id}/comments?api-version=6.0-preview.3"
+                                        comments_res = requests.get(comments_url, headers=headers, verify=VERIFY_SSL, timeout=5)
+                                        if comments_res.status_code == 200:
+                                            comments_json = comments_res.json() or {}
+                                            c_items = comments_json.get("comments") or comments_json.get("value") or []
+                                            c_list = []
+                                            for c in c_items:
+                                                if not isinstance(c, dict):
+                                                    continue
+                                                created_by = c.get("createdBy")
+                                                author = "Usuário"
+                                                if isinstance(created_by, dict):
+                                                    author = created_by.get("displayName") or "Usuário"
+                                                
+                                                created_date = c.get("createdDate") or ""
+                                                date_formatted = format_comment_date(created_date)
+                                                
+                                                text = c.get("text") or ""
+                                                import re
+                                                text_clean = re.sub('<[^<]+?>', '', text).strip()
+                                                if text_clean:
+                                                    c_list.append(f"[{date_formatted} - {author}]\n{text_clean}")
+                                            if c_list:
+                                                comments_history = "\n\n".join(c_list)
+                                    except Exception as comments_err:
+                                        print(f"Erro ao buscar comentários do item {item_id}: {comments_err}")
                                 
                                 # Fallback para System.History no fields
-                                if not comments_history and fields.get("System.History"):
-                                    import re
-                                    history_clean = re.sub('<[^<]+?>', '', fields.get("System.History")).strip()
-                                    comments_history = f"[Sistema]\n{history_clean}"
+                                if not comments_history:
+                                    history_val = fields.get("System.History")
+                                    if history_val:
+                                        import re
+                                        history_clean = re.sub('<[^<]+?>', '', str(history_val)).strip()
+                                        if history_clean:
+                                            comments_history = f"[Sistema]\n{history_clean}"
                                     
                                 azure_fetched.append({
                                     "origin": "Azure",
