@@ -80,9 +80,14 @@ Como a sua máquina já possui um ambiente virtual Python (`venv`) com todas as 
 
 ---
 
-## 🛢️ Arquitetura de Dados (SQLite Schema)
+## 🛢️ Arquitetura de Dados (SQLite Schema - Dois Bancos)
 
-O banco de dados é gravado em `po-hub/backend/database.db` e contém três tabelas principais estruturadas com integridade referencial (`ON DELETE CASCADE`):
+O PO Hub implementa a arquitetura de **Dois Bancos** para separar demandas ativas e históricas, tornando a listagem e a sincronização altamente escaláveis e eficientes. Os dados são estruturados nas mesmas tabelas (com integridade referencial `ON DELETE CASCADE`) em dois arquivos SQLite independentes:
+
+- **`database_ativo.db`**: Armazena itens em aberto ou em andamento (status como "Em Aberto", "Em Progresso", "Desenvolvimento", "Doing", "To Do").
+- **`database_historico.db`**: Funciona como um arquivo imutável para demandas finalizadas (status como "Concluído", "Done", "Resolved", "Closed", "Improcedente", "Cancelado").
+
+As tabelas de ambos os bancos seguem a seguinte estrutura:
 
 ### 1. `demands`
 Armazena as demandas mapeadas e sincronizadas das APIs externas.
@@ -125,6 +130,7 @@ Armazena tags customizadas vinculadas a cada demanda para agrupamento/filtragem 
 8. **Painel de Detalhes (Slide-over):** Clicar em qualquer linha da tabela abre um painel lateral dinâmico de detalhes (Drawer).
 9. **Gerenciador de Tags e Timeline Cronológica:** Adicione/remova tags dinamicamente e visualize anotações em uma linha do tempo vertical decrescente.
 10. **Mapa do Roadmap (Grafo de Dependências):** Uma visão gráfica e interativa baseada em `React Flow` que mapeia duas dimensões de relacionamentos: Hierarquias (linhas sólidas cinzas) e Bloqueios (linhas tracejadas vermelhas e animadas). Conta com layout automático inteligente pelo `Dagre` nas orientações vertical (árvore) ou horizontal, e interage com o Drawer lateral ao clicar nos cartões (nós).
+11. **Visão Escalável Sem Poluição (Dois Bancos):** Sincronização inteligente onde as APIs trazem apenas itens ativos, otimizando o tráfego de rede. Os itens concluídos ou cancelados são migrados atomicamente para a base de histórico (`database_historico.db`) preservando anotações, tags e dependências locais, deixando o banco ativo (`database_ativo.db`) e o endpoint `/api/demands` limpos para a produtividade do dia a dia, enquanto consultas ao histórico permanecem isoladas em `/api/demands/history`.
 
 ---
 
