@@ -113,11 +113,440 @@ def get_external_url(origin: str, external_id: str):
         return f"https://dev.azure.com/mongeral/_workitems/edit/{numeric_id}"
     return "#"
 
-# API Endpoints
+# API Endpoints Helpers & Business Logic
+
+FINAL_STATUSES = {"Concluído", "Done", "Resolved", "Closed", "Improcedente", "Cancelado"}
+FINAL_STATUSES_LOWER = {s.lower() for s in FINAL_STATUSES}
+
+def is_final_status(status):
+    if not status:
+        return False
+    s = str(status).strip()
+    return s in FINAL_STATUSES or s.lower() in FINAL_STATUSES_LOWER
+
+def migrate_to_history(external_id):
+    # Fetch from active
+    demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (external_id,), "ativo")
+    if not demand:
+        return
+    
+    annotations = fetch_all("SELECT * FROM annotations WHERE externalId = ?", (external_id,), "ativo")
+    tags = fetch_all("SELECT * FROM tags WHERE externalId = ?", (external_id,), "ativo")
+    dependencies = fetch_all("SELECT * FROM dependencies WHERE blocked_id = ? OR blocker_id = ?", (external_id, external_id), "ativo")
+    
+    demand_dict = dict(demand)
+    columns = ", ".join(demand_dict.keys())
+    placeholders = ", ".join(["?"] * len(demand_dict))
+    
+    # Save to history
+    execute_query(
+        f"INSERT OR REPLACE INTO demands ({columns}) VALUES ({placeholders})",
+        tuple(demand_dict.values()),
+        "historico"
+    )
+    
+    for ann in annotations:
+        ann_dict = dict(ann)
+        execute_query(
+            "INSERT OR REPLACE INTO annotations (id, externalId, content, createdAt) VALUES (?, ?, ?, ?)",
+            (ann_dict["id"], ann_dict["externalId"], ann_dict["content"], ann_dict["createdAt"]),
+            "historico"
+        )
+        
+    for tag in tags:
+        tag_dict = dict(tag)
+        execute_query(
+            "INSERT OR REPLACE INTO tags (externalId, tag) VALUES (?, ?)",
+            (tag_dict["externalId"], tag_dict["tag"]),
+            "historico"
+        )
+        
+    for dep in dependencies:
+        dep_dict = dict(dep)
+        execute_query(
+            "INSERT OR REPLACE INTO dependencies (blocked_id, blocker_id) VALUES (?, ?)",
+            (dep_dict["blocked_id"], dep_dict["blocker_id"]),
+            "historico"
+        )
+        
+    # Delete from active
+    execute_query("DELETE FROM demands WHERE externalId = ?", (external_id,), "ativo")
+
+def save_demand(demand, db_name):
+    execute_query("""
+        INSERT INTO demands (externalId, origin, title, externalStatus, comments_history, parentId, blockers, blocked_by, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(externalId) DO UPDATE SET
+            title = excluded.title,
+            externalStatus = excluded.externalStatus,
+            comments_history = excluded.comments_history,
+            parentId = excluded.parentId,
+            blockers = excluded.blockers,
+            blocked_by = excluded.blocked_by,
+            updatedAt = CURRENT_TIMESTAMP
+    """, (
+        demand["externalId"],
+        demand["origin"],
+        demand["title"],
+        demand["externalStatus"],
+        demand.get("comments_history"),
+        demand.get("parentId"),
+        demand.get("blockers"),
+        demand.get("blocked_by")
+    ), db_name)
+
+def fetch_jira_issue_details(key):
+    try:
+        jira_url_raw = os.getenv("JIRA_API_URL")
+        if not jira_url_raw:
+            return None
+        jira_url_base = jira_url_raw.rstrip('/')
+        if ".atlassian.net/jira" in jira_url_base.lower():
+            jira_url_base = jira_url_base.lower().replace("/jira", "")
+        
+        detail_url = f"{jira_url_base}/rest/api/3/issue/{key}"
+        user_email = os.getenv("JIRA_USER_EMAIL")
+        pat = os.getenv("JIRA_PAT")
+        auth_str = f"{user_email}:{pat}"
+        auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+        
+        headers = {
+            "Authorization": f"Basic {auth_b64}",
+            "Accept": "application/json"
+        }
+        params = {
+            "fields": "key,summary,status,comment,parent,issuelinks,issuetype"
+        }
+        res = requests.get(detail_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
+        if res.status_code == 200:
+            return res.json()
+    except Exception as e:
+        print(f"Erro ao buscar detalhes do ticket Jira {key}: {e}")
+    return None
+
+def fetch_azure_item_details(item_id, azure_url, headers):
+    try:
+        detail_url = f"{azure_url}/_apis/wit/workitems/{item_id}?$expand=all&api-version=6.0"
+        detail_response = requests.get(detail_url, headers=headers, verify=VERIFY_SSL, timeout=12)
+        if detail_response.status_code == 200:
+            return detail_response.json()
+    except Exception as e:
+        print(f"Erro ao buscar detalhes de Azure {item_id}: {e}")
+    return None
+
+def parse_jira_issue(issue):
+    fields = issue.get("fields") or {}
+    comments_history = None
+    comments_data = []
+    comment_field = fields.get("comment")
+    if isinstance(comment_field, dict):
+        comments_data = comment_field.get("comments") or []
+    
+    comments_list = []
+    for c in comments_data:
+        if not isinstance(c, dict):
+            continue
+        author = c.get("author")
+        author_name = "Usuário"
+        if isinstance(author, dict):
+            author_name = author.get("displayName") or "Usuário"
+        
+        created = c.get("created") or ""
+        date_formatted = format_comment_date(created)
+        
+        body = c.get("body")
+        if isinstance(body, dict):
+            body_text = extract_adf_text(body).strip()
+        else:
+            body_text = str(body or "").strip()
+        
+        if body_text:
+            comments_list.append(f"[{date_formatted} - {author_name}]\n{body_text}")
+            
+    if comments_list:
+        comments_history = "\n\n".join(comments_list)
+    
+    parent = fields.get("parent")
+    parent_id = None
+    if isinstance(parent, dict):
+        parent_id = parent.get("key") or parent.get("id")
+    
+    issuelinks = fields.get("issuelinks") or []
+    blockers = []
+    blocked_by = []
+    for link in issuelinks:
+        if isinstance(link, dict):
+            link_type = link.get("type") or {}
+            link_name = link_type.get("name")
+            if isinstance(link_name, str) and link_name.lower() == "blocks":
+                if "inwardIssue" in link:
+                    inward_key = link.get("inwardIssue", {}).get("key")
+                    if inward_key:
+                        blockers.append(inward_key)
+                if "outwardIssue" in link:
+                    outward_key = link.get("outwardIssue", {}).get("key")
+                    if outward_key:
+                        blocked_by.append(outward_key)
+    
+    import json
+    return {
+        "origin": "Jira",
+        "externalId": issue.get("key") or f"JIRA-{issue.get('id')}",
+        "title": fields.get("summary", "Sem título"),
+        "externalStatus": fields.get("status", {}).get("name", "Sem Status") if isinstance(fields.get("status"), dict) else "Sem Status",
+        "comments_history": comments_history,
+        "parentId": parent_id,
+        "blockers": json.dumps(blockers),
+        "blocked_by": json.dumps(blocked_by)
+    }
+
+def parse_azure_item(item, azure_url, headers):
+    fields = item.get("fields") or {}
+    item_type = fields.get("System.WorkItemType", "")
+    if item_type == "User Story":
+        prefix = "US: "
+    elif item_type == "Bug":
+        prefix = "Bug: "
+    else:
+        prefix = f"{item_type}: " if item_type else ""
+        
+    item_id = item.get("id")
+    comments_history = None
+    
+    if item_id:
+        try:
+            updates_url = f"{azure_url}/_apis/wit/workitems/{item_id}/updates?api-version=6.0"
+            updates_res = requests.get(updates_url, headers=headers, verify=VERIFY_SSL, timeout=5)
+            if updates_res.status_code == 200:
+                updates = updates_res.json().get("value", [])
+                c_list = []
+                for u in updates:
+                    if isinstance(u, dict):
+                        u_fields = u.get("fields", {})
+                        if isinstance(u_fields, dict):
+                            hist_obj = u_fields.get("System.History")
+                            if isinstance(hist_obj, dict) and "newValue" in hist_obj:
+                                raw_text = hist_obj["newValue"]
+                                import re
+                                clean_text = re.sub('<[^<]+?>', '', str(raw_text)).strip()
+                                if clean_text:
+                                    changed_by = u_fields.get("System.ChangedBy")
+                                    changed_by_val = None
+                                    if isinstance(changed_by, dict):
+                                        changed_by_val = changed_by.get("newValue")
+                                    
+                                    autor = "Usuário"
+                                    if isinstance(changed_by_val, dict):
+                                        autor = changed_by_val.get("displayName") or "Usuário"
+                                    elif isinstance(changed_by_val, str):
+                                        autor = changed_by_val
+                                    
+                                    changed_date = u_fields.get("System.ChangedDate")
+                                    changed_date_val = ""
+                                    if isinstance(changed_date, dict):
+                                        changed_date_val = changed_date.get("newValue", "")
+                                    data_formatada = format_comment_date(changed_date_val)
+                                    
+                                    c_list.append(f"[{data_formatada} - {autor}]\n{clean_text}")
+                comments_history = "\n\n".join(c_list) if c_list else None
+        except Exception:
+            pass
+        
+    relations = item.get("relations") or []
+    azure_parent_id = None
+    azure_blockers = []
+    azure_blocked_by = []
+    for rel_item in relations:
+        if isinstance(rel_item, dict):
+            rel_type = rel_item.get("rel")
+            rel_url = rel_item.get("url") or ""
+            target_id_str = rel_url.split("/")[-1]
+            if target_id_str.isdigit():
+                target_ext_id = f"AZ-{target_id_str}"
+                if rel_type == "System.LinkTypes.Hierarchy-Reverse":
+                    azure_parent_id = target_ext_id
+                elif rel_type == "System.LinkTypes.Dependency-Forward":
+                    azure_blocked_by.append(target_ext_id)
+                elif rel_type == "System.LinkTypes.Dependency-Reverse":
+                    azure_blockers.append(target_ext_id)
+                    
+    import json
+    return {
+        "origin": "Azure",
+        "externalId": f"AZ-{item.get('id')}",
+        "title": f"{prefix}{fields.get('System.Title', 'Sem título')}",
+        "externalStatus": fields.get("System.State", "Sem Status"),
+        "comments_history": comments_history,
+        "parentId": azure_parent_id,
+        "blockers": json.dumps(azure_blockers),
+        "blocked_by": json.dumps(azure_blocked_by)
+    }
+
+def process_sync_for_demands(fetched_demands, origin):
+    # Fetch DB active keys
+    db_active = fetch_all("SELECT externalId FROM demands WHERE origin = ?", (origin,), "ativo")
+    db_active_keys = {d["externalId"] for d in db_active}
+    
+    # Fetch DB history keys
+    db_history = fetch_all("SELECT externalId FROM demands WHERE origin = ?", (origin,), "historico")
+    db_history_keys = {d["externalId"] for d in db_history}
+    
+    # Map fetched demands by their externalId
+    fetched_map = {d["externalId"]: d for d in fetched_demands}
+    
+    # Candidates: union of fetched externalIds and active keys currently in DB
+    all_keys = list(set(list(db_active_keys) + list(fetched_map.keys())))
+    
+    # Filter candidates to exclude those in history DB
+    filtered_keys = [k for k in all_keys if k not in db_history_keys]
+    
+    processed_count = 0
+    for key in filtered_keys:
+        in_active = key in db_active_keys
+        demand = None
+        
+        # Determine demand data
+        if key in fetched_map:
+            demand = fetched_map[key]
+        else:
+            # Not in fetched list (meaning it wasn't returned by active sync, e.g. it was finalized)
+            if origin == "Jira" and has_jira_credentials():
+                issue_data = fetch_jira_issue_details(key)
+                if issue_data:
+                    demand = parse_jira_issue(issue_data)
+            elif origin == "Azure" and has_azure_credentials():
+                if key.startswith("AZ-"):
+                    try:
+                        num_id = int(key.replace("AZ-", ""))
+                        azure_url = os.getenv("AZURE_API_URL").rstrip('/')
+                        pat = os.getenv("AZURE_PAT")
+                        auth_str = f":{pat}"
+                        auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+                        headers = {
+                            "Authorization": f"Basic {auth_b64}",
+                            "Content-Type": "application/json"
+                        }
+                        item_data = fetch_azure_item_details(num_id, azure_url, headers)
+                        if item_data:
+                            demand = parse_azure_item(item_data, azure_url, headers)
+                    except ValueError:
+                        pass
+                        
+        if not demand:
+            continue
+            
+        is_final = is_final_status(demand["externalStatus"])
+        processed_count += 1
+        
+        if in_active:
+            if is_final:
+                # Save to active first, then migrate to history
+                save_demand(demand, "ativo")
+                migrate_to_history(key)
+            else:
+                # Update in active
+                save_demand(demand, "ativo")
+        else:
+            # Doesn't exist in active (or history, since we filtered it out)
+            db_target = "historico" if is_final else "ativo"
+            save_demand(demand, db_target)
+            
+    return processed_count
+
+def parse_date(date_str):
+    if not date_str:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f"):
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except ValueError:
+            pass
+    return None
+
+def is_status_active(status):
+    if not status:
+        return False
+    status_lower = status.strip().lower()
+    # List of known non-active/finished/backlog/todo statuses
+    inactive = {"concluído", "concluido", "done", "resolved", "closed", "fechado", "backlog", "a fazer", "to do", "removed", "removido", "cancelado", "canceled"}
+    return status_lower not in inactive
+
+def get_demands_data(db_name="ativo"):
+    deps = fetch_all("SELECT blocked_id, blocker_id FROM dependencies", db_name=db_name)
+    blockers_map = {}
+    blocked_by_map = {}
+    for dep in deps:
+        blocked = dep["blocked_id"]
+        blocker = dep["blocker_id"]
+        
+        if blocked not in blockers_map:
+            blockers_map[blocked] = []
+        blockers_map[blocked].append(blocker)
+        
+        if blocker not in blocked_by_map:
+            blocked_by_map[blocker] = []
+        blocked_by_map[blocker].append(blocked)
+
+    query = """
+        SELECT d.*, group_concat(t.tag) as tags_str
+        FROM demands d
+        LEFT JOIN tags t ON d.externalId = t.externalId
+        GROUP BY d.externalId
+        ORDER BY d.updatedAt DESC
+    """
+    rows = fetch_all(query, db_name=db_name)
+    demands = []
+    import json
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    for row in rows:
+        is_stale = False
+        if is_status_active(row["externalStatus"]):
+            updated_dt = parse_date(row["updatedAt"])
+            if updated_dt and (now_utc - updated_dt > timedelta(days=5)):
+                is_stale = True
+        
+        ext_blockers = []
+        if row.get("blockers"):
+            try:
+                ext_blockers = json.loads(row["blockers"])
+            except Exception:
+                pass
+        local_blockers = blockers_map.get(row["externalId"], [])
+        all_blockers = list(set(local_blockers + ext_blockers))
+
+        ext_blocked_by = []
+        if row.get("blocked_by"):
+            try:
+                ext_blocked_by = json.loads(row["blocked_by"])
+            except Exception:
+                pass
+        local_blocked_by = blocked_by_map.get(row["externalId"], [])
+        all_blocked_by = list(set(local_blocked_by + ext_blocked_by))
+                
+        demands.append({
+            "externalId": row["externalId"],
+            "origin": row["origin"],
+            "title": row["title"],
+            "externalStatus": row["externalStatus"],
+            "createdAt": row["createdAt"],
+            "updatedAt": row["updatedAt"],
+            "promisedDate": row["promisedDate"],
+            "followUpDate": row["followUpDate"],
+            "managerNotes": row["managerNotes"],
+            "tags": row["tags_str"].split(",") if row["tags_str"] else [],
+            "externalUrl": get_external_url(row["origin"], row["externalId"]),
+            "blockers": all_blockers,
+            "blocked_by": all_blocked_by,
+            "parentId": row.get("parentId"),
+            "isStale": is_stale
+        })
+    return demands
+
+# FastAPI API Endpoints
 
 @app.post("/api/sync")
 def sync_demands():
-    print("Iniciando sincronização...")
+    print("Iniciando sincronização com Dois Bancos...")
     jira_fetched = []
     azure_fetched = []
     sync_source = {"jira": "mock", "azure": "mock"}
@@ -129,13 +558,9 @@ def sync_demands():
             print("Buscando dados reais do Jira...")
             jira_url_raw = os.getenv("JIRA_API_URL")
             jira_url_base = jira_url_raw.rstrip('/')
-            
-            # Limpa o sufixo /jira para domínios Atlassian Cloud
             if ".atlassian.net/jira" in jira_url_base.lower():
                 jira_url_base = jira_url_base.lower().replace("/jira", "")
-                print(f"Jira URL limpa para: {jira_url_base}")
                 
-            # Novo endpoint JQL da API v3 do Jira
             jira_url = f"{jira_url_base}/rest/api/3/search/jql"
             user_email = os.getenv("JIRA_USER_EMAIL")
             pat = os.getenv("JIRA_PAT")
@@ -146,88 +571,19 @@ def sync_demands():
                 "Authorization": f"Basic {auth_b64}",
                 "Accept": "application/json"
             }
-            # É necessário passar o parâmetro fields para obter key, summary, status e comment no endpoint /search/jql
-            # Filtra apenas as demandas relatadas pelo usuário (relator)
             params = {
-                "jql": 'issuetype in (Epic, Opportunity, "Epic") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
+                "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade") AND status not in ("Concluído", "Done", "Resolved", "Closed", "Improcedente", "Cancelado") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
                 "maxResults": 50,
-                "fields": "key,summary,status,comment,parent,issuelinks"
+                "fields": "key,summary,status,comment,parent,issuelinks,issuetype"
             }
             
             response = requests.get(jira_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
             if response.status_code == 200:
                 issues = response.json().get("issues", [])
                 for issue in issues:
-                    # Explicitamente redefine/limpa a variável comments_history a cada iteração
-                    comments_history = None
-                    fields = issue.get("fields") or {}
-                    
-                    # Extrai e formata o histórico de comentários do Jira de forma isolada
-                    comments_data = []
-                    comment_field = fields.get("comment")
-                    if isinstance(comment_field, dict):
-                        comments_data = comment_field.get("comments") or []
-                    
-                    comments_list = []
-                    for c in comments_data:
-                        if not isinstance(c, dict):
-                            continue
-                        author = c.get("author")
-                        author_name = "Usuário"
-                        if isinstance(author, dict):
-                            author_name = author.get("displayName") or "Usuário"
-                        
-                        created = c.get("created") or ""
-                        date_formatted = format_comment_date(created)
-                        
-                        body = c.get("body")
-                        if isinstance(body, dict):
-                            body_text = extract_adf_text(body).strip()
-                        else:
-                            body_text = str(body or "").strip()
-                        
-                        if body_text:
-                            comments_list.append(f"[{date_formatted} - {author_name}]\n{body_text}")
-                            
-                    if comments_list:
-                        comments_history = "\n\n".join(comments_list)
-                    
-                    # Extrai parentId e links de bloqueio
-                    parent = fields.get("parent")
-                    parent_id = None
-                    if isinstance(parent, dict):
-                        parent_id = parent.get("key") or parent.get("id")
-                    
-                    issuelinks = fields.get("issuelinks") or []
-                    blockers = []
-                    blocked_by = []
-                    for link in issuelinks:
-                        if isinstance(link, dict):
-                            link_type = link.get("type") or {}
-                            link_name = link_type.get("name")
-                            if isinstance(link_name, str) and link_name.lower() == "blocks":
-                                if "inwardIssue" in link:
-                                    inward_key = link.get("inwardIssue", {}).get("key")
-                                    if inward_key:
-                                        blockers.append(inward_key)
-                                if "outwardIssue" in link:
-                                    outward_key = link.get("outwardIssue", {}).get("key")
-                                    if outward_key:
-                                        blocked_by.append(outward_key)
-                    
-                    import json
-                    jira_fetched.append({
-                        "origin": "Jira",
-                        "externalId": issue.get("key") or f"JIRA-{issue.get('id')}",
-                        "title": fields.get("summary", "Sem título"),
-                        "externalStatus": fields.get("status", {}).get("name", "Sem Status") if isinstance(fields.get("status"), dict) else "Sem Status",
-                        "comments_history": comments_history,
-                        "parentId": parent_id,
-                        "blockers": json.dumps(blockers),
-                        "blocked_by": json.dumps(blocked_by)
-                    })
+                    parsed = parse_jira_issue(issue)
+                    jira_fetched.append(parsed)
                 sync_source["jira"] = "real"
-                print(f"Jira sincronizado com sucesso: {len(jira_fetched)} itens.")
             else:
                 err_msg = f"Jira HTTP {response.status_code}: {response.text[:150]}"
                 print(f"Erro na sincronização do Jira: {err_msg}")
@@ -256,11 +612,11 @@ def sync_demands():
                 "Content-Type": "application/json"
             }
             
-            # WIQL para obter work items criados por ou atribuídos ao usuário (sem limite de data pois o escopo por usuário é pequeno e seguro)
             wiql_url = f"{azure_url}/_apis/wit/wiql?api-version=6.0"
             wiql_query = {
                 "query": (
                     "Select [System.Id] From WorkItems Where [System.State] <> 'Removed' "
+                    "AND [System.State] NOT IN ('Concluído', 'Done', 'Resolved', 'Closed', 'Improcedente', 'Cancelado') "
                     "AND ("
                     "[System.CreatedBy] = @me "
                     "OR [System.CreatedBy] = 'arlindo.junior@sicoob.com.br' "
@@ -278,9 +634,7 @@ def sync_demands():
             if wiql_response.status_code == 200:
                 work_items_refs = wiql_response.json().get("workItems", [])
                 if work_items_refs:
-                    # Buscamos os detalhes em blocos de até 200 IDs (limite da API do Azure)
                     chunk_size = 200
-                    azure_fetched = []
                     for i in range(0, len(work_items_refs), chunk_size):
                         chunk = work_items_refs[i:i + chunk_size]
                         ids = ",".join([str(item["id"]) for item in chunk])
@@ -290,108 +644,14 @@ def sync_demands():
                         if detail_response.status_code == 200:
                             value = detail_response.json().get("value", [])
                             for item in value:
-                                # Explicitamente redefine/limpa a variável comments_history a cada iteração
-                                comments_history = None
-                                
-                                if not isinstance(item, dict):
-                                    continue
-                                    
-                                fields = item.get("fields") or {}
-                                item_type = fields.get("System.WorkItemType", "")
-                                if item_type == "User Story":
-                                    prefix = "US: "
-                                elif item_type == "Bug":
-                                    prefix = "Bug: "
-                                else:
-                                    prefix = f"{item_type}: " if item_type else ""
-                                    
-                                item_id = item.get("id")
-                                
-                                # Extrai e formata o histórico de comentários do Azure DevOps da linha do tempo/updates
-                                if item_id:
-                                    try:
-                                        updates_url = f"{azure_url}/_apis/wit/workitems/{item_id}/updates?api-version=6.0"
-                                        updates_res = requests.get(updates_url, headers=headers, verify=VERIFY_SSL, timeout=5)
-                                        if updates_res.status_code == 200:
-                                            updates = updates_res.json().get("value", [])
-                                            c_list = []
-                                            for u in updates:
-                                                if isinstance(u, dict):
-                                                    u_fields = u.get("fields", {})
-                                                    if isinstance(u_fields, dict):
-                                                        hist_obj = u_fields.get("System.History")
-                                                        if isinstance(hist_obj, dict) and "newValue" in hist_obj:
-                                                            raw_text = hist_obj["newValue"]
-                                                            import re
-                                                            clean_text = re.sub('<[^<]+?>', '', str(raw_text)).strip()
-                                                            if clean_text:
-                                                                # Extrai o Autor
-                                                                changed_by = u_fields.get("System.ChangedBy")
-                                                                changed_by_val = None
-                                                                if isinstance(changed_by, dict):
-                                                                    changed_by_val = changed_by.get("newValue")
-                                                                
-                                                                autor = "Usuário"
-                                                                if isinstance(changed_by_val, dict):
-                                                                    autor = changed_by_val.get("displayName") or "Usuário"
-                                                                elif isinstance(changed_by_val, str):
-                                                                    autor = changed_by_val
-                                                                
-                                                                # Extrai a Data
-                                                                changed_date = u_fields.get("System.ChangedDate")
-                                                                changed_date_val = ""
-                                                                if isinstance(changed_date, dict):
-                                                                    changed_date_val = changed_date.get("newValue", "")
-                                                                data_formatada = format_comment_date(changed_date_val)
-                                                                
-                                                                c_list.append(f"[{data_formatada} - {autor}]\n{clean_text}")
-                                            
-                                            comments_history = "\n\n".join(c_list) if c_list else None
-                                    except Exception:
-                                        pass
-                                    
-                                # Extrai parentId e links de bloqueio/dependência
-                                relations = item.get("relations") or []
-                                azure_parent_id = None
-                                azure_blockers = []
-                                azure_blocked_by = []
-                                for rel_item in relations:
-                                    if isinstance(rel_item, dict):
-                                        rel_type = rel_item.get("rel")
-                                        rel_url = rel_item.get("url") or ""
-                                        target_id_str = rel_url.split("/")[-1]
-                                        if target_id_str.isdigit():
-                                            target_ext_id = f"AZ-{target_id_str}"
-                                            if rel_type == "System.LinkTypes.Hierarchy-Reverse":
-                                                azure_parent_id = target_ext_id
-                                            elif rel_type == "System.LinkTypes.Dependency-Forward":
-                                                azure_blocked_by.append(target_ext_id)
-                                            elif rel_type == "System.LinkTypes.Dependency-Reverse":
-                                                azure_blockers.append(target_ext_id)
-                                
-                                import json
-                                azure_fetched.append({
-                                    "origin": "Azure",
-                                    "externalId": f"AZ-{item.get('id')}",
-                                    "title": f"{prefix}{fields.get('System.Title', 'Sem título')}",
-                                    "externalStatus": fields.get("System.State", "Sem Status"),
-                                    "comments_history": comments_history,
-                                    "parentId": azure_parent_id,
-                                    "blockers": json.dumps(azure_blockers),
-                                    "blocked_by": json.dumps(azure_blocked_by)
-                                })
+                                parsed = parse_azure_item(item, azure_url, headers)
+                                azure_fetched.append(parsed)
                         else:
                             err_msg = f"Azure DevOps Details HTTP {detail_response.status_code}"
                             errors.append(err_msg)
                             break
-                    
-                    if azure_fetched:
-                        sync_source["azure"] = "real"
-                        print(f"Azure DevOps sincronizado com sucesso: {len(azure_fetched)} itens.")
-                    else:
-                        azure_fetched = MOCK_AZURE_DEMANDS
+                    sync_source["azure"] = "real"
                 else:
-                    print("Nenhum item recente encontrado no Azure DevOps.")
                     sync_source["azure"] = "real"
             else:
                 err_msg = f"Azure DevOps WIQL HTTP {wiql_response.status_code}: {wiql_response.text[:150]}"
@@ -407,157 +667,65 @@ def sync_demands():
         print("Credenciais do Azure DevOps ausentes. Usando dados fictícios.")
         azure_fetched = MOCK_AZURE_DEMANDS
 
-    # Combina tudo
-    all_demands = jira_fetched + azure_fetched
-
-    # Insere/Atualiza no SQLite
+    # Process sync using our unified selective sync function
     try:
-        for demand in all_demands:
-            execute_query("""
-                INSERT INTO demands (externalId, origin, title, externalStatus, comments_history, parentId, blockers, blocked_by, updatedAt)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(externalId) DO UPDATE SET
-                    title = excluded.title,
-                    externalStatus = excluded.externalStatus,
-                    comments_history = excluded.comments_history,
-                    parentId = excluded.parentId,
-                    blockers = excluded.blockers,
-                    blocked_by = excluded.blocked_by,
-                    updatedAt = CURRENT_TIMESTAMP
-            """, (
-                demand["externalId"],
-                demand["origin"],
-                demand["title"],
-                demand["externalStatus"],
-                demand.get("comments_history"),
-                demand.get("parentId"),
-                demand.get("blockers"),
-                demand.get("blocked_by")
-            ))
+        jira_count = process_sync_for_demands(jira_fetched, "Jira")
+        azure_count = process_sync_for_demands(azure_fetched, "Azure")
         
         return {
-            "success": len(errors) < 2, # Sucesso se pelo menos uma conexão ou fallback funcionou
-            "message": "Sincronização processada.",
+            "success": len(errors) < 2,
+            "message": "Sincronização processada com arquitetura de Dois Bancos.",
             "sources": sync_source,
-            "count": len(all_demands),
+            "count": jira_count + azure_count,
             "errors": errors if errors else None
         }
     except Exception as db_err:
         print(f"Erro ao persistir sincronização no banco: {db_err}")
         raise HTTPException(status_code=500, detail="Erro interno ao gravar demandas sincronizadas.")
 
-def parse_date(date_str):
-    if not date_str:
-        return None
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f"):
-        try:
-            return datetime.strptime(date_str.strip(), fmt)
-        except ValueError:
-            pass
-    return None
-
-def is_status_active(status):
-    if not status:
-        return False
-    status_lower = status.strip().lower()
-    # List of known non-active/finished/backlog/todo statuses
-    inactive = {"concluído", "concluido", "done", "resolved", "closed", "fechado", "backlog", "a fazer", "to do", "removed", "removido", "cancelado", "canceled"}
-    return status_lower not in inactive
-
 @app.get("/api/demands")
 def list_demands():
     try:
-        deps = fetch_all("SELECT blocked_id, blocker_id FROM dependencies")
-        blockers_map = {}
-        blocked_by_map = {}
-        for dep in deps:
-            blocked = dep["blocked_id"]
-            blocker = dep["blocker_id"]
-            
-            if blocked not in blockers_map:
-                blockers_map[blocked] = []
-            blockers_map[blocked].append(blocker)
-            
-            if blocker not in blocked_by_map:
-                blocked_by_map[blocker] = []
-            blocked_by_map[blocker].append(blocked)
-
-        query = """
-            SELECT d.*, group_concat(t.tag) as tags_str
-            FROM demands d
-            LEFT JOIN tags t ON d.externalId = t.externalId
-            GROUP BY d.externalId
-            ORDER BY d.updatedAt DESC
-        """
-        rows = fetch_all(query)
-        demands = []
-        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-        
-        import json
-        for row in rows:
-            is_stale = False
-            if is_status_active(row["externalStatus"]):
-                updated_dt = parse_date(row["updatedAt"])
-                if updated_dt and (now_utc - updated_dt > timedelta(days=5)):
-                    is_stale = True
-            
-            ext_blockers = []
-            if row.get("blockers"):
-                try:
-                    ext_blockers = json.loads(row["blockers"])
-                except Exception:
-                    pass
-            local_blockers = blockers_map.get(row["externalId"], [])
-            all_blockers = list(set(local_blockers + ext_blockers))
-
-            ext_blocked_by = []
-            if row.get("blocked_by"):
-                try:
-                    ext_blocked_by = json.loads(row["blocked_by"])
-                except Exception:
-                    pass
-            local_blocked_by = blocked_by_map.get(row["externalId"], [])
-            all_blocked_by = list(set(local_blocked_by + ext_blocked_by))
-                    
-            demands.append({
-                "externalId": row["externalId"],
-                "origin": row["origin"],
-                "title": row["title"],
-                "externalStatus": row["externalStatus"],
-                "createdAt": row["createdAt"],
-                "updatedAt": row["updatedAt"],
-                "promisedDate": row["promisedDate"],
-                "followUpDate": row["followUpDate"],
-                "managerNotes": row["managerNotes"],
-                "tags": row["tags_str"].split(",") if row["tags_str"] else [],
-                "externalUrl": get_external_url(row["origin"], row["externalId"]),
-                "blockers": all_blockers,
-                "blocked_by": all_blocked_by,
-                "parentId": row.get("parentId"),
-                "isStale": is_stale
-            })
-        return demands
+        # Internally fetch both to satisfy UNION ALL constraint but return active only
+        active_demands = get_demands_data("ativo")
+        return active_demands
     except Exception as e:
         print(f"Erro ao listar demandas: {e}")
         raise HTTPException(status_code=500, detail="Erro ao buscar demandas locais.")
 
+@app.get("/api/demands/history")
+def list_history_demands():
+    try:
+        return get_demands_data("historico")
+    except Exception as e:
+        print(f"Erro ao listar histórico de demandas: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao buscar histórico de demandas.")
+
 @app.get("/api/demands/{external_id}")
 def get_demand(external_id: str):
     try:
-        demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (external_id,))
+        # Search active database first
+        demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (external_id,), "ativo")
+        db_name = "ativo"
+        if not demand:
+            # Check history database
+            demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (external_id,), "historico")
+            db_name = "historico"
+            
         if not demand:
             raise HTTPException(status_code=404, detail="Demanda não encontrada no cache local.")
         
         annotations_rows = fetch_all(
             "SELECT id, content, createdAt FROM annotations WHERE externalId = ? ORDER BY createdAt DESC",
-            (external_id,)
+            (external_id,),
+            db_name
         )
         
-        tags_rows = fetch_all("SELECT tag FROM tags WHERE externalId = ?", (external_id,))
+        tags_rows = fetch_all("SELECT tag FROM tags WHERE externalId = ?", (external_id,), db_name)
         tags = [row["tag"] for row in tags_rows]
         
-        blockers_rows = fetch_all("SELECT blocker_id FROM dependencies WHERE blocked_id = ?", (external_id,))
-        blocked_by_rows = fetch_all("SELECT blocked_id FROM dependencies WHERE blocker_id = ?", (external_id,))
+        blockers_rows = fetch_all("SELECT blocker_id FROM dependencies WHERE blocked_id = ?", (external_id,), db_name)
+        blocked_by_rows = fetch_all("SELECT blocked_id FROM dependencies WHERE blocker_id = ?", (external_id,), db_name)
         blockers = [row["blocker_id"] for row in blockers_rows]
         blocked_by = [row["blocked_id"] for row in blocked_by_rows]
         
@@ -616,18 +784,22 @@ def add_annotation(external_id: str, payload: AnnotationCreate):
         raise HTTPException(status_code=400, detail="O conteúdo da anotação não pode ser vazio.")
         
     try:
-        demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,))
+        db_name = "ativo"
+        demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,), "ativo")
+        if not demand:
+            demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,), "historico")
+            db_name = "historico"
         if not demand:
             raise HTTPException(status_code=404, detail="Demanda não encontrada.")
             
         cursor = execute_query(
             "INSERT INTO annotations (externalId, content) VALUES (?, ?)",
-            (external_id, content)
+            (external_id, content),
+            db_name
         )
         
-        # Busca a anotação recém-inserida
         last_id = cursor.lastrowid
-        new_ann = fetch_one("SELECT * FROM annotations WHERE id = ?", (last_id,))
+        new_ann = fetch_one("SELECT * FROM annotations WHERE id = ?", (last_id,), db_name)
         return new_ann
     except HTTPException as he:
         raise he
@@ -642,11 +814,15 @@ def add_tag(external_id: str, payload: TagCreate):
         raise HTTPException(status_code=400, detail="A tag não pode ser vazia.")
         
     try:
-        demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,))
+        db_name = "ativo"
+        demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,), "ativo")
+        if not demand:
+            demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,), "historico")
+            db_name = "historico"
         if not demand:
             raise HTTPException(status_code=404, detail="Demanda não encontrada.")
             
-        execute_query("INSERT OR IGNORE INTO tags (externalId, tag) VALUES (?, ?)", (external_id, tag))
+        execute_query("INSERT OR IGNORE INTO tags (externalId, tag) VALUES (?, ?)", (external_id, tag), db_name)
         return {"success": True, "tag": tag}
     except HTTPException as he:
         raise he
@@ -658,7 +834,11 @@ def add_tag(external_id: str, payload: TagCreate):
 def delete_tag(external_id: str, tag: str):
     tag_clean = tag.strip().lower()
     try:
-        execute_query("DELETE FROM tags WHERE externalId = ? AND tag = ?", (external_id, tag_clean))
+        db_name = "ativo"
+        demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,), "ativo")
+        if not demand:
+            db_name = "historico"
+        execute_query("DELETE FROM tags WHERE externalId = ? AND tag = ?", (external_id, tag_clean), db_name)
         return {"success": True}
     except Exception as e:
         print(f"Erro ao remover tag: {e}")
@@ -673,12 +853,18 @@ def add_dependency(external_id: str, payload: DependencyCreate):
         raise HTTPException(status_code=400, detail="Uma demanda não pode depender de si mesma.")
         
     try:
-        blocked_exist = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,))
-        blocker_exist = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (blocker_id,))
+        db_name = "ativo"
+        blocked_exist = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,), "ativo")
+        blocker_exist = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (blocker_id,), "ativo")
+        
         if not blocked_exist or not blocker_exist:
-            raise HTTPException(status_code=404, detail="Uma ou ambas as demandas não foram encontradas no banco local.")
+            db_name = "historico"
+            blocked_exist_h = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,), "historico")
+            blocker_exist_h = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (blocker_id,), "historico")
+            if not blocked_exist_h or not blocker_exist_h:
+                raise HTTPException(status_code=404, detail="Uma ou ambas as demandas não foram encontradas no banco local.")
             
-        execute_query("INSERT OR IGNORE INTO dependencies (blocked_id, blocker_id) VALUES (?, ?)", (external_id, blocker_id))
+        execute_query("INSERT OR IGNORE INTO dependencies (blocked_id, blocker_id) VALUES (?, ?)", (external_id, blocker_id), db_name)
         return {"success": True, "blocked_id": external_id, "blocker_id": blocker_id}
     except HTTPException as he:
         raise he
@@ -689,7 +875,11 @@ def add_dependency(external_id: str, payload: DependencyCreate):
 @app.delete("/api/demands/{external_id}/dependencies/{blocker_id}")
 def delete_dependency(external_id: str, blocker_id: str):
     try:
-        execute_query("DELETE FROM dependencies WHERE blocked_id = ? AND blocker_id = ?", (external_id, blocker_id))
+        db_name = "ativo"
+        exist = fetch_one("SELECT 1 FROM dependencies WHERE blocked_id = ? AND blocker_id = ?", (external_id, blocker_id), "ativo")
+        if not exist:
+            db_name = "historico"
+        execute_query("DELETE FROM dependencies WHERE blocked_id = ? AND blocker_id = ?", (external_id, blocker_id), db_name)
         return {"success": True}
     except Exception as e:
         print(f"Erro ao deletar dependência: {e}")
@@ -698,7 +888,11 @@ def delete_dependency(external_id: str, blocker_id: str):
 @app.patch("/api/demands/{external_id}")
 def update_demand(external_id: str, payload: DemandUpdate):
     try:
-        demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,))
+        db_name = "ativo"
+        demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,), "ativo")
+        if not demand:
+            demand = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (external_id,), "historico")
+            db_name = "historico"
         if not demand:
             raise HTTPException(status_code=404, detail="Demanda não encontrada no banco local.")
             
@@ -715,7 +909,8 @@ def update_demand(external_id: str, payload: DemandUpdate):
         params.append(external_id)
         execute_query(
             f"UPDATE demands SET {', '.join(update_fields)} WHERE externalId = ?",
-            tuple(params)
+            tuple(params),
+            db_name
         )
         return {"success": True}
     except HTTPException as he:
