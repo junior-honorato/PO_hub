@@ -15,7 +15,7 @@ echo Aguardando 5 segundos para inicializacao das portas...
 timeout /t 5 /nobreak > nul
 
 echo [3/3] Abrindo o painel no navegador padrao...
-start http://localhost:5173
+start http://localhost:5000
 
 echo.
 echo ===================================================
