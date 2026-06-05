@@ -151,7 +151,7 @@ def sync_demands():
             params = {
                 "jql": 'issuetype in (Epic, Opportunity, "Epic") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
                 "maxResults": 50,
-                "fields": "key,summary,status,comment"
+                "fields": "key,summary,status,comment,parent,issuelinks"
             }
             
             response = requests.get(jira_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
@@ -192,12 +192,39 @@ def sync_demands():
                     if comments_list:
                         comments_history = "\n\n".join(comments_list)
                     
+                    # Extrai parentId e links de bloqueio
+                    parent = fields.get("parent")
+                    parent_id = None
+                    if isinstance(parent, dict):
+                        parent_id = parent.get("key") or parent.get("id")
+                    
+                    issuelinks = fields.get("issuelinks") or []
+                    blockers = []
+                    blocked_by = []
+                    for link in issuelinks:
+                        if isinstance(link, dict):
+                            link_type = link.get("type") or {}
+                            link_name = link_type.get("name")
+                            if isinstance(link_name, str) and link_name.lower() == "blocks":
+                                if "inwardIssue" in link:
+                                    inward_key = link.get("inwardIssue", {}).get("key")
+                                    if inward_key:
+                                        blockers.append(inward_key)
+                                if "outwardIssue" in link:
+                                    outward_key = link.get("outwardIssue", {}).get("key")
+                                    if outward_key:
+                                        blocked_by.append(outward_key)
+                    
+                    import json
                     jira_fetched.append({
                         "origin": "Jira",
                         "externalId": issue.get("key") or f"JIRA-{issue.get('id')}",
                         "title": fields.get("summary", "Sem título"),
                         "externalStatus": fields.get("status", {}).get("name", "Sem Status") if isinstance(fields.get("status"), dict) else "Sem Status",
-                        "comments_history": comments_history
+                        "comments_history": comments_history,
+                        "parentId": parent_id,
+                        "blockers": json.dumps(blockers),
+                        "blocked_by": json.dumps(blocked_by)
                     })
                 sync_source["jira"] = "real"
                 print(f"Jira sincronizado com sucesso: {len(jira_fetched)} itens.")
@@ -323,12 +350,35 @@ def sync_demands():
                                     except Exception:
                                         pass
                                     
+                                # Extrai parentId e links de bloqueio/dependência
+                                relations = item.get("relations") or []
+                                azure_parent_id = None
+                                azure_blockers = []
+                                azure_blocked_by = []
+                                for rel_item in relations:
+                                    if isinstance(rel_item, dict):
+                                        rel_type = rel_item.get("rel")
+                                        rel_url = rel_item.get("url") or ""
+                                        target_id_str = rel_url.split("/")[-1]
+                                        if target_id_str.isdigit():
+                                            target_ext_id = f"AZ-{target_id_str}"
+                                            if rel_type == "System.LinkTypes.Hierarchy-Reverse":
+                                                azure_parent_id = target_ext_id
+                                            elif rel_type == "System.LinkTypes.Dependency-Forward":
+                                                azure_blocked_by.append(target_ext_id)
+                                            elif rel_type == "System.LinkTypes.Dependency-Reverse":
+                                                azure_blockers.append(target_ext_id)
+                                
+                                import json
                                 azure_fetched.append({
                                     "origin": "Azure",
                                     "externalId": f"AZ-{item.get('id')}",
                                     "title": f"{prefix}{fields.get('System.Title', 'Sem título')}",
                                     "externalStatus": fields.get("System.State", "Sem Status"),
-                                    "comments_history": comments_history
+                                    "comments_history": comments_history,
+                                    "parentId": azure_parent_id,
+                                    "blockers": json.dumps(azure_blockers),
+                                    "blocked_by": json.dumps(azure_blocked_by)
                                 })
                         else:
                             err_msg = f"Azure DevOps Details HTTP {detail_response.status_code}"
@@ -364,14 +414,26 @@ def sync_demands():
     try:
         for demand in all_demands:
             execute_query("""
-                INSERT INTO demands (externalId, origin, title, externalStatus, comments_history, updatedAt)
-                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT INTO demands (externalId, origin, title, externalStatus, comments_history, parentId, blockers, blocked_by, updatedAt)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(externalId) DO UPDATE SET
                     title = excluded.title,
                     externalStatus = excluded.externalStatus,
                     comments_history = excluded.comments_history,
+                    parentId = excluded.parentId,
+                    blockers = excluded.blockers,
+                    blocked_by = excluded.blocked_by,
                     updatedAt = CURRENT_TIMESTAMP
-            """, (demand["externalId"], demand["origin"], demand["title"], demand["externalStatus"], demand.get("comments_history")))
+            """, (
+                demand["externalId"],
+                demand["origin"],
+                demand["title"],
+                demand["externalStatus"],
+                demand.get("comments_history"),
+                demand.get("parentId"),
+                demand.get("blockers"),
+                demand.get("blocked_by")
+            ))
         
         return {
             "success": len(errors) < 2, # Sucesso se pelo menos uma conexão ou fallback funcionou
@@ -431,12 +493,31 @@ def list_demands():
         demands = []
         now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         
+        import json
         for row in rows:
             is_stale = False
             if is_status_active(row["externalStatus"]):
                 updated_dt = parse_date(row["updatedAt"])
                 if updated_dt and (now_utc - updated_dt > timedelta(days=5)):
                     is_stale = True
+            
+            ext_blockers = []
+            if row.get("blockers"):
+                try:
+                    ext_blockers = json.loads(row["blockers"])
+                except Exception:
+                    pass
+            local_blockers = blockers_map.get(row["externalId"], [])
+            all_blockers = list(set(local_blockers + ext_blockers))
+
+            ext_blocked_by = []
+            if row.get("blocked_by"):
+                try:
+                    ext_blocked_by = json.loads(row["blocked_by"])
+                except Exception:
+                    pass
+            local_blocked_by = blocked_by_map.get(row["externalId"], [])
+            all_blocked_by = list(set(local_blocked_by + ext_blocked_by))
                     
             demands.append({
                 "externalId": row["externalId"],
@@ -450,8 +531,9 @@ def list_demands():
                 "managerNotes": row["managerNotes"],
                 "tags": row["tags_str"].split(",") if row["tags_str"] else [],
                 "externalUrl": get_external_url(row["origin"], row["externalId"]),
-                "blockers": blockers_map.get(row["externalId"], []),
-                "blocked_by": blocked_by_map.get(row["externalId"], []),
+                "blockers": all_blockers,
+                "blocked_by": all_blocked_by,
+                "parentId": row.get("parentId"),
                 "isStale": is_stale
             })
         return demands
@@ -476,9 +558,25 @@ def get_demand(external_id: str):
         
         blockers_rows = fetch_all("SELECT blocker_id FROM dependencies WHERE blocked_id = ?", (external_id,))
         blocked_by_rows = fetch_all("SELECT blocked_id FROM dependencies WHERE blocker_id = ?", (external_id,))
-        
         blockers = [row["blocker_id"] for row in blockers_rows]
         blocked_by = [row["blocked_id"] for row in blocked_by_rows]
+        
+        import json
+        ext_blockers = []
+        if demand.get("blockers"):
+            try:
+                ext_blockers = json.loads(demand["blockers"])
+            except Exception:
+                pass
+        all_blockers = list(set(blockers + ext_blockers))
+
+        ext_blocked_by = []
+        if demand.get("blocked_by"):
+            try:
+                ext_blocked_by = json.loads(demand["blocked_by"])
+            except Exception:
+                pass
+        all_blocked_by = list(set(blocked_by + ext_blocked_by))
         
         is_stale = False
         if is_status_active(demand["externalStatus"]):
@@ -499,8 +597,9 @@ def get_demand(external_id: str):
             "annotations": annotations_rows,
             "tags": tags,
             "externalUrl": get_external_url(demand["origin"], demand["externalId"]),
-            "blockers": blockers,
-            "blocked_by": blocked_by,
+            "blockers": all_blockers,
+            "blocked_by": all_blocked_by,
+            "parentId": demand.get("parentId"),
             "isStale": is_stale,
             "comments_history": demand["comments_history"]
         }

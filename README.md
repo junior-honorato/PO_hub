@@ -7,7 +7,7 @@ O **PO Hub** é uma aplicação web local focada em consolidar demandas provenie
 ## 🛠️ Stack Tecnológica
 
 - **Backend:** Python (FastAPI) com suporte alternativo em Node.js (Express) + SQLite para banco de dados local.
-- **Frontend:** React + Tailwind CSS + Lucide Icons.
+- **Frontend:** React + Tailwind CSS + Lucide Icons + React Flow + Dagre (para auto-layout do mapa de dependências).
   - *Desenvolvimento modular:* Estrutura pronta do Vite/React em `/frontend`.
   - *Execução instantânea (Zero Config):* Servida estaticamente pelo FastAPI em `/backend/static` a partir de uma compilação baseada em CDNs para rodar imediatamente sem necessidade do comando `npm`.
 
@@ -32,7 +32,8 @@ po-hub/
 │   │   │   ├── Sidebar.jsx
 │   │   │   ├── MetricCards.jsx
 │   │   │   ├── DemandTable.jsx
-│   │   │   └── DemandDrawer.jsx
+│   │   │   ├── DemandDrawer.jsx
+│   │   │   └── RoadmapGraphView.jsx
 │   │   ├── App.jsx
 │   │   ├── main.jsx
 │   │   └── index.css
@@ -90,6 +91,9 @@ Armazena as demandas mapeadas e sincronizadas das APIs externas.
 - `title` (TEXT) - Título da demanda.
 - `externalStatus` (TEXT) - Status oficial reportado pela API externa.
 - `updatedAt` (TEXT) - Data da última atualização local/sincronização.
+- `parentId` (TEXT) - ID da demanda pai na hierarquia (ex: Epic -> Feature -> Story).
+- `blockers` (TEXT) - Lista em formato JSON array de chaves/IDs de demandas que bloqueiam o item.
+- `blocked_by` (TEXT) - Lista em formato JSON array de chaves/IDs de demandas que são bloqueadas pelo item.
 
 ### 2. `annotations`
 Armazena anotações ricas locais vinculadas a cada demanda.
@@ -120,6 +124,7 @@ Armazena tags customizadas vinculadas a cada demanda para agrupamento/filtragem 
 7. **Links Diretos:** Ícones e botões nos detalhes da demanda direcionam o usuário com um clique diretamente ao ticket de origem correspondente no Jira ou Azure DevOps.
 8. **Painel de Detalhes (Slide-over):** Clicar em qualquer linha da tabela abre um painel lateral dinâmico de detalhes (Drawer).
 9. **Gerenciador de Tags e Timeline Cronológica:** Adicione/remova tags dinamicamente e visualize anotações em uma linha do tempo vertical decrescente.
+10. **Mapa do Roadmap (Grafo de Dependências):** Uma visão gráfica e interativa baseada em `React Flow` que mapeia duas dimensões de relacionamentos: Hierarquias (linhas sólidas cinzas) e Bloqueios (linhas tracejadas vermelhas e animadas). Conta com layout automático inteligente pelo `Dagre` nas orientações vertical (árvore) ou horizontal, e interage com o Drawer lateral ao clicar nos cartões (nós).
 
 ---
 

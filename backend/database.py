@@ -25,7 +25,10 @@ def init_db():
                 promisedDate TEXT,
                 followUpDate TEXT,
                 managerNotes TEXT,
-                comments_history TEXT
+                comments_history TEXT,
+                parentId TEXT,
+                blockers TEXT,
+                blocked_by TEXT
             )
         """)
 
@@ -41,6 +44,12 @@ def init_db():
             conn.execute("ALTER TABLE demands ADD COLUMN managerNotes TEXT")
         if "comments_history" not in columns:
             conn.execute("ALTER TABLE demands ADD COLUMN comments_history TEXT")
+        if "parentId" not in columns:
+            conn.execute("ALTER TABLE demands ADD COLUMN parentId TEXT")
+        if "blockers" not in columns:
+            conn.execute("ALTER TABLE demands ADD COLUMN blockers TEXT")
+        if "blocked_by" not in columns:
+            conn.execute("ALTER TABLE demands ADD COLUMN blocked_by TEXT")
 
         # Tabela Annotations (Apontamentos/Histórico local)
         conn.execute("""

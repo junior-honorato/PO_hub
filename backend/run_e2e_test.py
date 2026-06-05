@@ -6,9 +6,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-
-ARTIFACTS_DIR = "C:/Users/arlindo.junior/.gemini/antigravity/brain/8a7f6cfd-dbe9-44ff-a0b0-2b873542ba93"
-
+ARTIFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts")
+os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 def run_test():
     print("--- INICIANDO TESTE END-TO-END ---")
     
