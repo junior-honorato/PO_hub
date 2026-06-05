@@ -1,5 +1,7 @@
 # Local databases
 backend/database.db
+backend/database_ativo.db
+backend/database_historico.db
 
 # Environments
 backend/.env

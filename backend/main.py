@@ -172,6 +172,54 @@ def migrate_to_history(external_id):
     # Delete from active
     execute_query("DELETE FROM demands WHERE externalId = ?", (external_id,), "ativo")
 
+def migrate_to_active(external_id):
+    # Fetch from history
+    demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (external_id,), "historico")
+    if not demand:
+        return
+    
+    annotations = fetch_all("SELECT * FROM annotations WHERE externalId = ?", (external_id,), "historico")
+    tags = fetch_all("SELECT * FROM tags WHERE externalId = ?", (external_id,), "historico")
+    dependencies = fetch_all("SELECT * FROM dependencies WHERE blocked_id = ? OR blocker_id = ?", (external_id, external_id), "historico")
+    
+    demand_dict = dict(demand)
+    columns = ", ".join(demand_dict.keys())
+    placeholders = ", ".join(["?"] * len(demand_dict))
+    
+    # Save to active
+    execute_query(
+        f"INSERT OR REPLACE INTO demands ({columns}) VALUES ({placeholders})",
+        tuple(demand_dict.values()),
+        "ativo"
+    )
+    
+    for ann in annotations:
+        ann_dict = dict(ann)
+        execute_query(
+            "INSERT OR REPLACE INTO annotations (id, externalId, content, createdAt) VALUES (?, ?, ?, ?)",
+            (ann_dict["id"], ann_dict["externalId"], ann_dict["content"], ann_dict["createdAt"]),
+            "ativo"
+        )
+        
+    for tag in tags:
+        tag_dict = dict(tag)
+        execute_query(
+            "INSERT OR REPLACE INTO tags (externalId, tag) VALUES (?, ?)",
+            (tag_dict["externalId"], tag_dict["tag"]),
+            "ativo"
+        )
+        
+    for dep in dependencies:
+        dep_dict = dict(dep)
+        execute_query(
+            "INSERT OR REPLACE INTO dependencies (blocked_id, blocker_id) VALUES (?, ?)",
+            (dep_dict["blocked_id"], dep_dict["blocker_id"]),
+            "ativo"
+        )
+        
+    # Delete from history
+    execute_query("DELETE FROM demands WHERE externalId = ?", (external_id,), "historico")
+
 def save_demand(demand, db_name):
     execute_query("""
         INSERT INTO demands (externalId, origin, title, externalStatus, comments_history, parentId, blockers, blocked_by, updatedAt)
@@ -387,22 +435,32 @@ def process_sync_for_demands(fetched_demands, origin):
     db_active = fetch_all("SELECT externalId FROM demands WHERE origin = ?", (origin,), "ativo")
     db_active_keys = {d["externalId"] for d in db_active}
     
-    # Fetch DB history keys
-    db_history = fetch_all("SELECT externalId FROM demands WHERE origin = ?", (origin,), "historico")
-    db_history_keys = {d["externalId"] for d in db_history}
+    # Fetch DB history keys and statuses
+    db_history = fetch_all("SELECT externalId, externalStatus FROM demands WHERE origin = ?", (origin,), "historico")
+    history_status_map = {d["externalId"]: d["externalStatus"] for d in db_history}
     
     # Map fetched demands by their externalId
     fetched_map = {d["externalId"]: d for d in fetched_demands}
     
-    # Candidates: union of fetched externalIds and active keys currently in DB
-    all_keys = list(set(list(db_active_keys) + list(fetched_map.keys())))
+    # Candidates: union of fetched externalIds, active keys, and history keys currently in DB
+    all_keys = list(set(list(db_active_keys) + list(fetched_map.keys()) + list(history_status_map.keys())))
     
-    # Filter candidates to exclude those in history DB
-    filtered_keys = [k for k in all_keys if k not in db_history_keys]
+    # Filter candidates to process if not in history DB, OR if fetched, OR if status in history is not final
+    filtered_keys = []
+    for k in all_keys:
+        in_history = k in history_status_map
+        is_fetched = k in fetched_map
+        
+        history_status = history_status_map.get(k)
+        history_is_not_final = in_history and history_status and not (history_status in FINAL_STATUSES or is_final_status(history_status))
+        
+        if not in_history or is_fetched or history_is_not_final:
+            filtered_keys.append(k)
     
     processed_count = 0
     for key in filtered_keys:
         in_active = key in db_active_keys
+        in_history = key in history_status_map
         demand = None
         
         # Determine demand data
@@ -431,25 +489,34 @@ def process_sync_for_demands(fetched_demands, origin):
                             demand = parse_azure_item(item_data, azure_url, headers)
                     except ValueError:
                         pass
+            
+            # If still not found externally, but it is in history and we are migrating it back to active:
+            # we can use the local data from history database
+            if not demand and in_history:
+                local_demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (key,), "historico")
+                if local_demand:
+                    demand = dict(local_demand)
                         
         if not demand:
             continue
             
-        is_final = is_final_status(demand["externalStatus"])
+        status = demand.get("externalStatus")
+        is_final = status in FINAL_STATUSES or is_final_status(status)
         processed_count += 1
         
-        if in_active:
-            if is_final:
+        if not is_final:
+            # Force saving only in active and block writing in history
+            if in_history:
+                migrate_to_active(key)
+            save_demand(demand, "ativo")
+        else:
+            if in_active:
                 # Save to active first, then migrate to history
                 save_demand(demand, "ativo")
                 migrate_to_history(key)
             else:
-                # Update in active
-                save_demand(demand, "ativo")
-        else:
-            # Doesn't exist in active (or history, since we filtered it out)
-            db_target = "historico" if is_final else "ativo"
-            save_demand(demand, db_target)
+                # Save directly to history
+                save_demand(demand, "historico")
             
     return processed_count
 
@@ -485,16 +552,25 @@ def get_demands_data(db_name="ativo"):
         
         if blocker not in blocked_by_map:
             blocked_by_map[blocker] = []
+            
         blocked_by_map[blocker].append(blocked)
 
-    query = """
+    where_clause = ""
+    params = ()
+    if db_name == "historico":
+        placeholders = ", ".join(["?"] * len(FINAL_STATUSES))
+        where_clause = f"WHERE d.externalStatus IN ({placeholders})"
+        params = tuple(FINAL_STATUSES)
+
+    query = f"""
         SELECT d.*, group_concat(t.tag) as tags_str
         FROM demands d
         LEFT JOIN tags t ON d.externalId = t.externalId
+        {where_clause}
         GROUP BY d.externalId
         ORDER BY d.updatedAt DESC
     """
-    rows = fetch_all(query, db_name=db_name)
+    rows = fetch_all(query, params, db_name=db_name)
     demands = []
     import json
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)

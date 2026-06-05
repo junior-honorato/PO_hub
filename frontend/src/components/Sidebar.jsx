@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target, FolderKanban, Network } from 'lucide-react';
+import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target, FolderKanban, Network, History } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, lastSyncStatus }) {
   return (
@@ -71,6 +71,17 @@ export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, la
         >
           <Network className="w-5 h-5" />
           Mapa do Roadmap
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+            activeTab === 'history'
+              ? 'bg-slate-900 text-white border-l-4 border-brand-500 shadow-sm'
+              : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+          }`}
+        >
+          <History className="w-5 h-5" />
+          Histórico
         </button>
       </nav>
 

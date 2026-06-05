@@ -85,7 +85,10 @@ Como a sua máquina já possui um ambiente virtual Python (`venv`) com todas as 
 O PO Hub implementa a arquitetura de **Dois Bancos** para separar demandas ativas e históricas, tornando a listagem e a sincronização altamente escaláveis e eficientes. Os dados são estruturados nas mesmas tabelas (com integridade referencial `ON DELETE CASCADE`) em dois arquivos SQLite independentes:
 
 - **`database_ativo.db`**: Armazena itens em aberto ou em andamento (status como "Em Aberto", "Em Progresso", "Desenvolvimento", "Doing", "To Do").
-- **`database_historico.db`**: Funciona como um arquivo imutável para demandas finalizadas (status como "Concluído", "Done", "Resolved", "Closed", "Improcedente", "Cancelado").
+- **`database_historico.db`**: Funciona como um arquivo imutável para demandas finalizadas. O sistema impõe regras rígidas de integridade:
+  - **Filtro Rígido de Escrita:** Apenas demandas com status finais específicos (`"Concluído"`, `"Done"`, `"Resolved"`, `"Closed"`, `"Improcedente"`, `"Cancelado"`) são gravadas no histórico. Gravações de status não finais são estritamente bloqueadas nesta base.
+  - **Migração Reversa Automática:** Se um item finalizado for reaberto na API externa (retornado com status não final), o sincronizador o exclui automaticamente da base de histórico e o move (com todas as suas anotações, tags e dependências locais via cascade) de volta para a base ativa.
+  - **Filtro de Exibição Resiliente:** A consulta do endpoint de histórico realiza um filtro SQL `WHERE` parametrizado adicional para garantir que apenas itens com os status finais definidos sejam exibidos, mesmo no caso de inconsistências residuais.
 
 As tabelas de ambos os bancos seguem a seguinte estrutura:
 
