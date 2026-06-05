@@ -1557,8 +1557,28 @@
       useEffect(() => {
         if (!demands || demands.length === 0) return;
 
+        // Filter out Bug and Incident / Incidente items (operational demands)
+        const filteredDemands = demands.filter((d) => {
+          if (!d) return false;
+          const typeField = (d.type || d.issueType || d.itemType || '').toLowerCase();
+          if (typeField === 'bug' || typeField === 'incident' || typeField === 'incidente') {
+            return false;
+          }
+          if (d.title && typeof d.title === 'string') {
+            const titleLower = d.title.toLowerCase();
+            if (
+              titleLower.startsWith('bug:') ||
+              titleLower.startsWith('incidente:') ||
+              titleLower.startsWith('incident:')
+            ) {
+              return false;
+            }
+          }
+          return true;
+        });
+
         // 1. Create nodes
-        const initialNodes = demands.map((d) => ({
+        const initialNodes = filteredDemands.map((d) => ({
           id: d.externalId,
           type: 'demandNode',
           data: {
@@ -1573,11 +1593,11 @@
         // 2. Create edges (Hierarchy + Blockers)
         const initialEdges = [];
 
-        demands.forEach((d) => {
+        filteredDemands.forEach((d) => {
           // Hierarchy Edge: parentId -> id
           if (d.parentId) {
-            // Verify parent exists in demands
-            const parentExists = demands.some((p) => p.externalId === d.parentId);
+            // Verify parent exists in filteredDemands
+            const parentExists = filteredDemands.some((p) => p.externalId === d.parentId);
             if (parentExists) {
               initialEdges.push({
                 id: `h-${d.parentId}-${d.externalId}`,
@@ -1595,7 +1615,7 @@
           // Blocker Edge: blockerId -> id
           if (d.blockers && Array.isArray(d.blockers)) {
             d.blockers.forEach((blockerId) => {
-              const blockerExists = demands.some((b) => b.externalId === blockerId);
+              const blockerExists = filteredDemands.some((b) => b.externalId === blockerId);
               if (blockerExists) {
                 initialEdges.push({
                   id: `b-${blockerId}-${d.externalId}`,
