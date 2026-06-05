@@ -49,20 +49,44 @@ class DemandUpdate(BaseModel):
     followUpDate: str = None
     managerNotes: str = None
 
+def extract_adf_text(node):
+    if not node:
+        return ""
+    if isinstance(node, dict):
+        if node.get("type") == "text":
+            return node.get("text", "")
+        text = ""
+        for val in node.values():
+            if isinstance(val, (dict, list)):
+                text += extract_adf_text(val)
+        return text
+    elif isinstance(node, list):
+        return "".join(extract_adf_text(item) for item in node)
+    return ""
+
+def format_comment_date(date_str):
+    if not date_str:
+        return "-"
+    try:
+        dt = datetime.strptime(date_str[:19].replace(' ', 'T'), "%Y-%m-%dT%H:%M:%S")
+        return dt.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return date_str
+
 # Dados Mockados para fallback (usados apenas se não houver credenciais configuradas)
 MOCK_JIRA_DEMANDS = [
-    {"origin": "Jira", "externalId": "JIRA-101", "title": "Migração da infraestrutura local para GCP", "externalStatus": "Em Progresso"},
-    {"origin": "Jira", "externalId": "JIRA-102", "title": "Fluxo de Checkout Simplificado (One-Click Buy)", "externalStatus": "A Fazer"},
-    {"origin": "Jira", "externalId": "JIRA-103", "title": "Integração de pagamento instantâneo via Pix", "externalStatus": "Concluído"},
-    {"origin": "Jira", "externalId": "JIRA-104", "title": "Painel Analytics corporativo pós-venda", "externalStatus": "Backlog"}
+    {"origin": "Jira", "externalId": "JIRA-101", "title": "Migração da infraestrutura local para GCP", "externalStatus": "Em Progresso", "comments_history": "[01/06/2026 10:00 - Sistema]\nImportado via carga inicial.\n\n[02/06/2026 15:30 - Product Owner]\nPrioridade alta para o próximo sprint."},
+    {"origin": "Jira", "externalId": "JIRA-102", "title": "Fluxo de Checkout Simplificado (One-Click Buy)", "externalStatus": "A Fazer", "comments_history": None},
+    {"origin": "Jira", "externalId": "JIRA-103", "title": "Integração de pagamento instantâneo via Pix", "externalStatus": "Concluído", "comments_history": "[30/05/2026 09:15 - Analista de QA]\nTestado em ambiente de homologação. Fluxo aprovado."},
+    {"origin": "Jira", "externalId": "JIRA-104", "title": "Painel Analytics corporativo pós-venda", "externalStatus": "Backlog", "comments_history": None}
 ]
 
 MOCK_AZURE_DEMANDS = [
-    {"origin": "Azure", "externalId": "AZURE-501", "title": "Bug: Vazamento de memória ao alternar abas de produtos", "externalStatus": "Desenvolvimento"},
-    {"origin": "Azure", "externalId": "AZURE-502", "title": "US: Componente reutilizável de Upload Drag-and-Drop", "externalStatus": "Aprovado"},
-    {"origin": "Azure", "externalId": "AZURE-503", "title": "US: Refatoração do fluxo de autenticação JWT e Refresh Token", "externalStatus": "Novo"},
-    {"origin": "Azure", "externalId": "AZURE-504", "title": "Bug: Erro 500 intermitente ao salvar preferências de notificação", "externalStatus": "Impedido"},
-    {"origin": "Azure", "externalId": "AZURE-505", "title": "US: Implementação de WebSockets para notificações push na tela", "externalStatus": "Em Teste"}
+    {"origin": "Azure", "externalId": "AZURE-501", "title": "Bug: Vazamento de memória ao alternar abas de produtos", "externalStatus": "Desenvolvimento", "comments_history": "[02/06/2026 11:22 - Desenvolvedor]\nCorrigindo vazamento no event listener do hook useEffect."},
+    {"origin": "Azure", "externalId": "AZURE-502", "title": "US: Componente reutilizável de Upload Drag-and-Drop", "externalStatus": "Aprovado", "comments_history": None},
+    {"origin": "Azure", "externalId": "AZURE-503", "title": "US: Refatoração do fluxo de autenticação JWT e Refresh Token", "externalStatus": "Novo", "comments_history": None},
+    {"origin": "Azure", "externalId": "AZURE-504", "title": "Bug: Erro 500 intermitente ao salvar preferências de notificação", "externalStatus": "Impedido", "comments_history": "[03/06/2026 16:45 - Gestor de Projetos]\nItem bloqueado aguardando liberação da API de envio de emails corporativos."},
+    {"origin": "Azure", "externalId": "AZURE-505", "title": "US: Implementação de WebSockets para notificações push na tela", "externalStatus": "Em Teste", "comments_history": None}
 ]
 
 def has_jira_credentials():
@@ -122,12 +146,12 @@ def sync_demands():
                 "Authorization": f"Basic {auth_b64}",
                 "Accept": "application/json"
             }
-            # É necessário passar o parâmetro fields para obter key, summary e status no endpoint /search/jql
+            # É necessário passar o parâmetro fields para obter key, summary, status e comment no endpoint /search/jql
             # Filtra apenas as demandas relatadas pelo usuário (relator)
             params = {
                 "jql": 'issuetype in (Epic, Opportunity, "Epic") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
                 "maxResults": 50,
-                "fields": "key,summary,status"
+                "fields": "key,summary,status,comment"
             }
             
             response = requests.get(jira_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
@@ -135,11 +159,28 @@ def sync_demands():
                 issues = response.json().get("issues", [])
                 for issue in issues:
                     fields = issue.get("fields", {})
+                    
+                    # Extrai e formata o histórico de comentários do Jira
+                    comments_data = fields.get("comment", {}).get("comments", [])
+                    comments_list = []
+                    for c in comments_data:
+                        author = c.get("author", {}).get("displayName", "Usuário")
+                        created = c.get("created", "")
+                        date_formatted = format_comment_date(created)
+                        body = c.get("body", "")
+                        if isinstance(body, dict):
+                            body_text = extract_adf_text(body).strip()
+                        else:
+                            body_text = str(body).strip()
+                        comments_list.append(f"[{date_formatted} - {author}]\n{body_text}")
+                    comments_history = "\n\n".join(comments_list) if comments_list else None
+                    
                     jira_fetched.append({
                         "origin": "Jira",
                         "externalId": issue.get("key") or f"JIRA-{issue.get('id')}",
                         "title": fields.get("summary", "Sem título"),
-                        "externalStatus": fields.get("status", {}).get("name", "Sem Status")
+                        "externalStatus": fields.get("status", {}).get("name", "Sem Status"),
+                        "comments_history": comments_history
                     })
                 sync_source["jira"] = "real"
                 print(f"Jira sincronizado com sucesso: {len(jira_fetched)} itens.")
@@ -199,7 +240,7 @@ def sync_demands():
                     for i in range(0, len(work_items_refs), chunk_size):
                         chunk = work_items_refs[i:i + chunk_size]
                         ids = ",".join([str(item["id"]) for item in chunk])
-                        detail_url = f"{azure_url}/_apis/wit/workitems?ids={ids}&api-version=6.0"
+                        detail_url = f"{azure_url}/_apis/wit/workitems?ids={ids}&$expand=all&api-version=6.0"
                         
                         detail_response = requests.get(detail_url, headers=headers, verify=VERIFY_SSL, timeout=12)
                         if detail_response.status_code == 200:
@@ -213,11 +254,41 @@ def sync_demands():
                                     prefix = "Bug: "
                                 else:
                                     prefix = f"{item_type}: " if item_type else ""
+                                    
+                                # Extrai e formata o histórico de comentários do Azure DevOps
+                                comments_history = None
+                                try:
+                                    item_id = item.get("id")
+                                    comments_url = f"{azure_url}/_apis/wit/workitems/{item_id}/comments?api-version=6.0-preview.3"
+                                    comments_res = requests.get(comments_url, headers=headers, verify=VERIFY_SSL, timeout=5)
+                                    if comments_res.status_code == 200:
+                                        c_items = comments_res.json().get("comments", []) or comments_res.json().get("value", [])
+                                        c_list = []
+                                        for c in c_items:
+                                            author = c.get("createdBy", {}).get("displayName", "Usuário")
+                                            created_date = c.get("createdDate", "")
+                                            date_formatted = format_comment_date(created_date)
+                                            text = c.get("text", "")
+                                            import re
+                                            text_clean = re.sub('<[^<]+?>', '', text).strip()
+                                            c_list.append(f"[{date_formatted} - {author}]\n{text_clean}")
+                                        if c_list:
+                                            comments_history = "\n\n".join(c_list)
+                                except Exception as comments_err:
+                                    print(f"Erro ao buscar comentários do item {item.get('id')}: {comments_err}")
+                                
+                                # Fallback para System.History no fields
+                                if not comments_history and fields.get("System.History"):
+                                    import re
+                                    history_clean = re.sub('<[^<]+?>', '', fields.get("System.History")).strip()
+                                    comments_history = f"[Sistema]\n{history_clean}"
+                                    
                                 azure_fetched.append({
                                     "origin": "Azure",
                                     "externalId": f"AZ-{item.get('id')}",
                                     "title": f"{prefix}{fields.get('System.Title', 'Sem título')}",
-                                    "externalStatus": fields.get("System.State", "Sem Status")
+                                    "externalStatus": fields.get("System.State", "Sem Status"),
+                                    "comments_history": comments_history
                                 })
                         else:
                             err_msg = f"Azure DevOps Details HTTP {detail_response.status_code}"
@@ -253,13 +324,14 @@ def sync_demands():
     try:
         for demand in all_demands:
             execute_query("""
-                INSERT INTO demands (externalId, origin, title, externalStatus, updatedAt)
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT INTO demands (externalId, origin, title, externalStatus, comments_history, updatedAt)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(externalId) DO UPDATE SET
                     title = excluded.title,
                     externalStatus = excluded.externalStatus,
+                    comments_history = excluded.comments_history,
                     updatedAt = CURRENT_TIMESTAMP
-            """, (demand["externalId"], demand["origin"], demand["title"], demand["externalStatus"]))
+            """, (demand["externalId"], demand["origin"], demand["title"], demand["externalStatus"], demand.get("comments_history")))
         
         return {
             "success": len(errors) < 2, # Sucesso se pelo menos uma conexão ou fallback funcionou
@@ -374,13 +446,6 @@ def get_demand(external_id: str):
             if updated_dt and (datetime.now(timezone.utc).replace(tzinfo=None) - updated_dt > timedelta(days=5)):
                 is_stale = True
         
-        # Mock comments_history para exibir no painel lateral
-        comments_history = (
-            f"[02/06/2026 14:22 - Sistema]\nSincronizado da origem {demand['origin']}.\n\n"
-            f"[03/06/2026 10:05 - Analista Técnico]\nIniciando análise de impacto das dependências. Requer validação de QA.\n\n"
-            f"[03/06/2026 13:45 - Gestor de Projetos]\nAlinhado prazo de entrega informal para {demand['promisedDate'] or 'breve'} com o time técnico."
-        )
-
         return {
             "externalId": demand["externalId"],
             "origin": demand["origin"],
@@ -397,7 +462,7 @@ def get_demand(external_id: str):
             "blockers": blockers,
             "blocked_by": blocked_by,
             "isStale": is_stale,
-            "comments_history": comments_history
+            "comments_history": demand["comments_history"]
         }
     except HTTPException as he:
         raise he

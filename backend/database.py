@@ -14,7 +14,6 @@ def init_db():
     """Cria as tabelas caso não existam."""
     conn = get_connection()
     try:
-        # Tabela Demands (Cache local)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS demands (
                 externalId TEXT PRIMARY KEY,
@@ -25,7 +24,8 @@ def init_db():
                 updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
                 promisedDate TEXT,
                 followUpDate TEXT,
-                managerNotes TEXT
+                managerNotes TEXT,
+                comments_history TEXT
             )
         """)
 
@@ -39,6 +39,8 @@ def init_db():
             conn.execute("ALTER TABLE demands ADD COLUMN followUpDate TEXT")
         if "managerNotes" not in columns:
             conn.execute("ALTER TABLE demands ADD COLUMN managerNotes TEXT")
+        if "comments_history" not in columns:
+            conn.execute("ALTER TABLE demands ADD COLUMN comments_history TEXT")
 
         # Tabela Annotations (Apontamentos/Histórico local)
         conn.execute("""
