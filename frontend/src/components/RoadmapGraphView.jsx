@@ -87,7 +87,11 @@ export default function RoadmapGraphView({ demands, onSelectDemand }) {
   const [direction, setDirection] = useState('TB');
 
   useEffect(() => {
-    if (!demands || demands.length === 0) return;
+    if (!demands || demands.length === 0) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
 
     // Filter out Bug and Incident / Incidente items (operational demands)
     const filteredDemands = demands.filter((d) => {
@@ -109,8 +113,31 @@ export default function RoadmapGraphView({ demands, onSelectDemand }) {
       return true;
     });
 
-    // 1. Create nodes
-    const initialNodes = filteredDemands.map((d) => ({
+    // 1. Identify which demands have active parent-child or blocker/blocked relationship
+    const parentIds = new Set(filteredDemands.map(d => d.parentId).filter(Boolean));
+    const blockerIds = new Set();
+    filteredDemands.forEach(d => {
+      if (d.blockers && Array.isArray(d.blockers)) {
+        d.blockers.forEach(b => blockerIds.add(b));
+      }
+    });
+
+    const connectedDemands = filteredDemands.filter((d) => {
+      const hasParent = !!d.parentId && filteredDemands.some(p => p.externalId === d.parentId);
+      const isParent = parentIds.has(d.externalId);
+      const hasBlockers = !!d.blockers && Array.isArray(d.blockers) && d.blockers.some(b => filteredDemands.some(p => p.externalId === b));
+      const isBlocker = blockerIds.has(d.externalId);
+      return hasParent || isParent || hasBlockers || isBlocker;
+    });
+
+    if (connectedDemands.length === 0) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+
+    // 2. Create nodes
+    const initialNodes = connectedDemands.map((d) => ({
       id: d.externalId,
       type: 'demandNode',
       data: {
@@ -122,14 +149,13 @@ export default function RoadmapGraphView({ demands, onSelectDemand }) {
       position: { x: 0, y: 0 },
     }));
 
-    // 2. Create edges (Hierarchy + Blockers)
+    // 3. Create edges (Hierarchy + Blockers)
     const initialEdges = [];
 
-    filteredDemands.forEach((d) => {
+    connectedDemands.forEach((d) => {
       // Hierarchy Edge: parentId -> id
       if (d.parentId) {
-        // Verify parent exists in filteredDemands
-        const parentExists = filteredDemands.some((p) => p.externalId === d.parentId);
+        const parentExists = connectedDemands.some((p) => p.externalId === d.parentId);
         if (parentExists) {
           initialEdges.push({
             id: `h-${d.parentId}-${d.externalId}`,
@@ -147,7 +173,7 @@ export default function RoadmapGraphView({ demands, onSelectDemand }) {
       // Blocker Edge: blockerId -> id
       if (d.blockers && Array.isArray(d.blockers)) {
         d.blockers.forEach((blockerId) => {
-          const blockerExists = filteredDemands.some((b) => b.externalId === blockerId);
+          const blockerExists = connectedDemands.some((b) => b.externalId === blockerId);
           if (blockerExists) {
             initialEdges.push({
               id: `b-${blockerId}-${d.externalId}`,
@@ -165,7 +191,7 @@ export default function RoadmapGraphView({ demands, onSelectDemand }) {
       }
     });
 
-    // 3. Compute layout
+    // 4. Compute layout
     const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
       initialNodes,
       initialEdges,
@@ -213,7 +239,12 @@ export default function RoadmapGraphView({ demands, onSelectDemand }) {
       </div>
 
       <div className="flex-1 w-full h-full relative min-h-[500px]">
-        {demands && demands.length > 0 ? (
+        {!demands || demands.length === 0 ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-2">
+            <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
+            Carregando mapa de dependências...
+          </div>
+        ) : nodes.length > 0 ? (
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -228,9 +259,15 @@ export default function RoadmapGraphView({ demands, onSelectDemand }) {
             <Controls className="react-flow__controls bg-slate-900 border border-slate-800 text-slate-400 fill-slate-400 rounded-lg p-1 [&>button]:border-slate-800 hover:[&>button]:bg-slate-800 hover:[&>button]:text-white" />
           </ReactFlow>
         ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-2">
-            <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
-            Carregando mapa de dependências...
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
+            <div className="w-16 h-16 bg-slate-900/40 border border-slate-800/80 rounded-2xl flex items-center justify-center text-slate-400 mb-4">
+              <Network className="w-8 h-8 text-indigo-400" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">Nenhum vínculo estabelecido</h3>
+            <p className="text-sm text-slate-400 max-w-md">
+              O Mapa do Roadmap está vazio porque não existem dependências manuais ativas. 
+              Vincule um Item Pai ou adicione Bloqueadores no painel de detalhes de qualquer demanda para vê-las aqui.
+            </p>
           </div>
         )}
       </div>
