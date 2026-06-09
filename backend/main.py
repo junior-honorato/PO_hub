@@ -224,15 +224,12 @@ def migrate_to_active(external_id):
 def save_demand(demand, db_name):
     execute_query("""
         INSERT INTO demands (externalId, origin, title, externalStatus, itemType, comments_history, parentId, blockers, blocked_by, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, CURRENT_TIMESTAMP)
         ON CONFLICT(externalId) DO UPDATE SET
             title = excluded.title,
             externalStatus = excluded.externalStatus,
             itemType = excluded.itemType,
             comments_history = excluded.comments_history,
-            parentId = excluded.parentId,
-            blockers = excluded.blockers,
-            blocked_by = excluded.blocked_by,
             updatedAt = CURRENT_TIMESTAMP
     """, (
         demand["externalId"],
@@ -240,10 +237,7 @@ def save_demand(demand, db_name):
         demand["title"],
         demand["externalStatus"],
         demand.get("itemType", "Outro"),
-        demand.get("comments_history"),
-        demand.get("parentId"),
-        demand.get("blockers"),
-        demand.get("blocked_by")
+        demand.get("comments_history")
     ), db_name)
 
 def fetch_jira_issue_details(key):
@@ -656,15 +650,16 @@ def sync_demands():
                 "Authorization": f"Basic {auth_b64}",
                 "Accept": "application/json"
             }
-            start_at = 0
+            next_page_token = None
             max_results = 100
             while True:
                 params = {
                     "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
                     "maxResults": max_results,
-                    "startAt": start_at,
                     "fields": "key,summary,status,comment,parent,issuelinks,issuetype"
                 }
+                if next_page_token:
+                    params["nextPageToken"] = next_page_token
                 response = requests.get(jira_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
                 if response.status_code == 200:
                     data = response.json()
@@ -675,8 +670,9 @@ def sync_demands():
                         parsed = parse_jira_issue(issue)
                         jira_fetched.append(parsed)
                     sync_source["jira"] = "real"
-                    start_at += len(issues)
-                    if len(issues) < max_results:
+                    is_last = data.get("isLast", True)
+                    next_page_token = data.get("nextPageToken")
+                    if is_last or not next_page_token:
                         break
                 else:
                     err_msg = f"Jira HTTP {response.status_code}: {response.text[:150]}"

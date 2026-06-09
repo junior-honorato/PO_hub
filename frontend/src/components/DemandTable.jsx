@@ -266,6 +266,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
                     {renderSortIcon('status')}
                   </div>
                 </th>
+                <th className="px-6 py-4">Tipo de Item</th>
                 <th className="px-6 py-4">Tags Locais</th>
                 <th className="px-6 py-4 text-right">Ação</th>
               </tr>
@@ -285,7 +286,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
                         }`} />
                         <div>
                           <span className="font-semibold text-white block">{demand.externalId}</span>
-                          <span className="text-xs text-slate-500 block">{demand.origin} • {demand.itemType || 'Outro'}</span>
+                          <span className="text-xs text-slate-500 block">{demand.origin}</span>
                         </div>
                       </div>
                     </td>
@@ -303,6 +304,11 @@ export default function DemandTable({ demands, onSelectDemand }) {
                           : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
                       }`}>
                         {demand.externalStatus}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-xs font-semibold bg-slate-900/60 text-slate-300 border border-slate-800/80 px-2.5 py-1 rounded-lg">
+                        {demand.itemType || 'Outro'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -327,7 +333,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="text-center py-12 text-slate-500">
+                  <td colSpan="6" className="text-center py-12 text-slate-500">
                     <Inbox className="w-12 h-12 mx-auto text-slate-700 mb-3" />
                     Nenhuma demanda encontrada para os critérios selecionados.
                   </td>
