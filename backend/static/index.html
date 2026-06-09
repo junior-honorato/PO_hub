@@ -674,6 +674,8 @@
       const [tagInput, setTagInput] = useState('');
       const [loading, setLoading] = useState(false);
       const [showExternalComments, setShowExternalComments] = useState(false);
+      const [localParentIdInput, setLocalParentIdInput] = useState('');
+      const [blockerInput, setBlockerInput] = useState('');
 
       useEffect(() => {
         if (isOpen && demandId) {
@@ -684,6 +686,14 @@
           setShowExternalComments(false);
         }
       }, [demandId, isOpen]);
+
+      useEffect(() => {
+        if (demand) {
+          setLocalParentIdInput(demand.localParentId || '');
+        } else {
+          setLocalParentIdInput('');
+        }
+      }, [demand]);
 
       const loadDemandDetail = async () => {
         setLoading(true);
@@ -769,6 +779,53 @@
           onRefreshDemands();
         } catch (e) {
           console.error("Erro ao atualizar campo de gestão:", e);
+        }
+      };
+
+      const handleUpdateParent = async (e) => {
+        if (e) e.preventDefault();
+        const parentVal = localParentIdInput.trim().toUpperCase();
+        await handleUpdateManagementField('localParentId', parentVal || null);
+        loadDemandDetail();
+      };
+
+      const handleRemoveParent = async () => {
+        setLocalParentIdInput('');
+        await handleUpdateManagementField('localParentId', null);
+        loadDemandDetail();
+      };
+
+      const handleAddBlocker = async (e) => {
+        e.preventDefault();
+        const blockerId = blockerInput.trim().toUpperCase();
+        if (!blockerId || demand.blockers.includes(blockerId)) return;
+        try {
+          const res = await fetch(`/api/demands/${demandId}/dependencies`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ blocker_id: blockerId })
+          });
+          if (res.ok) {
+            setBlockerInput('');
+            loadDemandDetail();
+            onRefreshDemands();
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+
+      const handleRemoveBlocker = async (blockerId) => {
+        try {
+          const res = await fetch(`/api/demands/${demandId}/dependencies/${blockerId}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            loadDemandDetail();
+            onRefreshDemands();
+          }
+        } catch (e) {
+          console.error(e);
         }
       };
 
@@ -950,6 +1007,97 @@
                 </div>
 
                 <hr className="border-slate-800" />
+
+                 {/* Atribuição Manual de Dependências */}
+                 <div className="space-y-4">
+                   <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                     <Icon name="plus" className="w-4 h-4 text-indigo-400" /> Atribuição Manual de Dependências
+                   </h3>
+                   
+                   {/* Item Pai Manual */}
+                   <div className="space-y-1.5">
+                     <label className="text-xs text-slate-400 font-medium">Demanda Pai (Hierarquia)</label>
+                     <form onSubmit={handleUpdateParent} className="flex gap-2">
+                       <input
+                         type="text"
+                         placeholder="Ex: JIRA-101"
+                         value={localParentIdInput}
+                         onChange={e => setLocalParentIdInput(e.target.value)}
+                         className="flex-1 bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
+                       />
+                       {demand.localParentId ? (
+                         <button
+                           type="button"
+                           onClick={handleRemoveParent}
+                           className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-semibold transition-colors"
+                         >
+                           Remover
+                         </button>
+                       ) : (
+                         <button
+                           type="submit"
+                           disabled={!localParentIdInput.trim() || localParentIdInput.trim() === demand.localParentId}
+                           className="px-3 py-2 bg-slate-100 hover:bg-white text-slate-950 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                         >
+                           Vincular
+                         </button>
+                       )}
+                     </form>
+                     {demand.parentId && !demand.localParentId && (
+                       <span className="text-[10px] text-slate-500 block">
+                         Vínculo automático atual: <strong className="text-slate-400">{demand.parentId}</strong>
+                       </span>
+                     )}
+                   </div>
+
+                   {/* Bloqueadores Manuais */}
+                   <div className="space-y-2.5 pt-2 border-t border-slate-800/40">
+                     <label className="text-xs text-slate-400 font-medium block">Bloqueadores (Blockers)</label>
+                     
+                     {/* Lista de Bloqueadores */}
+                     {demand.blockers && demand.blockers.length > 0 ? (
+                       <div className="flex flex-wrap gap-1.5 mb-2">
+                         {demand.blockers.map(blockerId => (
+                           <span
+                             key={blockerId}
+                             className="inline-flex items-center gap-1.5 text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 pl-2.5 pr-1 py-1 rounded-lg"
+                           >
+                             {blockerId}
+                             <button
+                               type="button"
+                               onClick={() => handleRemoveBlocker(blockerId)}
+                               className="p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                             >
+                               <Icon name="x" className="w-3 h-3" />
+                             </button>
+                           </span>
+                         ))}
+                       </div>
+                     ) : (
+                       <span className="text-[10px] text-slate-500 block mb-1">Nenhum bloqueador manual associado.</span>
+                     )}
+
+                     {/* Form Adicionar Bloqueador */}
+                     <form onSubmit={handleAddBlocker} className="flex gap-2">
+                       <input
+                         type="text"
+                         placeholder="Adicionar ID do Bloqueador (Ex: AZ-501)"
+                         value={blockerInput}
+                         onChange={e => setBlockerInput(e.target.value)}
+                         className="flex-1 bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
+                       />
+                       <button
+                         type="submit"
+                         disabled={!blockerInput.trim()}
+                         className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
+                       >
+                         Adicionar
+                       </button>
+                     </form>
+                   </div>
+                 </div>
+
+                 <hr className="border-slate-800" />
 
                 {/* Add Annotation Form */}
                 <div className="space-y-3">

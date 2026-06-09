@@ -98,6 +98,7 @@ Armazena as demandas mapeadas e sincronizadas das APIs externas.
 - `origin` (TEXT) - `'Jira'` ou `'Azure'`.
 - `title` (TEXT) - Título da demanda.
 - `externalStatus` (TEXT) - Status oficial reportado pela API externa.
+- `itemType` (TEXT) - Tipo do item de trabalho (ex: `Epic`, `Feature`, `Bug`, `User Story`, `História`, `Oportunidade`, `Incidente`).
 - `updatedAt` (TEXT) - Data da última atualização local/sincronização.
 - `parentId` (TEXT) - ID da demanda pai na hierarquia (ex: Epic -> Feature -> Story).
 - `blockers` (TEXT) - Lista em formato JSON array de chaves/IDs de demandas que bloqueiam o item.
@@ -134,6 +135,9 @@ Armazena tags customizadas vinculadas a cada demanda para agrupamento/filtragem 
 9. **Gerenciador de Tags e Timeline Cronológica:** Adicione/remova tags dinamicamente e visualize anotações em uma linha do tempo vertical decrescente.
 10. **Mapa do Roadmap (Grafo de Dependências):** Uma visão gráfica e interativa baseada em `React Flow` que mapeia duas dimensões de relacionamentos: Hierarquias (linhas sólidas cinzas) e Bloqueios (linhas tracejadas vermelhas e animadas). Conta com layout automático inteligente pelo `Dagre` nas orientações vertical (árvore) ou horizontal, e interage com o Drawer lateral ao clicar nos cartões (nós).
 11. **Visão Escalável Sem Poluição (Dois Bancos):** Sincronização inteligente onde as APIs trazem apenas itens ativos, otimizando o tráfego de rede. Os itens concluídos ou cancelados são migrados atomicamente para a base de histórico (`database_historico.db`) preservando anotações, tags e dependências locais, deixando o banco ativo (`database_ativo.db`) e o endpoint `/api/demands` limpos para a produtividade do dia a dia, enquanto consultas ao histórico permanecem isoladas em `/api/demands/history`.
+12. **Filtro por Tipo de Item:** Disponibilização de filtro dinâmico por tipo de item (ex: `Epic`, `Feature`, `Bug`, `User Story`, `História`, `Oportunidade`, `Incidente`) nas abas **Demandas** e **Histórico**, permitindo isolar as visualizações de acordo com a categoria do artefato, com exibição explícita do tipo junto da origem na tabela.
+13. **Paginação Inteligente do Jira:** Sincronização robusta que percorre recursivamente os resultados da API do Jira utilizando o parâmetro `nextPageToken`, garantindo que histórias de desenvolvimento relatadas pelo PO (como histórias e bugs) sejam totalmente importadas sem sofrer truncamento.
+14. **Atribuição Manual de Dependências:** Permite definir manualmente a dependência hierárquica (Item Pai) de forma a cruzar relacionamentos entre projetos Jira e Azure DevOps (ex: história no Azure filha de um Epic no Jira) sem que as sincronizações automáticas das APIs externas sobreponham essas configurações (prioriza o campo local `localParentId` sobre `parentId` nas abas e Roadmap). Permite também gerenciar bloqueadores (blockers) adicionando ou removendo dependências na gaveta lateral de detalhes.
 
 ---
 

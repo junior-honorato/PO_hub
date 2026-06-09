@@ -31,6 +31,7 @@ def init_db():
                     managerNotes TEXT,
                     comments_history TEXT,
                     parentId TEXT,
+                    localParentId TEXT,
                     blockers TEXT,
                     blocked_by TEXT
                 )
@@ -56,6 +57,8 @@ def init_db():
                 conn.execute("ALTER TABLE demands ADD COLUMN blockers TEXT")
             if "blocked_by" not in columns:
                 conn.execute("ALTER TABLE demands ADD COLUMN blocked_by TEXT")
+            if "localParentId" not in columns:
+                conn.execute("ALTER TABLE demands ADD COLUMN localParentId TEXT")
 
             # Tabela Annotations (Apontamentos/Histórico local)
             conn.execute("""

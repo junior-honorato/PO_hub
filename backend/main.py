@@ -48,6 +48,7 @@ class DemandUpdate(BaseModel):
     promisedDate: str = None
     followUpDate: str = None
     managerNotes: str = None
+    localParentId: str = None
 
 def extract_adf_text(node):
     if not node:
@@ -620,7 +621,8 @@ def get_demands_data(db_name="ativo"):
             "externalUrl": get_external_url(row["origin"], row["externalId"]),
             "blockers": all_blockers,
             "blocked_by": all_blocked_by,
-            "parentId": row.get("parentId"),
+            "parentId": row.get("localParentId") or row.get("parentId"),
+            "localParentId": row.get("localParentId"),
             "isStale": is_stale
         })
     return demands
@@ -654,29 +656,41 @@ def sync_demands():
                 "Authorization": f"Basic {auth_b64}",
                 "Accept": "application/json"
             }
-            params = {
-                "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
-                "maxResults": 50,
-                "fields": "key,summary,status,comment,parent,issuelinks,issuetype"
-            }
-            
-            response = requests.get(jira_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
-            if response.status_code == 200:
-                issues = response.json().get("issues", [])
-                for issue in issues:
-                    parsed = parse_jira_issue(issue)
-                    jira_fetched.append(parsed)
-                sync_source["jira"] = "real"
-            else:
-                err_msg = f"Jira HTTP {response.status_code}: {response.text[:150]}"
-                print(f"Erro na sincronização do Jira: {err_msg}")
-                errors.append(err_msg)
-                jira_fetched = MOCK_JIRA_DEMANDS
+            start_at = 0
+            max_results = 100
+            while True:
+                params = {
+                    "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
+                    "maxResults": max_results,
+                    "startAt": start_at,
+                    "fields": "key,summary,status,comment,parent,issuelinks,issuetype"
+                }
+                response = requests.get(jira_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
+                if response.status_code == 200:
+                    data = response.json()
+                    issues = data.get("issues", [])
+                    if not issues:
+                        break
+                    for issue in issues:
+                        parsed = parse_jira_issue(issue)
+                        jira_fetched.append(parsed)
+                    sync_source["jira"] = "real"
+                    start_at += len(issues)
+                    if len(issues) < max_results:
+                        break
+                else:
+                    err_msg = f"Jira HTTP {response.status_code}: {response.text[:150]}"
+                    print(f"Erro na sincronização do Jira: {err_msg}")
+                    errors.append(err_msg)
+                    if not jira_fetched:
+                        jira_fetched = MOCK_JIRA_DEMANDS
+                    break
         except Exception as e:
             err_msg = f"Falha na conexão com Jira: {str(e)}"
             print(err_msg)
             errors.append(err_msg)
-            jira_fetched = MOCK_JIRA_DEMANDS
+            if not jira_fetched:
+                jira_fetched = MOCK_JIRA_DEMANDS
     else:
         print("Credenciais do Jira ausentes. Usando dados fictícios.")
         jira_fetched = MOCK_JIRA_DEMANDS
@@ -850,7 +864,8 @@ def get_demand(external_id: str):
             "externalUrl": get_external_url(demand["origin"], demand["externalId"]),
             "blockers": all_blockers,
             "blocked_by": all_blocked_by,
-            "parentId": demand.get("parentId"),
+            "parentId": demand.get("localParentId") or demand.get("parentId"),
+            "localParentId": demand.get("localParentId"),
             "isStale": is_stale,
             "comments_history": demand["comments_history"]
         }
