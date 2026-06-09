@@ -75,18 +75,18 @@ def format_comment_date(date_str):
 
 # Dados Mockados para fallback (usados apenas se não houver credenciais configuradas)
 MOCK_JIRA_DEMANDS = [
-    {"origin": "Jira", "externalId": "JIRA-101", "title": "Migração da infraestrutura local para GCP", "externalStatus": "Em Progresso", "comments_history": "[01/06/2026 10:00 - Sistema]\nImportado via carga inicial.\n\n[02/06/2026 15:30 - Product Owner]\nPrioridade alta para o próximo sprint."},
-    {"origin": "Jira", "externalId": "JIRA-102", "title": "Fluxo de Checkout Simplificado (One-Click Buy)", "externalStatus": "A Fazer", "comments_history": None},
-    {"origin": "Jira", "externalId": "JIRA-103", "title": "Integração de pagamento instantâneo via Pix", "externalStatus": "Concluído", "comments_history": "[30/05/2026 09:15 - Analista de QA]\nTestado em ambiente de homologação. Fluxo aprovado."},
-    {"origin": "Jira", "externalId": "JIRA-104", "title": "Painel Analytics corporativo pós-venda", "externalStatus": "Backlog", "comments_history": None}
+    {"origin": "Jira", "externalId": "JIRA-101", "title": "Migração da infraestrutura local para GCP", "externalStatus": "Em Progresso", "itemType": "Epic", "comments_history": "[01/06/2026 10:00 - Sistema]\nImportado via carga inicial.\n\n[02/06/2026 15:30 - Product Owner]\nPrioridade alta para o próximo sprint."},
+    {"origin": "Jira", "externalId": "JIRA-102", "title": "Fluxo de Checkout Simplificado (One-Click Buy)", "externalStatus": "A Fazer", "itemType": "Oportunidade", "comments_history": None},
+    {"origin": "Jira", "externalId": "JIRA-103", "title": "Integração de pagamento instantâneo via Pix", "externalStatus": "Concluído", "itemType": "Epic", "comments_history": "[30/05/2026 09:15 - Analista de QA]\nTestado em ambiente de homologação. Fluxo aprovado."},
+    {"origin": "Jira", "externalId": "JIRA-104", "title": "Painel Analytics corporativo pós-venda", "externalStatus": "Backlog", "itemType": "Oportunidade", "comments_history": None}
 ]
 
 MOCK_AZURE_DEMANDS = [
-    {"origin": "Azure", "externalId": "AZURE-501", "title": "Bug: Vazamento de memória ao alternar abas de produtos", "externalStatus": "Desenvolvimento", "comments_history": "[02/06/2026 11:22 - Desenvolvedor]\nCorrigindo vazamento no event listener do hook useEffect."},
-    {"origin": "Azure", "externalId": "AZURE-502", "title": "US: Componente reutilizável de Upload Drag-and-Drop", "externalStatus": "Aprovado", "comments_history": None},
-    {"origin": "Azure", "externalId": "AZURE-503", "title": "US: Refatoração do fluxo de autenticação JWT e Refresh Token", "externalStatus": "Novo", "comments_history": None},
-    {"origin": "Azure", "externalId": "AZURE-504", "title": "Bug: Erro 500 intermitente ao salvar preferências de notificação", "externalStatus": "Impedido", "comments_history": "[03/06/2026 16:45 - Gestor de Projetos]\nItem bloqueado aguardando liberação da API de envio de emails corporativos."},
-    {"origin": "Azure", "externalId": "AZURE-505", "title": "US: Implementação de WebSockets para notificações push na tela", "externalStatus": "Em Teste", "comments_history": None}
+    {"origin": "Azure", "externalId": "AZURE-501", "title": "Bug: Vazamento de memória ao alternar abas de produtos", "externalStatus": "Desenvolvimento", "itemType": "Bug", "comments_history": "[02/06/2026 11:22 - Desenvolvedor]\nCorrigindo vazamento no event listener do hook useEffect."},
+    {"origin": "Azure", "externalId": "AZURE-502", "title": "US: Componente reutilizável de Upload Drag-and-Drop", "externalStatus": "Aprovado", "itemType": "User Story", "comments_history": None},
+    {"origin": "Azure", "externalId": "AZURE-503", "title": "US: Refatoração do fluxo de autenticação JWT e Refresh Token", "externalStatus": "Novo", "itemType": "User Story", "comments_history": None},
+    {"origin": "Azure", "externalId": "AZURE-504", "title": "Bug: Erro 500 intermitente ao salvar preferências de notificação", "externalStatus": "Impedido", "itemType": "Bug", "comments_history": "[03/06/2026 16:45 - Gestor de Projetos]\nItem bloqueado aguardando liberação da API de envio de emails corporativos."},
+    {"origin": "Azure", "externalId": "AZURE-505", "title": "US: Implementação de WebSockets para notificações push na tela", "externalStatus": "Em Teste", "itemType": "User Story", "comments_history": None}
 ]
 
 def has_jira_credentials():
@@ -222,11 +222,12 @@ def migrate_to_active(external_id):
 
 def save_demand(demand, db_name):
     execute_query("""
-        INSERT INTO demands (externalId, origin, title, externalStatus, comments_history, parentId, blockers, blocked_by, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO demands (externalId, origin, title, externalStatus, itemType, comments_history, parentId, blockers, blocked_by, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(externalId) DO UPDATE SET
             title = excluded.title,
             externalStatus = excluded.externalStatus,
+            itemType = excluded.itemType,
             comments_history = excluded.comments_history,
             parentId = excluded.parentId,
             blockers = excluded.blockers,
@@ -237,6 +238,7 @@ def save_demand(demand, db_name):
         demand["origin"],
         demand["title"],
         demand["externalStatus"],
+        demand.get("itemType", "Outro"),
         demand.get("comments_history"),
         demand.get("parentId"),
         demand.get("blockers"),
@@ -337,11 +339,14 @@ def parse_jira_issue(issue):
                         blocked_by.append(outward_key)
     
     import json
+    issuetype_field = fields.get("issuetype")
+    item_type = issuetype_field.get("name", "Outro") if isinstance(issuetype_field, dict) else "Outro"
     return {
         "origin": "Jira",
         "externalId": issue.get("key") or f"JIRA-{issue.get('id')}",
         "title": fields.get("summary", "Sem título"),
         "externalStatus": fields.get("status", {}).get("name", "Sem Status") if isinstance(fields.get("status"), dict) else "Sem Status",
+        "itemType": item_type,
         "comments_history": comments_history,
         "parentId": parent_id,
         "blockers": json.dumps(blockers),
@@ -424,6 +429,7 @@ def parse_azure_item(item, azure_url, headers):
         "externalId": f"AZ-{item.get('id')}",
         "title": f"{prefix}{fields.get('System.Title', 'Sem título')}",
         "externalStatus": fields.get("System.State", "Sem Status"),
+        "itemType": item_type if item_type else "Outro",
         "comments_history": comments_history,
         "parentId": azure_parent_id,
         "blockers": json.dumps(azure_blockers),
@@ -604,6 +610,7 @@ def get_demands_data(db_name="ativo"):
             "origin": row["origin"],
             "title": row["title"],
             "externalStatus": row["externalStatus"],
+            "itemType": row.get("itemType") or "Outro",
             "createdAt": row["createdAt"],
             "updatedAt": row["updatedAt"],
             "promisedDate": row["promisedDate"],
@@ -832,6 +839,7 @@ def get_demand(external_id: str):
             "origin": demand["origin"],
             "title": demand["title"],
             "externalStatus": demand["externalStatus"],
+            "itemType": demand.get("itemType") or "Outro",
             "createdAt": demand["createdAt"],
             "updatedAt": demand["updatedAt"],
             "promisedDate": demand["promisedDate"],

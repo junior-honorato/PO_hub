@@ -23,6 +23,7 @@ def init_db():
                     origin TEXT CHECK(origin IN ('Jira', 'Azure')),
                     title TEXT NOT NULL,
                     externalStatus TEXT NOT NULL,
+                    itemType TEXT DEFAULT 'Outro',
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     promisedDate TEXT,
@@ -39,6 +40,8 @@ def init_db():
             cursor = conn.cursor()
             cursor.execute("PRAGMA table_info(demands)")
             columns = [row[1] for row in cursor.fetchall()]
+            if "itemType" not in columns:
+                conn.execute("ALTER TABLE demands ADD COLUMN itemType TEXT DEFAULT 'Outro'")
             if "promisedDate" not in columns:
                 conn.execute("ALTER TABLE demands ADD COLUMN promisedDate TEXT")
             if "followUpDate" not in columns:

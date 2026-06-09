@@ -4,6 +4,7 @@ import { Search, X, Inbox, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown, ChevronL
 export default function DemandTable({ demands, onSelectDemand }) {
   const [search, setSearch] = useState('');
   const [originFilter, setOriginFilter] = useState('All');
+  const [itemTypeFilter, setItemTypeFilter] = useState('All');
   const [selectedTag, setSelectedTag] = useState('');
   const [selectedStatus, setSelectedStatus] = useState([]);
   const [sortBy, setSortBy] = useState('updated-desc');
@@ -14,6 +15,8 @@ export default function DemandTable({ demands, onSelectDemand }) {
   const allTags = Array.from(new Set(demands.flatMap(d => d.tags)));
   // Extrai todos os status únicos
   const allStatuses = Array.from(new Set(demands.map(d => d.externalStatus).filter(Boolean)));
+  // Extrai todos os tipos de item únicos
+  const allTypes = Array.from(new Set(demands.map(d => d.itemType).filter(Boolean)));
 
   const handleSort = (field) => {
     if (field === 'id') {
@@ -46,7 +49,8 @@ export default function DemandTable({ demands, onSelectDemand }) {
     const matchesOrigin = originFilter === 'All' || d.origin === originFilter;
     const matchesTag = !selectedTag || d.tags.includes(selectedTag);
     const matchesStatus = selectedStatus.length === 0 || selectedStatus.includes(d.externalStatus);
-    return matchesSearch && matchesOrigin && matchesTag && matchesStatus;
+    const matchesItemType = itemTypeFilter === 'All' || d.itemType === itemTypeFilter;
+    return matchesSearch && matchesOrigin && matchesTag && matchesStatus && matchesItemType;
   });
 
   const sortedDemands = [...filteredDemands].sort((a, b) => {
@@ -100,6 +104,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
   const handleClearFilters = () => {
     setSearch('');
     setOriginFilter('All');
+    setItemTypeFilter('All');
     setSelectedTag('');
     setSelectedStatus([]);
     setSortBy('updated-desc');
@@ -143,6 +148,18 @@ export default function DemandTable({ demands, onSelectDemand }) {
               <option value="Azure">Azure DevOps</option>
             </select>
 
+            {/* Filtro por Tipo de Item */}
+            <select
+              value={itemTypeFilter}
+              onChange={(e) => { setItemTypeFilter(e.target.value); setCurrentPage(1); }}
+              className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+            >
+              <option value="All">Tipo de Item</option>
+              {allTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+
             {/* Filtro por Tags */}
             <select
               value={selectedTag}
@@ -172,7 +189,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
             </select>
 
             {/* Limpar Filtros */}
-            {(search || originFilter !== 'All' || selectedTag || selectedStatus.length > 0 || sortBy !== 'updated-desc') && (
+            {(search || originFilter !== 'All' || itemTypeFilter !== 'All' || selectedTag || selectedStatus.length > 0 || sortBy !== 'updated-desc') && (
               <button
                 onClick={handleClearFilters}
                 className="p-2 text-slate-400 hover:text-white bg-slate-900 rounded-xl transition-colors"
@@ -268,7 +285,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
                         }`} />
                         <div>
                           <span className="font-semibold text-white block">{demand.externalId}</span>
-                          <span className="text-xs text-slate-500 block">{demand.origin}</span>
+                          <span className="text-xs text-slate-500 block">{demand.origin} • {demand.itemType || 'Outro'}</span>
                         </div>
                       </div>
                     </td>
