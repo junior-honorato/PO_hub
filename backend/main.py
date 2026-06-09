@@ -222,22 +222,26 @@ def migrate_to_active(external_id):
     execute_query("DELETE FROM demands WHERE externalId = ?", (external_id,), "historico")
 
 def save_demand(demand, db_name):
+    updated_at = demand.get("updatedAt")
+    if not updated_at:
+        updated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
     execute_query("""
         INSERT INTO demands (externalId, origin, title, externalStatus, itemType, comments_history, parentId, blockers, blocked_by, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, CURRENT_TIMESTAMP)
+        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?)
         ON CONFLICT(externalId) DO UPDATE SET
             title = excluded.title,
             externalStatus = excluded.externalStatus,
             itemType = excluded.itemType,
             comments_history = excluded.comments_history,
-            updatedAt = CURRENT_TIMESTAMP
+            updatedAt = excluded.updatedAt
     """, (
         demand["externalId"],
         demand["origin"],
         demand["title"],
         demand["externalStatus"],
         demand.get("itemType", "Outro"),
-        demand.get("comments_history")
+        demand.get("comments_history"),
+        updated_at
     ), db_name)
 
 def fetch_jira_issue_details(key):
@@ -260,7 +264,7 @@ def fetch_jira_issue_details(key):
             "Accept": "application/json"
         }
         params = {
-            "fields": "key,summary,status,comment,parent,issuelinks,issuetype"
+            "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated"
         }
         res = requests.get(detail_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
         if res.status_code == 200:
@@ -336,6 +340,15 @@ def parse_jira_issue(issue):
     import json
     issuetype_field = fields.get("issuetype")
     item_type = issuetype_field.get("name", "Outro") if isinstance(issuetype_field, dict) else "Outro"
+    
+    updated_at_raw = fields.get("updated")
+    updated_at = ""
+    if updated_at_raw:
+        if len(updated_at_raw) >= 19:
+            updated_at = updated_at_raw[:19].replace('T', ' ')
+        else:
+            updated_at = updated_at_raw
+
     return {
         "origin": "Jira",
         "externalId": issue.get("key") or f"JIRA-{issue.get('id')}",
@@ -345,7 +358,8 @@ def parse_jira_issue(issue):
         "comments_history": comments_history,
         "parentId": parent_id,
         "blockers": json.dumps(blockers),
-        "blocked_by": json.dumps(blocked_by)
+        "blocked_by": json.dumps(blocked_by),
+        "updatedAt": updated_at
     }
 
 def parse_azure_item(item, azure_url, headers):
@@ -418,6 +432,14 @@ def parse_azure_item(item, azure_url, headers):
                 elif rel_type == "System.LinkTypes.Dependency-Reverse":
                     azure_blockers.append(target_ext_id)
                     
+    updated_at_raw = fields.get("System.ChangedDate")
+    updated_at = ""
+    if updated_at_raw:
+        if len(updated_at_raw) >= 19:
+            updated_at = updated_at_raw[:19].replace('T', ' ')
+        else:
+            updated_at = updated_at_raw
+
     import json
     return {
         "origin": "Azure",
@@ -428,7 +450,8 @@ def parse_azure_item(item, azure_url, headers):
         "comments_history": comments_history,
         "parentId": azure_parent_id,
         "blockers": json.dumps(azure_blockers),
-        "blocked_by": json.dumps(azure_blocked_by)
+        "blocked_by": json.dumps(azure_blocked_by),
+        "updatedAt": updated_at
     }
 
 def process_sync_for_demands(fetched_demands, origin):
@@ -656,7 +679,7 @@ def sync_demands():
                 params = {
                     "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
                     "maxResults": max_results,
-                    "fields": "key,summary,status,comment,parent,issuelinks,issuetype"
+                    "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated"
                 }
                 if next_page_token:
                     params["nextPageToken"] = next_page_token
