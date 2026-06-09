@@ -1926,6 +1926,8 @@
               <ManagerSyncView demands={demands} onSelectDemand={handleSelectDemand} />
             ) : activeTab === 'roadmap' ? (
               <RoadmapGraphView demands={demands} onSelectDemand={handleSelectDemand} />
+            ) : activeTab === 'history' ? (
+              <HistoryView onSelectDemand={handleSelectDemand} />
             ) : (
               <div className="flex-1 overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full space-y-6">
                 <div>
