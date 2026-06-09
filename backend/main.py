@@ -648,7 +648,7 @@ def sync_demands():
                 "Accept": "application/json"
             }
             params = {
-                "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade") AND status not in ("Concluído", "Done", "Resolved", "Closed", "Improcedente", "Cancelado") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
+                "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
                 "maxResults": 50,
                 "fields": "key,summary,status,comment,parent,issuelinks,issuetype"
             }
@@ -692,7 +692,6 @@ def sync_demands():
             wiql_query = {
                 "query": (
                     "Select [System.Id] From WorkItems Where [System.State] <> 'Removed' "
-                    "AND [System.State] NOT IN ('Concluído', 'Done', 'Resolved', 'Closed', 'Improcedente', 'Cancelado') "
                     "AND ("
                     "[System.CreatedBy] = @me "
                     "OR [System.CreatedBy] = 'arlindo.junior@sicoob.com.br' "
