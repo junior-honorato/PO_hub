@@ -677,7 +677,7 @@ def sync_demands():
             max_results = 100
             while True:
                 params = {
-                    "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
+                    "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia", Legend, "Legend") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
                     "maxResults": max_results,
                     "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated"
                 }
