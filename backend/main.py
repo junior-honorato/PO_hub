@@ -2,6 +2,7 @@ import os
 import base64
 import urllib3
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -45,10 +46,10 @@ class DependencyCreate(BaseModel):
     blocker_id: str
 
 class DemandUpdate(BaseModel):
-    promisedDate: str = None
-    followUpDate: str = None
-    managerNotes: str = None
-    localParentId: str = None
+    promisedDate: Optional[str] = None
+    followUpDate: Optional[str] = None
+    managerNotes: Optional[str] = None
+    localParentId: Optional[str] = None
 
 def extract_adf_text(node):
     if not node:
@@ -638,7 +639,7 @@ def get_demands_data(db_name="ativo"):
             "externalUrl": get_external_url(row["origin"], row["externalId"]),
             "blockers": all_blockers,
             "blocked_by": all_blocked_by,
-            "parentId": row.get("localParentId") or row.get("parentId"),
+            "parentId": None if row.get("localParentId") == "NONE" else (row.get("localParentId") or row.get("parentId")),
             "localParentId": row.get("localParentId"),
             "isStale": is_stale
         })
@@ -883,7 +884,7 @@ def get_demand(external_id: str):
             "externalUrl": get_external_url(demand["origin"], demand["externalId"]),
             "blockers": all_blockers,
             "blocked_by": all_blocked_by,
-            "parentId": demand.get("localParentId") or demand.get("parentId"),
+            "parentId": None if demand.get("localParentId") == "NONE" else (demand.get("localParentId") or demand.get("parentId")),
             "localParentId": demand.get("localParentId"),
             "isStale": is_stale,
             "comments_history": demand["comments_history"]

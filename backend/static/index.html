@@ -674,14 +674,16 @@
     }
 
     // Componente Slide-Over Drawer (Painel de Detalhes)
-    function DemandDrawer({ demandId, isOpen, onClose, onRefreshDemands }) {
+    function DemandDrawer({ demandId, isOpen, onClose, onRefreshDemands, allDemands = [] }) {
       const [demand, setDemand] = useState(null);
       const [note, setNote] = useState('');
       const [tagInput, setTagInput] = useState('');
       const [loading, setLoading] = useState(false);
       const [showExternalComments, setShowExternalComments] = useState(false);
-      const [localParentIdInput, setLocalParentIdInput] = useState('');
-      const [blockerInput, setBlockerInput] = useState('');
+      const [parentSearchQuery, setParentSearchQuery] = useState('');
+      const [isParentSearchOpen, setIsParentSearchOpen] = useState(false);
+      const [blockerSearchQuery, setBlockerSearchQuery] = useState('');
+      const [isBlockerSearchOpen, setIsBlockerSearchOpen] = useState(false);
 
       useEffect(() => {
         if (isOpen && demandId) {
@@ -690,16 +692,12 @@
         } else {
           setDemand(null);
           setShowExternalComments(false);
+          setIsParentSearchOpen(false);
+          setIsBlockerSearchOpen(false);
+          setParentSearchQuery('');
+          setBlockerSearchQuery('');
         }
       }, [demandId, isOpen]);
-
-      useEffect(() => {
-        if (demand) {
-          setLocalParentIdInput(demand.localParentId || '');
-        } else {
-          setLocalParentIdInput('');
-        }
-      }, [demand]);
 
       const loadDemandDetail = async () => {
         setLoading(true);
@@ -788,23 +786,14 @@
         }
       };
 
-      const handleUpdateParent = async (e) => {
-        if (e) e.preventDefault();
-        const parentVal = localParentIdInput.trim().toUpperCase();
-        await handleUpdateManagementField('localParentId', parentVal || null);
+      const handleSelectParent = async (val) => {
+        await handleUpdateManagementField('localParentId', val);
+        setIsParentSearchOpen(false);
+        setParentSearchQuery('');
         loadDemandDetail();
       };
 
-      const handleRemoveParent = async () => {
-        setLocalParentIdInput('');
-        await handleUpdateManagementField('localParentId', null);
-        loadDemandDetail();
-      };
-
-      const handleAddBlocker = async (e) => {
-        e.preventDefault();
-        const blockerId = blockerInput.trim().toUpperCase();
-        if (!blockerId || demand.blockers.includes(blockerId)) return;
+      const handleSelectBlocker = async (blockerId) => {
         try {
           const res = await fetch(`/api/demands/${demandId}/dependencies`, {
             method: 'POST',
@@ -812,7 +801,8 @@
             body: JSON.stringify({ blocker_id: blockerId })
           });
           if (res.ok) {
-            setBlockerInput('');
+            setIsBlockerSearchOpen(false);
+            setBlockerSearchQuery('');
             loadDemandDetail();
             onRefreshDemands();
           }
@@ -1021,43 +1011,109 @@
                    </h3>
                    
                    {/* Item Pai Manual */}
-                   <div className="space-y-1.5">
+                   <div className="space-y-1.5 relative">
                      <label className="text-xs text-slate-400 font-medium">Demanda Pai (Hierarquia)</label>
-                     <form onSubmit={handleUpdateParent} className="flex gap-2">
-                       <input
-                         type="text"
-                         placeholder="Ex: JIRA-101"
-                         value={localParentIdInput}
-                         onChange={e => setLocalParentIdInput(e.target.value)}
-                         className="flex-1 bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
-                       />
-                       {demand.localParentId ? (
-                         <button
-                           type="button"
-                           onClick={handleRemoveParent}
-                           className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-semibold transition-colors"
-                         >
-                           Remover
-                         </button>
-                       ) : (
-                         <button
-                           type="submit"
-                           disabled={!localParentIdInput.trim() || localParentIdInput.trim() === demand.localParentId}
-                           className="px-3 py-2 bg-slate-100 hover:bg-white text-slate-950 rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
-                         >
-                           Vincular
-                         </button>
-                       )}
-                     </form>
-                     {demand.parentId && !demand.localParentId && (
-                       <span className="text-[10px] text-slate-500 block">
-                         Vínculo automático atual: <strong className="text-slate-400">{demand.parentId}</strong>
-                       </span>
+                     
+                     {isParentSearchOpen && (
+                       <div className="fixed inset-0 z-10" onClick={() => setIsParentSearchOpen(false)} />
                      )}
+                     
+                     <div className="relative">
+                       <button
+                         type="button"
+                         onClick={() => setIsParentSearchOpen(!isParentSearchOpen)}
+                         className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-left text-slate-300 flex items-center justify-between hover:border-slate-700 transition-colors"
+                       >
+                         <span className="truncate">
+                           {demand.parentId ? (
+                             <>
+                               <strong className="text-indigo-400">[{demand.parentId}]</strong>{' '}
+                               {allDemands.find(d => d.externalId === demand.parentId)?.title || ''}
+                               {demand.localParentId && demand.localParentId !== 'NONE' ? (
+                                 <span className="ml-2 text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-500/20">Manual</span>
+                               ) : demand.localParentId === 'NONE' ? (
+                                 <span className="ml-2 text-[9px] bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded border border-rose-500/20">Removido</span>
+                               ) : (
+                                 <span className="ml-2 text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">Auto</span>
+                               )}
+                             </>
+                           ) : (
+                             <span className="text-slate-500">Nenhum (Sem pai)</span>
+                           )}
+                         </span>
+                         <Icon name="chevron-down" className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                       </button>
+
+                       {isParentSearchOpen && (
+                         <div className="absolute left-0 right-0 mt-1.5 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl z-20 p-2 space-y-2 max-h-60 flex flex-col">
+                           <div className="flex items-center gap-2 border-b border-slate-800 pb-1.5">
+                             <Icon name="search" className="w-3.5 h-3.5 text-slate-500 ml-1.5" />
+                             <input
+                               type="text"
+                               placeholder="Filtrar por ID ou Título..."
+                               value={parentSearchQuery}
+                               onChange={e => setParentSearchQuery(e.target.value)}
+                               className="w-full bg-transparent text-xs text-slate-300 focus:outline-none placeholder-slate-600"
+                               autoFocus
+                             />
+                             {parentSearchQuery && (
+                               <button type="button" onClick={() => setParentSearchQuery('')}>
+                                 <Icon name="x" className="w-3 h-3 text-slate-500 hover:text-slate-300" />
+                               </button>
+                             )}
+                           </div>
+                           <div className="overflow-y-auto flex-1 space-y-0.5 pr-1 max-h-40">
+                             {/* Option to restore auto if manual override is active */}
+                             {demand.localParentId && (
+                               <button
+                                 type="button"
+                                 onClick={() => handleSelectParent(null)}
+                                 className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 flex items-center justify-between"
+                               >
+                                 <span>Restaurar vínculo automático</span>
+                                 <Icon name="refresh-cw" className="w-3 h-3 text-slate-500" />
+                               </button>
+                             )}
+                             
+                             {/* Option for Nenhum */}
+                             <button
+                               type="button"
+                               onClick={() => handleSelectParent('NONE')}
+                               className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-300 flex items-center justify-between"
+                             >
+                               <span>Sem pai (Nenhum)</span>
+                               {demand.localParentId === 'NONE' && <Icon name="check" className="w-3.5 h-3.5 text-brand-500" />}
+                             </button>
+
+                             {/* List of filtered demands */}
+                             {allDemands
+                               .filter(d => d.externalId !== demandId)
+                               .filter(d => 
+                                 !parentSearchQuery ||
+                                 d.externalId.toLowerCase().includes(parentSearchQuery.toLowerCase()) ||
+                                 d.title.toLowerCase().includes(parentSearchQuery.toLowerCase())
+                               )
+                               .map(d => (
+                                 <button
+                                   key={d.externalId}
+                                   type="button"
+                                   onClick={() => handleSelectParent(d.externalId)}
+                                   className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-300 flex items-center justify-between gap-2"
+                                 >
+                                   <span className="truncate">
+                                     <strong className="text-slate-400">[{d.externalId}]</strong> {d.title}
+                                   </span>
+                                   {demand.localParentId === d.externalId && <Icon name="check" className="w-3.5 h-3.5 text-brand-500" />}
+                                 </button>
+                               ))}
+                           </div>
+                         </div>
+                       )}
+                     </div>
                    </div>
 
                    {/* Bloqueadores Manuais */}
-                   <div className="space-y-2.5 pt-2 border-t border-slate-800/40">
+                   <div className="space-y-2.5 pt-2 border-t border-slate-800/40 relative">
                      <label className="text-xs text-slate-400 font-medium block">Bloqueadores (Blockers)</label>
                      
                      {/* Lista de Bloqueadores */}
@@ -1083,23 +1139,64 @@
                        <span className="text-[10px] text-slate-500 block mb-1">Nenhum bloqueador manual associado.</span>
                      )}
 
-                     {/* Form Adicionar Bloqueador */}
-                     <form onSubmit={handleAddBlocker} className="flex gap-2">
-                       <input
-                         type="text"
-                         placeholder="Adicionar ID do Bloqueador (Ex: AZ-501)"
-                         value={blockerInput}
-                         onChange={e => setBlockerInput(e.target.value)}
-                         className="flex-1 bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
-                       />
+                     {/* Form Adicionar Bloqueador como Dropdown */}
+                     <div className="relative">
+                       {isBlockerSearchOpen && (
+                         <div className="fixed inset-0 z-10" onClick={() => setIsBlockerSearchOpen(false)} />
+                       )}
+                       
                        <button
-                         type="submit"
-                         disabled={!blockerInput.trim()}
-                         className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
+                         type="button"
+                         onClick={() => setIsBlockerSearchOpen(!isBlockerSearchOpen)}
+                         className="w-full bg-slate-950 border border-slate-800/80 hover:border-slate-700 rounded-xl px-3 py-2 text-xs text-left text-slate-500 flex items-center justify-between transition-colors"
                        >
-                         Adicionar
+                         <span>Vincular demanda bloqueadora...</span>
+                         <Icon name="search" className="w-3.5 h-3.5 text-slate-500" />
                        </button>
-                     </form>
+
+                       {isBlockerSearchOpen && (
+                         <div className="absolute left-0 right-0 mt-1.5 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl z-20 p-2 space-y-2 max-h-60 flex flex-col">
+                           <div className="flex items-center gap-2 border-b border-slate-800 pb-1.5">
+                             <Icon name="search" className="w-3.5 h-3.5 text-slate-500 ml-1.5" />
+                             <input
+                               type="text"
+                               placeholder="Buscar por ID ou Título..."
+                               value={blockerSearchQuery}
+                               onChange={e => setBlockerSearchQuery(e.target.value)}
+                               className="w-full bg-transparent text-xs text-slate-300 focus:outline-none placeholder-slate-600"
+                               autoFocus
+                             />
+                             {blockerSearchQuery && (
+                               <button type="button" onClick={() => setBlockerSearchQuery('')}>
+                                 <Icon name="x" className="w-3 h-3 text-slate-500 hover:text-slate-300" />
+                               </button>
+                             )}
+                           </div>
+                           <div className="overflow-y-auto flex-1 space-y-0.5 pr-1 max-h-40">
+                             {allDemands
+                               .filter(d => d.externalId !== demandId)
+                               .filter(d => !demand.blockers.includes(d.externalId))
+                               .filter(d => 
+                                 !blockerSearchQuery ||
+                                 d.externalId.toLowerCase().includes(blockerSearchQuery.toLowerCase()) ||
+                                 d.title.toLowerCase().includes(blockerSearchQuery.toLowerCase())
+                               )
+                               .map(d => (
+                                 <button
+                                   key={d.externalId}
+                                   type="button"
+                                   onClick={() => handleSelectBlocker(d.externalId)}
+                                   className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-300 flex items-center gap-2"
+                                 >
+                                   <span className="truncate">
+                                     <strong className="text-slate-400">[{d.externalId}]</strong> {d.title}
+                                   </span>
+                                 </button>
+                               ))}
+                           </div>
+                         </div>
+                       )}
+                     </div>
                    </div>
                  </div>
 
@@ -1205,6 +1302,15 @@
 
               </div>
             ) : null}
+
+            {/* Datalist de busca autocompletar para vinculos manuais */}
+            <datalist id="all-demands-list">
+              {allDemands.map(d => (
+                <option key={d.externalId} value={d.externalId}>
+                  {d.origin} • {d.itemType} • {d.title}
+                </option>
+              ))}
+            </datalist>
           </div>
         </div>
       );
@@ -2080,6 +2186,7 @@
             isOpen={isDrawerOpen}
             onClose={() => setIsDrawerOpen(false)}
             onRefreshDemands={loadDemands}
+            allDemands={demands}
           />
         </div>
       );
