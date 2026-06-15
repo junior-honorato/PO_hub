@@ -126,6 +126,12 @@ Armazena os bloqueios e dependências customizados entre demandas atribuídos de
 - `blocker_id` (TEXT) - Chave estrangeira referente a `demands(externalId)` para o item que atua como bloqueador.
 - Chave Primária Composta por (`blocked_id`, `blocker_id`).
 
+### 5. `project_reports`
+Tabela de cache para os relatórios de status report gerados por inteligência artificial para otimização de custos da API do Gemini (FinOps).
+- `project_name` (TEXT PRIMARY KEY) - Nome do projeto associado ao relatório.
+- `report_text` (TEXT) - Conteúdo em texto do relatório executivo retornado pela LLM.
+- `generated_at` (TEXT) - Timestamp da última geração/atualização (formato `dd/mm/yyyy hh:mm`).
+
 ---
 
 ## 🎯 Principais Funcionalidades da Interface UI/UX
@@ -149,7 +155,8 @@ Armazena os bloqueios e dependências customizados entre demandas atribuídos de
 14. **Atribuição Manual de Dependências (Sem Sobrescritas):** Todas as dependências e blockers automáticos vindos das APIs do Jira/Azure foram desativados e limpos. A modelagem de dependências é 100% manual e persistente no banco de dados local. O usuário pode definir o Item Pai (usando a coluna local `localParentId`, que aceita relações inter-projeto como Azure/Jira) e gerenciar relações de bloqueio (tabela `dependencies`) diretamente através do Drawer de detalhes, sem risco de que as sincronizações automáticas externas sobreponham essas configurações.
 15. **Pesquisa Autocomplete e Flexibilidade de Vínculos:** Os campos "Demanda Pai (Hierarquia)" e "Bloqueadores (Blockers)" no painel dinâmico (Drawer) foram aprimorados para incluir busca interativa (autocomplete) por ID ou Título da demanda. No campo de Demanda Pai, o usuário pode escolher "Nenhum (Sem pai)" (salvando o valor especial `"NONE"` no banco de dados para desvincular o item mesmo se houver um vínculo automático ativo vindo da API externa) ou restaurar o vínculo original. No campo de Bloqueadores, as demandas elegíveis são listadas e filtradas dinamicamente para evitar duplicidade ou auto-vinculação.
 16. **Resumo Inteligente de Demandas (Google Gemini):** Funcionalidade de resumo executivo baseada em inteligência artificial que lê o histórico de comentários de uma demanda e gera um resumo em bullet points focado em: 1. O que já foi feito, 2. Bloqueios atuais, 3. Próximos passos. Implementa cache local dinâmico baseado em timestamps de atualização para economizar chamadas à API e tokens (FinOps).
-17. **Gerador de Status Report por Projeto (Google Gemini):** Funcionalidade para consolidar o status de todas as demandas que compõem um determinado projeto e gerar um relatório executivo estruturado semanal. A IA processa o lote de demandas e retorna as informações em um modal detalhado (com suporte a cópia rápida para área de transferência), dividindo-o em: 1. Principais Entregas/Avanços, 2. O que está em Andamento, e 3. Atenção Necessária.
+17. **Gerador de Status Report por Projeto com IA (Google Gemini):** Funcionalidade para consolidar o status de todas as demandas que compõem um determinado projeto e gerar um relatório executivo estruturado. Conta com um modal detalhado exibindo as Principais Entregas/Avanços, O que está em Andamento, e Atenção Necessária, além de cópia rápida para a área de transferência.
+18. **Sistema de Cache Local & Otimização FinOps:** Para reduzir drasticamente o uso da API e custos do Gemini, os relatórios gerados por projeto são cacheados localmente na tabela `project_reports`. Ao clicar em "Ver Status Report", o sistema exibe instantaneamente o relatório cacheado com a data/hora da última atualização. O usuário pode forçar uma nova geração de IA a qualquer momento através do botão "Atualizar Resumo com IA" diretamente no modal, o qual exibe um indicador visual de carregamento enquanto consome a LLM.
 
 ---
 

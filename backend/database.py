@@ -97,6 +97,15 @@ def init_db():
                     FOREIGN KEY (blocker_id) REFERENCES demands(externalId) ON DELETE CASCADE
                 )
             """)
+
+            # Tabela Project Reports (Cache de Relatórios de Status)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS project_reports (
+                    project_name TEXT PRIMARY KEY,
+                    report_text TEXT,
+                    generated_at TEXT
+                )
+            """)
             conn.commit()
             print(f"Banco de dados SQLite {db_name} inicializado com sucesso.")
         except Exception as e:

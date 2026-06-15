@@ -52,7 +52,10 @@ class DependencyCreate(BaseModel):
     blocker_id: str
 
 class ProjectSummaryRequest(BaseModel):
+    project_name: str
     demand_ids: list[str]
+    force_refresh: Optional[bool] = False
+
 
 class DemandUpdate(BaseModel):
     promisedDate: Optional[str] = None
@@ -1004,6 +1007,16 @@ def generate_project_summary(payload: ProjectSummaryRequest):
         raise HTTPException(status_code=400, detail="A lista de IDs de demandas não pode estar vazia.")
         
     try:
+        # Check cache if force_refresh is False
+        if not payload.force_refresh:
+            cached_report = fetch_one("SELECT report_text, generated_at FROM project_reports WHERE project_name = ?", (payload.project_name,), "ativo")
+            if cached_report:
+                return {
+                    "report": cached_report["report_text"],
+                    "generated_at": cached_report["generated_at"],
+                    "cached": True
+                }
+                
         # 1. Check Gemini API key
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
@@ -1040,7 +1053,20 @@ def generate_project_summary(payload: ProjectSummaryRequest):
         if not report_text:
             raise HTTPException(status_code=500, detail="Não foi possível obter um relatório válido do Gemini.")
             
-        return {"report": report_text}
+        # Format current timestamp and save/update in DB
+        current_timestamp = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%d/%m/%Y %H:%M")
+        
+        execute_query(
+            "INSERT OR REPLACE INTO project_reports (project_name, report_text, generated_at) VALUES (?, ?, ?)",
+            (payload.project_name, report_text, current_timestamp),
+            "ativo"
+        )
+        
+        return {
+            "report": report_text,
+            "generated_at": current_timestamp,
+            "cached": False
+        }
         
     except HTTPException as he:
         raise he
