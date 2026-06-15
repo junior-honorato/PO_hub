@@ -16,8 +16,25 @@ from database import init_db, execute_query, fetch_all, fetch_one
 # Desabilita avisos de certificados corporativos autoassinados
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Carrega variáveis de ambiente do .env
-load_dotenv()
+# Carrega variáveis de ambiente do .env de forma explícita e absoluta a partir do diretório do backend
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(backend_dir, ".env")
+load_dotenv(dotenv_path=env_path)
+
+# VALIDAÇÃO CRÍTICA DE SEGURANÇA: Garante que o backend nunca modifique ou sobrescreva o arquivo .env
+def validate_env_protection():
+    # Valida que o arquivo .env existe e não está vazio, alertando sobre as credenciais carregadas
+    if not os.path.exists(env_path):
+        print(f"[!] AVISO: Arquivo .env não encontrado em {env_path}")
+        return
+    
+    jira_pat = os.getenv("JIRA_PAT")
+    azure_pat = os.getenv("AZURE_PAT")
+    print(f"[*] Proteção .env ativa. Arquivo carregado de: {env_path}")
+    print(f"[*] JIRA_PAT carregado: {'SIM' if jira_pat else 'NÃO (Vazio)'}")
+    print(f"[*] AZURE_PAT carregado: {'SIM' if azure_pat else 'NÃO (Vazio)'}")
+
+validate_env_protection()
 
 # Configura o cliente do Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -736,8 +753,14 @@ def sync_demands():
             print(err_msg)
             errors.append(err_msg)
     else:
-        print("Credenciais do Jira ausentes. Usando dados fictícios.")
-        jira_fetched = MOCK_JIRA_DEMANDS
+        env_exists = os.path.exists(env_path)
+        if env_exists and os.getenv("JIRA_API_URL"):
+            err_msg = "Credenciais do Jira (JIRA_PAT ou JIRA_USER_EMAIL) estão vazias no arquivo .env."
+            print(err_msg)
+            errors.append(err_msg)
+        else:
+            print("Credenciais do Jira ausentes. Usando dados fictícios.")
+            jira_fetched = MOCK_JIRA_DEMANDS
 
     # 2. Azure DevOps Sync
     if has_azure_credentials():
@@ -802,8 +825,14 @@ def sync_demands():
             print(err_msg)
             errors.append(err_msg)
     else:
-        print("Credenciais do Azure DevOps ausentes. Usando dados fictícios.")
-        azure_fetched = MOCK_AZURE_DEMANDS
+        env_exists = os.path.exists(env_path)
+        if env_exists and os.getenv("AZURE_API_URL"):
+            err_msg = "Credencial do Azure DevOps (AZURE_PAT) está vazia no arquivo .env."
+            print(err_msg)
+            errors.append(err_msg)
+        else:
+            print("Credenciais do Azure DevOps ausentes. Usando dados fictícios.")
+            azure_fetched = MOCK_AZURE_DEMANDS
 
     # Process sync using our unified selective sync function
     try:
