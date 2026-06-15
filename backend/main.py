@@ -662,6 +662,22 @@ def get_demands_data(db_name="ativo"):
 @app.post("/api/sync")
 def sync_demands():
     print("Iniciando sincronização com Dois Bancos...")
+    
+    # Se houver credenciais reais, remove os itens fictícios (mock) remanescentes para evitar poluição
+    if has_jira_credentials():
+        try:
+            execute_query("DELETE FROM demands WHERE origin = 'Jira' AND externalId LIKE 'JIRA-%'", db_name="ativo")
+            execute_query("DELETE FROM demands WHERE origin = 'Jira' AND externalId LIKE 'JIRA-%'", db_name="historico")
+        except Exception as e:
+            print(f"Erro ao limpar dados fictícios do Jira: {e}")
+            
+    if has_azure_credentials():
+        try:
+            execute_query("DELETE FROM demands WHERE origin = 'Azure' AND externalId LIKE 'AZURE-%'", db_name="ativo")
+            execute_query("DELETE FROM demands WHERE origin = 'Azure' AND externalId LIKE 'AZURE-%'", db_name="historico")
+        except Exception as e:
+            print(f"Erro ao limpar dados fictícios do Azure: {e}")
+
     jira_fetched = []
     azure_fetched = []
     sync_source = {"jira": "mock", "azure": "mock"}
