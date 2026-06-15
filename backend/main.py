@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import requests
 from dotenv import load_dotenv
+import google.generativeai as genai
 
 from database import init_db, execute_query, fetch_all, fetch_one
 
@@ -17,6 +18,11 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Carrega variáveis de ambiente do .env
 load_dotenv()
+
+# Configura o cliente do Gemini
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 app = FastAPI(title="PO Hub API", version="1.0.0")
 
@@ -887,13 +893,107 @@ def get_demand(external_id: str):
             "parentId": None if demand.get("localParentId") == "NONE" else (demand.get("localParentId") or demand.get("parentId")),
             "localParentId": demand.get("localParentId"),
             "isStale": is_stale,
-            "comments_history": demand["comments_history"]
+            "comments_history": demand["comments_history"],
+            "ai_summary": demand.get("ai_summary"),
+            "summary_updated_at": demand.get("summary_updated_at")
         }
     except HTTPException as he:
         raise he
     except Exception as e:
         print(f"Erro ao obter demanda {external_id}: {e}")
         raise HTTPException(status_code=500, detail="Erro ao carregar detalhes da demanda.")
+
+@app.post("/api/demands/{external_id}/summarize")
+def summarize_demand(external_id: str):
+    try:
+        # Search active database first
+        db_name = "ativo"
+        demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (external_id,), "ativo")
+        if not demand:
+            # Check history database
+            demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (external_id,), "historico")
+            db_name = "historico"
+            
+        if not demand:
+            raise HTTPException(status_code=404, detail="Demanda não encontrada no cache local.")
+            
+        ai_summary = demand.get("ai_summary")
+        summary_updated_at = demand.get("summary_updated_at")
+        updated_at = demand.get("updatedAt")
+        
+        # Check cache: if summary exists and is more recent or equal to updatedAt
+        cached_valid = False
+        if ai_summary and summary_updated_at and updated_at:
+            summary_updated_dt = parse_date(summary_updated_at)
+            updated_dt = parse_date(updated_at)
+            if summary_updated_dt and updated_dt and summary_updated_dt >= updated_dt:
+                cached_valid = True
+                
+        if cached_valid:
+            return {
+                "ai_summary": ai_summary,
+                "summary_updated_at": summary_updated_at,
+                "cached": True
+            }
+            
+        # Cache miss or stale summary -> call Gemini
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=400, detail="Chave de API do Gemini (GEMINI_API_KEY) não configurada no arquivo .env.")
+            
+        comments_history = demand.get("comments_history")
+        if not comments_history or not comments_history.strip():
+            raise HTTPException(
+                status_code=400, 
+                detail="Não há histórico de comentários disponível para gerar um resumo."
+            )
+            
+        # Setup model prompt
+        prompt = f"""Você é um Product Owner / Gerente de Projetos experiente.
+Analise a demanda abaixo e gere um resumo executivo focado em:
+1. O que já foi feito (bullet points)
+2. Bloqueios atuais (bullet points)
+3. Próximos passos (bullet points)
+
+Demanda: {demand.get('title') or ''}
+Status: {demand.get('externalStatus') or ''}
+
+Histórico de Comentários:
+{comments_history}
+
+Responda de forma direta, clara e profissional em português. Não adicione introduções ou conclusões (ex: "Aqui está o resumo..."), vá direto ao conteúdo solicitado.
+"""
+        
+        # Configure and invoke
+        genai.configure(api_key=api_key)
+        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+        model = genai.GenerativeModel(model_name)
+        
+        response = model.generate_content(prompt)
+        new_summary = response.text
+        if not new_summary:
+            raise HTTPException(status_code=500, detail="Não foi possível obter uma resposta válida do Gemini.")
+            
+        current_timestamp = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Update demand with summary
+        execute_query(
+            "UPDATE demands SET ai_summary = ?, summary_updated_at = ? WHERE externalId = ?",
+            (new_summary, current_timestamp, external_id),
+            db_name
+        )
+        
+        return {
+            "ai_summary": new_summary,
+            "summary_updated_at": current_timestamp,
+            "cached": False
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao gerar resumo da demanda {external_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro interno ao gerar resumo: {str(e)}")
 
 @app.post("/api/demands/{external_id}/annotations")
 def add_annotation(external_id: str, payload: AnnotationCreate):

@@ -33,7 +33,9 @@ def init_db():
                     parentId TEXT,
                     localParentId TEXT,
                     blockers TEXT,
-                    blocked_by TEXT
+                    blocked_by TEXT,
+                    ai_summary TEXT,
+                    summary_updated_at TEXT
                 )
             """)
 
@@ -59,6 +61,10 @@ def init_db():
                 conn.execute("ALTER TABLE demands ADD COLUMN blocked_by TEXT")
             if "localParentId" not in columns:
                 conn.execute("ALTER TABLE demands ADD COLUMN localParentId TEXT")
+            if "ai_summary" not in columns:
+                conn.execute("ALTER TABLE demands ADD COLUMN ai_summary TEXT")
+            if "summary_updated_at" not in columns:
+                conn.execute("ALTER TABLE demands ADD COLUMN summary_updated_at TEXT")
 
             # Tabela Annotations (Apontamentos/Histórico local)
             conn.execute("""

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, RefreshCw, Clock, Tag, Pencil, Plus, History, ExternalLink, Calendar, MessageSquare, ChevronDown, ChevronUp, Search, Check } from 'lucide-react';
+import { X, RefreshCw, Clock, Tag, Pencil, Plus, History, ExternalLink, Calendar, MessageSquare, ChevronDown, ChevronUp, Search, Check, Sparkles } from 'lucide-react';
 
 export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDemands }) {
   const [demand, setDemand] = useState(null);
   const [note, setNote] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
   const [showExternalComments, setShowExternalComments] = useState(false);
   const [allDemands, setAllDemands] = useState([]);
   const [parentSearchQuery, setParentSearchQuery] = useState('');
@@ -53,6 +54,35 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
       }
     } catch (e) {
       console.error("Erro ao buscar todas as demandas:", e);
+    }
+  };
+
+  const handleSummarize = async () => {
+    if (!demandId) return;
+    setSummarizing(true);
+    try {
+      const res = await fetch(`/api/demands/${demandId}/summarize`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDemand(prev => ({
+          ...prev,
+          ai_summary: data.ai_summary,
+          summary_updated_at: data.summary_updated_at
+        }));
+        if (onRefreshDemands) {
+          onRefreshDemands();
+        }
+      } else {
+        const errData = await res.json();
+        alert(errData.detail || "Erro ao gerar resumo inteligênte.");
+      }
+    } catch (e) {
+      console.error("Erro ao resumir demanda:", e);
+      alert("Erro ao conectar ao servidor para gerar o resumo.");
+    } finally {
+      setSummarizing(false);
     }
   };
 
@@ -578,30 +608,67 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
 
             {/* Histórico de Comentários Externos (Jira/Azure) */}
             <div className="space-y-3">
-              <button
-                type="button"
-                disabled={!demand.comments_history}
-                onClick={() => setShowExternalComments(!showExternalComments)}
-                className={`w-full flex items-center justify-between text-sm font-semibold transition-colors ${
-                  demand.comments_history
-                    ? 'text-slate-300 hover:text-white'
-                    : 'text-slate-500 cursor-not-allowed'
-                }`}
-              >
-                <span className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  disabled={!demand.comments_history}
+                  onClick={() => setShowExternalComments(!showExternalComments)}
+                  className={`flex items-center gap-2 text-sm font-semibold transition-colors ${
+                    demand.comments_history
+                      ? 'text-slate-300 hover:text-white'
+                      : 'text-slate-500 cursor-not-allowed'
+                  }`}
+                >
                   <MessageSquare className="w-4 h-4 text-indigo-400" />
                   Histórico de Comentários Externos ({demand.origin})
-                </span>
-                {demand.comments_history ? (
-                  showExternalComments ? (
-                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  {demand.comments_history ? (
+                    showExternalComments ? (
+                      <ChevronUp className="w-4 h-4 text-slate-400 ml-1" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
+                    )
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
-                  )
-                ) : (
-                  <span className="text-[10px] bg-slate-900 text-slate-600 px-2 py-0.5 rounded-full font-medium">Sem comentários</span>
+                    <span className="text-[10px] bg-slate-900 text-slate-600 px-2 py-0.5 rounded-full font-medium ml-1">Sem comentários</span>
+                  )}
+                </button>
+                
+                {demand.comments_history && (
+                  <button
+                    type="button"
+                    onClick={handleSummarize}
+                    disabled={summarizing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl transition-all disabled:opacity-50"
+                    title="Gerar ou atualizar resumo inteligente com Gemini"
+                  >
+                    {summarizing ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5" />
+                    )}
+                    Resumo IA
+                  </button>
                 )}
-              </button>
+              </div>
+
+              {/* Highlight Card for AI Summary */}
+              {demand.ai_summary && (
+                <div className="relative overflow-hidden bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-indigo-300">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                      Resumo Executivo Inteligente
+                    </span>
+                    {demand.summary_updated_at && (
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Atualizado em {formatDate(demand.summary_updated_at)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+                    {demand.ai_summary}
+                  </div>
+                </div>
+              )}
               
               {demand.comments_history && showExternalComments && (
                 <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-xl max-h-64 overflow-y-auto custom-scrollbar">

@@ -59,6 +59,8 @@ O projeto utiliza um arquivo `.env` para ler as chaves de API necessárias para 
    - `JIRA_API_URL`, `JIRA_USER_EMAIL` e `JIRA_PAT` (Personal Access Token).
    - `AZURE_API_URL` e `AZURE_PAT`.
    - `SSL_VERIFY` (Padrão: `False`, ideal para redes corporativas com firewalls que interceptam HTTPS).
+   - `GEMINI_API_KEY` (Chave de API do Google Gemini para habilitar o resumo de demandas).
+   - `GEMINI_MODEL_NAME` (Nome do modelo Gemini a ser utilizado, ex: `gemini-2.5-flash`).
 3. **Fallback (Mock):** Se você deixar os campos de API em branco ou inacessíveis, a aplicação irá autogerar demandas mockadas de alta fidelidade ao clicar em "Sincronizar APIs" para demonstração funcional instantânea do dashboard.
 
 ---
@@ -146,6 +148,7 @@ Armazena os bloqueios e dependências customizados entre demandas atribuídos de
 13. **Paginação Inteligente do Jira:** Sincronização robusta que percorre recursivamente os resultados da API do Jira utilizando o parâmetro `nextPageToken`, garantindo que histórias de desenvolvimento relatadas pelo PO (como histórias e bugs) sejam totalmente importadas sem sofrer truncamento.
 14. **Atribuição Manual de Dependências (Sem Sobrescritas):** Todas as dependências e blockers automáticos vindos das APIs do Jira/Azure foram desativados e limpos. A modelagem de dependências é 100% manual e persistente no banco de dados local. O usuário pode definir o Item Pai (usando a coluna local `localParentId`, que aceita relações inter-projeto como Azure/Jira) e gerenciar relações de bloqueio (tabela `dependencies`) diretamente através do Drawer de detalhes, sem risco de que as sincronizações automáticas externas sobreponham essas configurações.
 15. **Pesquisa Autocomplete e Flexibilidade de Vínculos:** Os campos "Demanda Pai (Hierarquia)" e "Bloqueadores (Blockers)" no painel dinâmico (Drawer) foram aprimorados para incluir busca interativa (autocomplete) por ID ou Título da demanda. No campo de Demanda Pai, o usuário pode escolher "Nenhum (Sem pai)" (salvando o valor especial `"NONE"` no banco de dados para desvincular o item mesmo se houver um vínculo automático ativo vindo da API externa) ou restaurar o vínculo original. No campo de Bloqueadores, as demandas elegíveis são listadas e filtradas dinamicamente para evitar duplicidade ou auto-vinculação.
+16. **Resumo Inteligente de Demandas (Google Gemini):** Funcionalidade de resumo executivo baseada em inteligência artificial que lê o histórico de comentários de uma demanda e gera um resumo em bullet points focado em: 1. O que já foi feito, 2. Bloqueios atuais, 3. Próximos passos. Implementa cache local dinâmico baseado em timestamps de atualização para economizar chamadas à API e tokens (FinOps).
 
 ---
 
