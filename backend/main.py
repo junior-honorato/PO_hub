@@ -51,6 +51,9 @@ class TagCreate(BaseModel):
 class DependencyCreate(BaseModel):
     blocker_id: str
 
+class ProjectSummaryRequest(BaseModel):
+    demand_ids: list[str]
+
 class DemandUpdate(BaseModel):
     promisedDate: Optional[str] = None
     followUpDate: Optional[str] = None
@@ -994,6 +997,56 @@ Responda de forma direta, clara e profissional em português. Não adicione intr
     except Exception as e:
         print(f"Erro ao gerar resumo da demanda {external_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Erro interno ao gerar resumo: {str(e)}")
+
+@app.post("/api/projects/summary")
+def generate_project_summary(payload: ProjectSummaryRequest):
+    if not payload.demand_ids:
+        raise HTTPException(status_code=400, detail="A lista de IDs de demandas não pode estar vazia.")
+        
+    try:
+        # 1. Check Gemini API key
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=400, detail="Chave de API do Gemini (GEMINI_API_KEY) não configurada no arquivo .env.")
+            
+        # 2. Query active db for externalId, title, externalStatus, comments_history
+        placeholders = ", ".join(["?"] * len(payload.demand_ids))
+        query = f"SELECT externalId, title, externalStatus, comments_history FROM demands WHERE externalId IN ({placeholders})"
+        rows = fetch_all(query, tuple(payload.demand_ids), "ativo")
+        
+        if not rows:
+            raise HTTPException(status_code=404, detail="Nenhuma das demandas especificadas foi encontrada na base ativa.")
+            
+        # 3. Concatenate structured data
+        structured_lines = []
+        for r in rows:
+            comments = r.get("comments_history") or "Sem comentários"
+            line = f"ID: {r['externalId']} | Título: {r['title']} | Status: {r['externalStatus']} | Histórico: {comments.strip()}"
+            structured_lines.append(line)
+            
+        concatenated_data = "\n".join(structured_lines)
+        
+        # 4. Call Gemini model
+        genai.configure(api_key=api_key)
+        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
+        
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            system_instruction="Atue como um Agile Coach / Product Owner. Leia o status atual e o histórico destas demandas de um projeto e gere um Status Report semanal executivo e conciso. Estruture a resposta estritamente em 3 blocos: 1. 🚀 Principais Entregas/Avanços da Semana, 2. 🔄 O que está em Andamento, 3. ⚠️ Atenção Necessária (riscos ou bloqueios identificados)."
+        )
+        
+        response = model.generate_content(concatenated_data)
+        report_text = response.text
+        if not report_text:
+            raise HTTPException(status_code=500, detail="Não foi possível obter um relatório válido do Gemini.")
+            
+        return {"report": report_text}
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao gerar status report do projeto: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro interno ao gerar status report: {str(e)}")
 
 @app.post("/api/demands/{external_id}/annotations")
 def add_annotation(external_id: str, payload: AnnotationCreate):

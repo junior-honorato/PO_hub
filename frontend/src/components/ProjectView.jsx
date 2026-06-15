@@ -1,8 +1,53 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, AlertTriangle, AlertOctagon, Layers, ArrowRight, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, AlertTriangle, AlertOctagon, Layers, ArrowRight, ExternalLink, Sparkles, X, Copy, Check } from 'lucide-react';
 
 export default function ProjectView({ demands, onSelectDemand }) {
   const [expandedProjects, setExpandedProjects] = useState({});
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [reportData, setReportData] = useState('');
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [selectedProjectForReport, setSelectedProjectForReport] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const handleGenerateReport = async (e, projDemands, projectName) => {
+    e.stopPropagation();
+    setIsGenerating(true);
+    setSelectedProjectForReport(projectName);
+    setReportData('');
+    setReportModalOpen(true);
+    setCopied(false);
+
+    try {
+      const demandIds = projDemands.map(d => d.externalId);
+      const res = await fetch('/api/projects/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ demand_ids: demandIds })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReportData(data.report);
+      } else {
+        const errData = await res.json();
+        setReportData(`Erro: ${errData.detail || "Não foi possível gerar o relatório de status."}`);
+      }
+    } catch (err) {
+      console.error(err);
+      setReportData("Erro de conexão ao tentar gerar o status report.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleCopyReport = async () => {
+    try {
+      await navigator.clipboard.writeText(reportData);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Falha ao copiar:", err);
+    }
+  };
 
   // Helper to extract project name from tag (e.g. "projeto: portal" or "projeto-portal")
   const getProjectName = (tag) => {
@@ -73,9 +118,9 @@ export default function ProjectView({ demands, onSelectDemand }) {
                 className="bg-slate-900/20 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md transition-all duration-300"
               >
                 {/* Header expansível */}
-                <button
+                <div
                   onClick={() => toggleProject(projName)}
-                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-900/40 text-left transition-colors"
+                  className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-900/40 text-left transition-colors cursor-pointer select-none"
                 >
                   <div className="flex items-center gap-3">
                     <span className="w-3 h-3 rounded-full bg-gradient-to-tr from-brand-500 to-indigo-400" />
@@ -86,7 +131,17 @@ export default function ProjectView({ demands, onSelectDemand }) {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    {projDemands.length > 0 && (
+                      <button
+                        onClick={(e) => handleGenerateReport(e, projDemands, projName)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl transition-all"
+                        title="Gerar Status Report Executivo"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Status Report
+                      </button>
+                    )}
                     <span className="text-xs bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-medium">
                       Azure: {azureDemands.length} | Jira: {jiraDemands.length}
                     </span>
@@ -96,7 +151,7 @@ export default function ProjectView({ demands, onSelectDemand }) {
                       <ChevronDown className="w-4 h-4 text-slate-400" />
                     )}
                   </div>
-                </button>
+                </div>
 
                 {/* Conteúdo do Projeto */}
                 {isExpanded && (
@@ -170,6 +225,66 @@ export default function ProjectView({ demands, onSelectDemand }) {
             <p className="text-xs text-slate-500 mt-1">
               Adicione tags no formato <code className="bg-slate-900 px-1 py-0.5 rounded text-indigo-400">projeto: nome</code> ou <code className="bg-slate-900 px-1 py-0.5 rounded text-indigo-400">projeto-nome</code> nas demandas para criar grupos.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Status Report */}
+      {reportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-indigo-400" />
+                <h3 className="font-bold text-lg text-white">Status Report: {selectedProjectForReport}</h3>
+              </div>
+              <button
+                onClick={() => setReportModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 overflow-y-auto space-y-4 flex-1 custom-scrollbar text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+              {isGenerating ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                  <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-slate-400 text-xs font-semibold animate-pulse">Inteligência Artificial gerando relatório executivo...</p>
+                </div>
+              ) : (
+                reportData
+              )}
+            </div>
+            
+            {/* Footer */}
+            {!isGenerating && (
+              <div className="p-6 border-t border-slate-800 bg-slate-950/40 flex items-center justify-between gap-4">
+                <button
+                  onClick={handleCopyReport}
+                  disabled={!reportData || reportData.startsWith('Erro:')}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl text-xs transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" /> Copiado!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" /> Copiar Relatório
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setReportModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
