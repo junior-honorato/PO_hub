@@ -730,15 +730,11 @@ def sync_demands():
                     err_msg = f"Jira HTTP {response.status_code}: {response.text[:150]}"
                     print(f"Erro na sincronização do Jira: {err_msg}")
                     errors.append(err_msg)
-                    if not jira_fetched:
-                        jira_fetched = MOCK_JIRA_DEMANDS
                     break
         except Exception as e:
             err_msg = f"Falha na conexão com Jira: {str(e)}"
             print(err_msg)
             errors.append(err_msg)
-            if not jira_fetched:
-                jira_fetched = MOCK_JIRA_DEMANDS
     else:
         print("Credenciais do Jira ausentes. Usando dados fictícios.")
         jira_fetched = MOCK_JIRA_DEMANDS
@@ -801,12 +797,10 @@ def sync_demands():
                 err_msg = f"Azure DevOps WIQL HTTP {wiql_response.status_code}: {wiql_response.text[:150]}"
                 print(f"Erro no Azure DevOps: {err_msg}")
                 errors.append(err_msg)
-                azure_fetched = MOCK_AZURE_DEMANDS
         except Exception as e:
             err_msg = f"Falha na conexão com Azure DevOps: {str(e)}"
             print(err_msg)
             errors.append(err_msg)
-            azure_fetched = MOCK_AZURE_DEMANDS
     else:
         print("Credenciais do Azure DevOps ausentes. Usando dados fictícios.")
         azure_fetched = MOCK_AZURE_DEMANDS
