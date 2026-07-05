@@ -6,9 +6,11 @@ import ManagerSyncView from './components/ManagerSyncView';
 import RoadmapGraphView from './components/RoadmapGraphView';
 import HistoryView from './components/HistoryView';
 import PortfolioView from './components/PortfolioView';
+import ProjectOverview from './components/ProjectOverview';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('portfolio');
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [demands, setDemands] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedDemandId, setSelectedDemandId] = useState(null);
@@ -75,14 +77,23 @@ export default function App() {
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          setSelectedProjectId(null);
+          setActiveTab(tab);
+        }}
         onSync={handleSync}
         isSyncing={isSyncing}
         lastSyncStatus={lastSyncStatus}
       />      {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {activeTab === 'portfolio' ? (
-          <PortfolioView />
+        {selectedProjectId ? (
+          <ProjectOverview
+            projectId={selectedProjectId}
+            onBack={() => setSelectedProjectId(null)}
+            onSelectDemand={handleSelectDemand}
+          />
+        ) : activeTab === 'portfolio' ? (
+          <PortfolioView onSelectProject={setSelectedProjectId} />
         ) : activeTab === 'one-on-one' ? (
           <ManagerSyncView demands={demands} onSelectDemand={handleSelectDemand} />
         ) : activeTab === 'roadmap' ? (

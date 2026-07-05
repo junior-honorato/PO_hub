@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Briefcase, Plus, Edit, Trash2, X, RefreshCw, AlertTriangle } from 'lucide-react';
 
-export default function PortfolioView() {
+export default function PortfolioView({ onSelectProject }) {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -214,6 +214,13 @@ export default function PortfolioView() {
 
               {/* Actions Column */}
               <div className="shrink-0 flex items-center gap-2">
+                <button
+                  onClick={() => onSelectProject(proj.id)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600/90 hover:bg-indigo-500 text-white text-xs font-semibold transition-all active:scale-95 shadow-lg shadow-indigo-600/10"
+                  title="Ver Visão Geral"
+                >
+                  Ver Visão Geral
+                </button>
                 <button
                   onClick={() => handleOpenModal(proj)}
                   className="flex items-center justify-center p-2.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white transition-all active:scale-95"

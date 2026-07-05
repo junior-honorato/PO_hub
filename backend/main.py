@@ -1322,6 +1322,100 @@ async def get_projects():
         print(f"Erro ao buscar projetos: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao buscar projetos.")
 
+@app.get("/api/projects/{project_id}/overview")
+async def get_project_overview(project_id: int):
+    try:
+        project = fetch_one("SELECT * FROM projects WHERE id = ?", (project_id,), "ativo")
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+            
+        project_dict = dict(project)
+        project_name = project_dict["name"]
+        
+        query = """
+            SELECT d.*, group_concat(t.tag) as tags_str
+            FROM demands d
+            LEFT JOIN tags t ON d.externalId = t.externalId
+            WHERE d.project = ?
+            GROUP BY d.externalId
+            ORDER BY d.updatedAt DESC
+        """
+        rows = fetch_all(query, (project_name,), "ativo")
+        
+        deps = fetch_all("SELECT blocked_id, blocker_id FROM dependencies", db_name="ativo")
+        blockers_map = {}
+        blocked_by_map = {}
+        for dep in deps:
+            blocked = dep["blocked_id"]
+            blocker = dep["blocker_id"]
+            if blocked not in blockers_map:
+                blockers_map[blocked] = []
+            blockers_map[blocked].append(blocker)
+            if blocker not in blocked_by_map:
+                blocked_by_map[blocker] = []
+            blocked_by_map[blocker].append(blocked)
+            
+        demands = []
+        import json
+        from datetime import datetime, timezone, timedelta
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        
+        for row in rows:
+            is_stale = False
+            if is_status_active(row["externalStatus"]):
+                updated_dt = parse_date(row["updatedAt"])
+                if updated_dt and (now_utc - updated_dt > timedelta(days=5)):
+                    is_stale = True
+                    
+            ext_blockers = []
+            if row.get("blockers"):
+                try:
+                    ext_blockers = json.loads(row["blockers"])
+                except Exception:
+                    pass
+            local_blockers = blockers_map.get(row["externalId"], [])
+            all_blockers = list(set(local_blockers + ext_blockers))
+
+            ext_blocked_by = []
+            if row.get("blocked_by"):
+                try:
+                    ext_blocked_by = json.loads(row["blocked_by"])
+                except Exception:
+                    pass
+            local_blocked_by = blocked_by_map.get(row["externalId"], [])
+            all_blocked_by = list(set(local_blocked_by + ext_blocked_by))
+                    
+            demands.append({
+                "externalId": row["externalId"],
+                "origin": row["origin"],
+                "title": row["title"],
+                "externalStatus": row["externalStatus"],
+                "itemType": row.get("itemType") or "Outro",
+                "createdAt": row["createdAt"],
+                "updatedAt": row["updatedAt"],
+                "promisedDate": row["promisedDate"],
+                "followUpDate": row["followUpDate"],
+                "managerNotes": row["managerNotes"],
+                "tags": row["tags_str"].split(",") if row["tags_str"] else [],
+                "externalUrl": get_external_url(row["origin"], row["externalId"]),
+                "blockers": all_blockers,
+                "blocked_by": all_blocked_by,
+                "parentId": None if row.get("localParentId") == "NONE" else (row.get("localParentId") or row.get("parentId")),
+                "localParentId": row.get("localParentId"),
+                "isStale": is_stale,
+                "project": row.get("project")
+            })
+            
+        return {
+            "project": project_dict,
+            "demands": demands
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao buscar visão geral do projeto: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao buscar visão geral.")
+
 @app.post("/api/projects")
 async def create_project(payload: ProjectCreate):
     name = payload.name.strip()
