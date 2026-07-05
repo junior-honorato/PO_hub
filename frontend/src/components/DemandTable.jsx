@@ -1,7 +1,57 @@
 import React, { useState } from 'react';
-import { Search, X, Inbox, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, X, Inbox, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
-export default function DemandTable({ demands, onSelectDemand }) {
+export default function DemandTable({ demands, onSelectDemand, onRefreshDemands }) {
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [newDemandTitle, setNewDemandTitle] = useState('');
+  const [newDemandProject, setNewDemandProject] = useState('');
+  const [projects, setProjects] = useState([]);
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar projetos:", e);
+    }
+  };
+
+  const handleOpenManualModal = () => {
+    fetchProjects();
+    setNewDemandTitle('');
+    setNewDemandProject('');
+    setIsManualModalOpen(true);
+  };
+
+  const handleCreateManualDemand = async (e) => {
+    e.preventDefault();
+    if (!newDemandTitle.trim()) return;
+    try {
+      const res = await fetch('/api/demands/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newDemandTitle,
+          project_name: newDemandProject || null
+        })
+      });
+      if (res.ok) {
+        setIsManualModalOpen(false);
+        if (onRefreshDemands) {
+          onRefreshDemands();
+        }
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Erro ao criar demanda manual.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro de conexão ao criar demanda.");
+    }
+  };
   const [search, setSearch] = useState('');
   const [originFilter, setOriginFilter] = useState('All');
   const [itemTypeFilter, setItemTypeFilter] = useState('All');
@@ -123,17 +173,25 @@ export default function DemandTable({ demands, onSelectDemand }) {
       <div className="flex flex-col gap-4 bg-slate-900/20 p-4 border border-slate-800/60 rounded-2xl backdrop-blur-sm">
         {/* Linha Principal: Pesquisa e Controles Básicos */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex-1 relative w-full lg:w-auto">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-              <Search className="w-4 h-4" />
+          <div className="flex items-center gap-3 flex-1 w-full lg:w-auto">
+            <div className="flex-1 relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                <Search className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                placeholder="Buscar por título ou ID..."
+                value={search}
+                onChange={handleSearchChange}
+                className="w-full bg-slate-950 border border-slate-800/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Buscar por título ou ID..."
-              value={search}
-              onChange={handleSearchChange}
-              className="w-full bg-slate-950 border border-slate-800/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
-            />
+            <button
+              onClick={handleOpenManualModal}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-brand-600/20 whitespace-nowrap"
+            >
+              <Plus className="w-3.5 h-3.5" /> + Nova Demanda de Negócio
+            </button>
           </div>
           
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
@@ -146,6 +204,7 @@ export default function DemandTable({ demands, onSelectDemand }) {
               <option value="All">Origem</option>
               <option value="Jira">Jira Only</option>
               <option value="Azure">Azure DevOps</option>
+              <option value="Negocio">Negócio (Manual)</option>
             </select>
 
             {/* Filtro por Tipo de Item */}
@@ -282,7 +341,9 @@ export default function DemandTable({ demands, onSelectDemand }) {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2.5">
                         <span className={`w-2.5 h-2.5 rounded-full ${
-                          demand.origin === 'Jira' ? 'bg-sky-400' : 'bg-emerald-400'
+                          demand.origin === 'Jira' ? 'bg-sky-400' :
+                          demand.origin === 'Azure' ? 'bg-emerald-400' :
+                          'bg-purple-400'
                         }`} />
                         <div>
                           <span className="font-semibold text-white block">{demand.externalId}</span>
@@ -294,6 +355,11 @@ export default function DemandTable({ demands, onSelectDemand }) {
                       <p className="truncate font-medium text-slate-200 group-hover:text-white transition-colors">
                         {demand.title}
                       </p>
+                      {demand.project && (
+                        <span className="inline-flex items-center text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded mt-1">
+                          Projeto: {demand.project}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
@@ -404,6 +470,68 @@ export default function DemandTable({ demands, onSelectDemand }) {
           </div>
         )}
       </div>
+
+      {/* Modal Criar Demanda Manual */}
+      {isManualModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsManualModalOpen(false)} />
+          <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">Nova Demanda de Negócio</h3>
+              <button 
+                onClick={() => setIsManualModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateManualDemand} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-semibold">Título da Demanda</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Criar Nova Regra de Repasse"
+                  value={newDemandTitle}
+                  onChange={e => setNewDemandTitle(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-brand-500"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-semibold">Projeto Vinculado</label>
+                <select
+                  value={newDemandProject}
+                  onChange={e => setNewDemandProject(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-brand-500"
+                >
+                  <option value="">Nenhum (Sem vínculo)</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsManualModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold"
+                >
+                  Criar Demanda
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

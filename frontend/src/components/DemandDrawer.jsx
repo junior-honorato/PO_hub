@@ -9,6 +9,7 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
   const [summarizing, setSummarizing] = useState(false);
   const [showExternalComments, setShowExternalComments] = useState(false);
   const [allDemands, setAllDemands] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [parentSearchQuery, setParentSearchQuery] = useState('');
   const [isParentSearchOpen, setIsParentSearchOpen] = useState(false);
   const [blockerSearchQuery, setBlockerSearchQuery] = useState('');
@@ -18,10 +19,12 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
     if (isOpen && demandId) {
       loadDemandDetail();
       loadAllDemands();
+      loadProjects();
       setShowExternalComments(false);
     } else {
       setDemand(null);
       setAllDemands([]);
+      setProjects([]);
       setShowExternalComments(false);
       setIsParentSearchOpen(false);
       setIsBlockerSearchOpen(false);
@@ -54,6 +57,18 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
       }
     } catch (e) {
       console.error("Erro ao buscar todas as demandas:", e);
+    }
+  };
+
+  const loadProjects = async () => {
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data);
+      }
+    } catch (e) {
+      console.error("Erro ao buscar projetos:", e);
     }
   };
 
@@ -365,6 +380,20 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
                     className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-medium">Projeto Vinculado</label>
+                <select
+                  value={demand.project || ''}
+                  onChange={e => handleUpdateManagementField('project', e.target.value || null)}
+                  className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
+                >
+                  <option value="">Sem projeto</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-1.5">

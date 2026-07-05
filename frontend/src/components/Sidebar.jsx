@@ -29,17 +29,6 @@ export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, la
           Portfólio Executivo
         </button>
         <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-            activeTab === 'dashboard'
-              ? 'bg-slate-900 text-white border-l-4 border-brand-500 shadow-sm'
-              : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
-          }`}
-        >
-          <Grid className="w-5 h-5" />
-          Dashboard
-        </button>
-        <button
           onClick={() => setActiveTab('demands')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
             activeTab === 'demands'
@@ -51,15 +40,15 @@ export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, la
           Demandas
         </button>
         <button
-          onClick={() => setActiveTab('projects')}
+          onClick={() => setActiveTab('roadmap')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-            activeTab === 'projects'
+            activeTab === 'roadmap'
               ? 'bg-slate-900 text-white border-l-4 border-brand-500 shadow-sm'
               : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
           }`}
         >
-          <FolderKanban className="w-5 h-5" />
-          Projetos
+          <Network className="w-5 h-5" />
+          Mapa do Roadmap
         </button>
         <button
           onClick={() => setActiveTab('one-on-one')}
@@ -70,18 +59,7 @@ export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, la
           }`}
         >
           <Target className="w-5 h-5" />
-          Modo One-on-One
-        </button>
-        <button
-          onClick={() => setActiveTab('roadmap')}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-            activeTab === 'roadmap'
-              ? 'bg-slate-900 text-white border-l-4 border-brand-500 shadow-sm'
-              : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
-          }`}
-        >
-          <Network className="w-5 h-5" />
-          Mapa do Roadmap
+          Manager Sync
         </button>
         <button
           onClick={() => setActiveTab('history')}

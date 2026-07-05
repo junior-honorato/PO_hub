@@ -20,7 +20,7 @@ def init_db():
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS demands (
                     externalId TEXT PRIMARY KEY,
-                    origin TEXT CHECK(origin IN ('Jira', 'Azure')),
+                    origin TEXT CHECK(origin IN ('Jira', 'Azure', 'Negocio')),
                     title TEXT NOT NULL,
                     externalStatus TEXT NOT NULL,
                     itemType TEXT DEFAULT 'Outro',
@@ -35,12 +35,56 @@ def init_db():
                     blockers TEXT,
                     blocked_by TEXT,
                     ai_summary TEXT,
-                    summary_updated_at TEXT
+                    summary_updated_at TEXT,
+                    project TEXT
                 )
             """)
 
             # Garante migração para novos campos se o banco já existia
             cursor = conn.cursor()
+            
+            # Migra a restrição CHECK se necessário (adicionando 'Negocio' à lista de origens)
+            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='demands'")
+            schema_row = cursor.fetchone()
+            if schema_row:
+                sql = schema_row[0]
+                if "'Negocio'" not in sql:
+                    print(f"Migrando tabela demands em {db_name} para suportar origem 'Negocio'...")
+                    conn.execute("PRAGMA foreign_keys=OFF")
+                    conn.execute("BEGIN TRANSACTION")
+                    conn.execute("""
+                        CREATE TABLE demands_new (
+                            externalId TEXT PRIMARY KEY,
+                            origin TEXT CHECK(origin IN ('Jira', 'Azure', 'Negocio')),
+                            title TEXT NOT NULL,
+                            externalStatus TEXT NOT NULL,
+                            itemType TEXT DEFAULT 'Outro',
+                            createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                            updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                            promisedDate TEXT,
+                            followUpDate TEXT,
+                            managerNotes TEXT,
+                            comments_history TEXT,
+                            parentId TEXT,
+                            localParentId TEXT,
+                            blockers TEXT,
+                            blocked_by TEXT,
+                            ai_summary TEXT,
+                            summary_updated_at TEXT,
+                            project TEXT
+                        )
+                    """)
+                    # Repopula colunas existentes
+                    cursor.execute("PRAGMA table_info(demands)")
+                    curr_cols = [r[1] for r in cursor.fetchall()]
+                    cols_str = ", ".join(curr_cols)
+                    conn.execute(f"INSERT INTO demands_new ({cols_str}) SELECT {cols_str} FROM demands")
+                    conn.execute("DROP TABLE demands")
+                    conn.execute("ALTER TABLE demands_new RENAME TO demands")
+                    conn.execute("COMMIT")
+                    conn.execute("PRAGMA foreign_keys=ON")
+                    print(f"Migração da tabela demands em {db_name} concluída.")
+
             cursor.execute("PRAGMA table_info(demands)")
             columns = [row[1] for row in cursor.fetchall()]
             if "itemType" not in columns:
@@ -65,6 +109,8 @@ def init_db():
                 conn.execute("ALTER TABLE demands ADD COLUMN ai_summary TEXT")
             if "summary_updated_at" not in columns:
                 conn.execute("ALTER TABLE demands ADD COLUMN summary_updated_at TEXT")
+            if "project" not in columns:
+                conn.execute("ALTER TABLE demands ADD COLUMN project TEXT")
 
             # Tabela Annotations (Apontamentos/Histórico local)
             conn.execute("""

@@ -79,6 +79,11 @@ class DemandUpdate(BaseModel):
     followUpDate: Optional[str] = None
     managerNotes: Optional[str] = None
     localParentId: Optional[str] = None
+    project: Optional[str] = None
+
+class DemandManualCreate(BaseModel):
+    title: str
+    project_name: Optional[str] = None
 
 class ProjectCreate(BaseModel):
     name: str
@@ -686,7 +691,8 @@ def get_demands_data(db_name="ativo"):
             "blocked_by": all_blocked_by,
             "parentId": None if row.get("localParentId") == "NONE" else (row.get("localParentId") or row.get("parentId")),
             "localParentId": row.get("localParentId"),
-            "isStale": is_stale
+            "isStale": is_stale,
+            "project": row.get("project")
         })
     return demands
 
@@ -956,7 +962,8 @@ def get_demand(external_id: str):
             "isStale": is_stale,
             "comments_history": demand["comments_history"],
             "ai_summary": demand.get("ai_summary"),
-            "summary_updated_at": demand.get("summary_updated_at")
+            "summary_updated_at": demand.get("summary_updated_at"),
+            "project": demand.get("project")
         }
     except HTTPException as he:
         raise he
@@ -1236,6 +1243,40 @@ def delete_dependency(external_id: str, blocker_id: str):
     except Exception as e:
         print(f"Erro ao deletar dependência: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao deletar dependência.")
+
+@app.post("/api/demands/manual")
+async def create_manual_demand(payload: DemandManualCreate):
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="O título da demanda não pode ser vazio.")
+        
+    try:
+        import time
+        timestamp = int(time.time() * 1000)
+        external_id = f"BIZ-{timestamp}"
+        
+        project_name = payload.project_name
+        if project_name:
+            project_exists = fetch_one("SELECT 1 FROM projects WHERE name = ?", (project_name,), "ativo")
+            if not project_exists:
+                raise HTTPException(status_code=400, detail="O projeto vinculado não existe.")
+                
+        now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        execute_query(
+            """INSERT INTO demands (externalId, origin, title, externalStatus, itemType, createdAt, updatedAt, project) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (external_id, "Negocio", title, "To Do", "Outro", now_str, now_str, project_name),
+            "ativo"
+        )
+        
+        new_demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (external_id,), "ativo")
+        return dict(new_demand)
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao criar demanda manual: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao criar demanda manual.")
 
 @app.patch("/api/demands/{external_id}")
 def update_demand(external_id: str, payload: DemandUpdate):
