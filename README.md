@@ -1,15 +1,15 @@
-# PO Hub - Consolidador de Backlogs Local
+# PO Hub - Consolidador de Backlogs Local & PPM
 
-O **PO Hub** é uma aplicação web local focada em consolidar demandas provenientes de duas ferramentas externas de gestão de projetos: **Jira** e **Azure DevOps**. O sistema permite visualizar esses backlogs de forma unificada e possibilita a inserção de anotações, histórico temporal e tags customizadas de forma persistente em um banco de dados local **SQLite**.
+O **PO Hub** é uma aplicação web local focada em consolidar demandas provenientes de duas ferramentas externas de gestão de projetos (**Jira** e **Azure DevOps**) e integrá-las com um módulo de **PPM (Project Portfolio Management)**. O sistema permite visualizar esses backlogs de forma unificada, gerenciar iniciativas estratégicas de portfólio (com faróis de saúde e progresso) e possibilitar a inserção de anotações, histórico temporal, tags customizadas e dependências manuais de forma persistente em um banco de dados local **SQLite**.
 
 ---
 
 ## 🛠️ Stack Tecnológica
 
-- **Backend:** Python (FastAPI) com suporte alternativo em Node.js (Express) + SQLite para banco de dados local.
+- **Backend:** Python (FastAPI) + SQLite para banco de dados local.
 - **Frontend:** React + Tailwind CSS + Lucide Icons + React Flow + Dagre (para auto-layout do mapa de dependências).
   - *Desenvolvimento modular:* Estrutura pronta do Vite/React em `/frontend`.
-  - *Execução instantânea (Zero Config):* Servida estaticamente pelo FastAPI em `/backend/static` a partir de uma compilação baseada em CDNs para rodar imediatamente sem necessidade do comando `npm`.
+  - *Execução integrada:* Servida estaticamente pelo FastAPI em `/backend/static` a partir de uma compilação baseada em CDNs para rodar imediatamente sem necessidade do comando `npm`.
 
 ---
 
@@ -19,21 +19,20 @@ O **PO Hub** é uma aplicação web local focada em consolidar demandas provenie
 po-hub/
 ├── backend/
 │   ├── database.py       # Gerenciador de conexão SQLite e tabelas locais (Python)
-│   ├── database.js       # Gerenciador de conexão SQLite (Node.js)
 │   ├── main.py           # Servidor FastAPI com endpoints REST e serviço estático (Python)
-│   ├── server.js         # Servidor Express alternativo (Node.js)
-│   ├── static/           # Aplicação frontend compilada servida pelo backend
-│   │   └── index.html    # Dashboard consolidado em React
+│   ├── static/           # Aplicação frontend consolidada servida pelo backend
+│   │   └── index.html    # Dashboard consolidado em React (versão integrada)
 │   ├── run_e2e_test.py   # Script de testes End-to-End com Selenium WebDriver
-│   └── database.db       # Banco de dados SQLite criado automaticamente no boot
+│   └── database_ativo.db # Banco de dados SQLite criado automaticamente no boot
 ├── frontend/             # Código fonte modular para desenvolvimento futuro com Vite
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── Sidebar.jsx
-│   │   │   ├── MetricCards.jsx
 │   │   │   ├── DemandTable.jsx
 │   │   │   ├── DemandDrawer.jsx
-│   │   │   └── RoadmapGraphView.jsx
+│   │   │   ├── RoadmapGraphView.jsx
+│   │   │   ├── PortfolioView.jsx       # Nova tela de Portfólio Executivo (PPM)
+│   │   │   └── ProjectOverview.jsx     # Nova Visão Geral de Iniciativa & Board de Trilhas
 │   │   ├── App.jsx
 │   │   ├── main.jsx
 │   │   └── index.css
@@ -58,114 +57,63 @@ O projeto utiliza um arquivo `.env` para ler as chaves de API necessárias para 
 2. Abra o arquivo `backend/.env` e configure suas variáveis de ambiente:
    - `JIRA_API_URL`, `JIRA_USER_EMAIL` e `JIRA_PAT` (Personal Access Token).
    - `AZURE_API_URL` e `AZURE_PAT`.
-   - `SSL_VERIFY` (Padrão: `False`, ideal para redes corporativas com firewalls que interceptam HTTPS).
+   - `SSL_VERIFY` (Padrão: `False`).
    - `GEMINI_API_KEY` (Chave de API do Google Gemini para habilitar o resumo de demandas).
-   - `GEMINI_MODEL_NAME` (Nome do modelo Gemini a ser utilizado, ex: `gemini-2.5-flash`).
-3. **Fallback (Mock):** Se você deixar os campos de API em branco ou inacessíveis, a aplicação irá autogerar demandas mockadas de alta fidelidade ao clicar em "Sincronizar APIs" para demonstração funcional instantânea do dashboard.
+3. **Fallback (Mock):** Se as chaves de API forem omitidas, o sistema gera demandas mockadas funcionais ao sincronizar.
 
 ---
 
 ## 🚀 Como Iniciar a Aplicação (Rodar Localmente)
 
-Como a sua máquina já possui um ambiente virtual Python (`venv`) com todas as bibliotecas necessárias instaladas, basta rodar o servidor FastAPI do diretório do backend:
-
-1. No terminal do Windows, navegue para o diretório `/po-hub/backend`:
+1. No terminal, navegue para o diretório `/po-hub/backend`:
    ```powershell
    cd po-hub/backend
    ```
 2. Inicialize o servidor usando o interpretador do ambiente virtual da raiz:
    ```powershell
-   ..\..\rag-ia\venv\Scripts\python -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload
+   ..\..\rag-ia\venv\Scripts\python -m uvicorn main:app --host 0.0.0.0 --port 8080 --reload
    ```
-3. Abra o seu navegador e acesse a interface gráfica:
-   👉 **[http://localhost:5000](http://localhost:5000)**
+3. Acesse no navegador:
+   👉 **[http://localhost:8080](http://localhost:8080)**
 
 ---
 
 ## 🛢️ Arquitetura de Dados (SQLite Schema - Dois Bancos)
 
-O PO Hub implementa a arquitetura de **Dois Bancos** para separar demandas ativas e históricas, tornando a listagem e a sincronização altamente escaláveis e eficientes. Os dados são estruturados nas mesmas tabelas (com integridade referencial `ON DELETE CASCADE`) em dois arquivos SQLite independentes:
+Implementamos a arquitetura de **Dois Bancos** (`database_ativo.db` e `database_historico.db`) para manter a performance da listagem e a separação de escopos de demandas ativas e de histórico, sincronizados de forma atômica.
 
-- **`database_ativo.db`**: Armazena itens em aberto ou em andamento (status como "Em Aberto", "Em Progresso", "Desenvolvimento", "Doing", "To Do").
-- **`database_historico.db`**: Funciona como um arquivo imutável para demandas finalizadas. O sistema impõe regras rígidas de integridade:
-  - **Filtro Rígido de Escrita:** Apenas demandas com status finais específicos (`"Concluído"`, `"Done"`, `"Resolved"`, `"Closed"`, `"Improcedente"`, `"Cancelado"`) são gravadas no histórico. Gravações de status não finais são estritamente bloqueadas nesta base.
-  - **Migração Reversa Automática:** Se um item finalizado for reaberto na API externa (retornado com status não final), o sincronizador o exclui automaticamente da base de histórico e o move (com todas as suas anotações, tags e dependências locais via cascade) de volta para a base ativa.
-  - **Filtro de Exibição Resiliente:** A consulta do endpoint de histórico realiza um filtro SQL `WHERE` parametrizado adicional para garantir que apenas itens com os status finais definidos sejam exibidos, mesmo no caso de inconsistências residuais.
-
-As tabelas de ambos os bancos seguem a seguinte estrutura:
-
-### 1. `demands`
-Armazena as demandas mapeadas e sincronizadas das APIs externas.
-- `externalId` (TEXT PRIMARY KEY) - Ex: `JIRA-101`, `AZ-501`.
-- `origin` (TEXT) - `'Jira'` ou `'Azure'`.
-- `title` (TEXT) - Título da demanda.
-- `externalStatus` (TEXT) - Status oficial reportado pela API externa.
-- `itemType` (TEXT) - Tipo do item de trabalho (ex: `Epic`, `Feature`, `Bug`, `User Story`, `História`, `Oportunidade`, `Incidente`).
-- `updatedAt` (TEXT) - Data da última atualização local/sincronização.
-- `parentId` (TEXT) - ID da demanda pai na hierarquia (ignorado na sincronização para evitar sobrescritas).
-- `localParentId` (TEXT) - ID da demanda pai local atribuída manualmente pelo usuário.
-- `blockers` (TEXT) - Ignorado na sincronização para priorizar o mapeamento local manual de dependências.
-- `blocked_by` (TEXT) - Ignorado na sincronização para priorizar o mapeamento local manual de dependências.
-
-### 2. `annotations`
-Armazena anotações ricas locais vinculadas a cada demanda.
+### 1. `projects` (Nova Tabela PPM)
+Armazena as iniciativas estratégicas cadastradas pelo usuário.
 - `id` (INTEGER PRIMARY KEY AUTOINCREMENT)
-- `externalId` (TEXT) - Chave estrangeira referente a `demands(externalId)`.
-- `content` (TEXT) - Comentário do PO.
-- `createdAt` (TEXT) - Data/hora de gravação automática local (UTC).
+- `name` (TEXT UNIQUE) - Nome da iniciativa (Ex: "CRM de Vendas").
+- `health_status` (TEXT) - Farol de saúde: `'Verde'`, `'Amarelo'`, ou `'Vermelho'`.
+- `progress` (INTEGER) - Porcentagem de progresso real da iniciativa (0 a 100).
+- `sponsor` (TEXT) - Patrocinador executivo responsável.
+- `target_go_live` (TEXT) - Previsão de lançamento (Ex: "Dezembro 2026").
+- `executive_summary` (TEXT) - Resumo executivo semanal e eventuais impedimentos.
 
-### 3. `tags`
-Armazena tags customizadas vinculadas a cada demanda para agrupamento/filtragem flexível.
-- `externalId` (TEXT) - Chave estrangeira referente a `demands(externalId)`.
-- `tag` (TEXT) - Nome da tag (salva em minúsculo e limpa).
-- Chave Primária Composta por (`externalId`, `tag`).
-
-### 4. `dependencies`
-Armazena os bloqueios e dependências customizados entre demandas atribuídos de forma inteiramente manual pelo usuário.
-- `blocked_id` (TEXT) - Chave estrangeira referente a `demands(externalId)` para o item bloqueado.
-- `blocker_id` (TEXT) - Chave estrangeira referente a `demands(externalId)` para o item que atua como bloqueador.
-- Chave Primária Composta por (`blocked_id`, `blocker_id`).
-
-### 5. `project_reports`
-Tabela de cache para os relatórios de status report gerados por inteligência artificial para otimização de custos da API do Gemini (FinOps).
-- `project_name` (TEXT PRIMARY KEY) - Nome do projeto associado ao relatório.
-- `report_text` (TEXT) - Conteúdo em texto do relatório executivo retornado pela LLM.
-- `generated_at` (TEXT) - Timestamp da última geração/atualização (formato `dd/mm/yyyy hh:mm`).
+### 2. `demands`
+Armazena as demandas. Atualizada com suporte a projeto e canal local.
+- `externalId` (TEXT PRIMARY KEY) - Ex: `JIRA-101`, `AZ-501`, `BIZ-178321`.
+- `origin` (TEXT) - `'Jira'`, `'Azure'`, ou `'Negocio'`.
+- `title` (TEXT) - Título da demanda.
+- `externalStatus` (TEXT) - Status reportado (Ex: `'To Do'`, `'Done'`).
+- `itemType` (TEXT) - Categoria do item (Ex: `Feature`, `Bug`, `User Story`).
+- `updatedAt` (TEXT) - Timestamp de atualização.
+- `promisedDate` (TEXT) / `followUpDate` (TEXT) - Gestão local de prazos.
+- `managerNotes` (TEXT) - Notas semanais da reunião de status.
+- `project` (TEXT) - Nome da iniciativa vinculada na tabela `projects`.
 
 ---
 
 ## 🎯 Principais Funcionalidades da Interface UI/UX
 
-1. **Dashboard Executivo:** Métricas agregadoras que computam em tempo real o volume de demandas consolidado, distribuição de origem e contagem de tags locais.
-2. **Busca Abrangente de Itens (Azure DevOps):** A consulta WIQL traz 100% dos itens de trabalho vinculados ao usuário (independentemente do tipo, como `Epic`, `Feature`, `Bug`, `User Story`, `Incidente`, `Task` e outros).
-3. **Prefixação Dinâmica de Títulos:** Para apoiar a visualização rápida na listagem, o título de cada demanda é dinamicamente prefixado no backend:
-   - `User Story` -> `"US: "`
-   - `Bug` -> `"Bug: "`
-   - Demais tipos (ex: `Epic`, `Feature`, `Incidente`) -> `"{Tipo}: "` (ex: `"Epic: "`, `"Incidente: "`).
-4. **Busca Detalhada em Lotes (Chunking):** A API do Azure DevOps limita a busca a 200 IDs por vez. O backend divide automaticamente os resultados da consulta em blocos de até 200 IDs para garantir o carregamento total sem falhas ou perda de dados.
-5. **Sincronização Segura:** O sincronizador utiliza instruções SQL `ON CONFLICT` que atualizam o título e status sem excluir a demanda, **garantindo a permanência intacta de todas as suas tags e anotações locais**.
-6. **Ordenação Direta por Colunas:** A listagem oferece ordenação clicável nos cabeçalhos (`ID / Origem`, `Demanda`, `Status Externo`) com indicação visual de direção de ordenação (setas ▲/▼).
-7. **Links Diretos:** Ícones e botões nos detalhes da demanda direcionam o usuário com um clique diretamente ao ticket de origem correspondente no Jira ou Azure DevOps.
-8. **Painel de Detalhes (Slide-over):** Clicar em qualquer linha da tabela abre um painel lateral dinâmico de detalhes (Drawer).
-9. **Gerenciador de Tags e Timeline Cronológica:** Adicione/remova tags dinamicamente e visualize anotações em uma linha do tempo vertical decrescente.
-10. **Mapa do Roadmap (Grafo de Dependências):** Uma visão gráfica e interativa baseada em `React Flow` que mapeia duas dimensões de relacionamentos: Hierarquias (linhas sólidas cinzas) e Bloqueios (linhas tracejadas vermelhas e animadas). Para evitar poluição visual, o mapa exibe apenas itens que possuem algum vínculo manual ativo (seja de Item Pai ou Bloqueadores), acompanhado de um estado vazio instrutivo para o usuário. Conta com layout automático inteligente pelo `Dagre` nas orientações vertical (árvore) ou horizontal, e interage com o Drawer lateral ao clicar nos cartões (nós).
-11. **Visão Escalável Sem Poluição (Dois Bancos):** Sincronização inteligente onde as APIs trazem apenas itens ativos, otimizando o tráfego de rede. Os itens concluídos ou cancelados são migrados atomicamente para a base de histórico (`database_historico.db`) preservando anotações, tags e dependências locais, deixando o banco ativo (`database_ativo.db`) e o endpoint `/api/demands` limpos para a produtividade do dia a dia, enquanto consultas ao histórico permanecem isoladas em `/api/demands/history`.
-12. **Filtro por Tipo de Item e Coluna Dedicada:** Disponibilização de filtro dinâmico por tipo de item (ex: `Epic`, `Feature`, `Bug`, `User Story`, `História`, `Oportunidade`, `Incidente`) nas abas **Demandas** e **Histórico**, permitindo isolar as visualizações de acordo com a categoria do artefato, com uma coluna dedicada "Tipo de Item" na tabela de exibição.
-13. **Paginação Inteligente do Jira:** Sincronização robusta que percorre recursivamente os resultados da API do Jira utilizando o parâmetro `nextPageToken`, garantindo que histórias de desenvolvimento relatadas pelo PO (como histórias e bugs) sejam totalmente importadas sem sofrer truncamento.
-14. **Atribuição Manual de Dependências (Sem Sobrescritas):** Todas as dependências e blockers automáticos vindos das APIs do Jira/Azure foram desativados e limpos. A modelagem de dependências é 100% manual e persistente no banco de dados local. O usuário pode definir o Item Pai (usando a coluna local `localParentId`, que aceita relações inter-projeto como Azure/Jira) e gerenciar relações de bloqueio (tabela `dependencies`) diretamente através do Drawer de detalhes, sem risco de que as sincronizações automáticas externas sobreponham essas configurações.
-15. **Pesquisa Autocomplete e Flexibilidade de Vínculos:** Os campos "Demanda Pai (Hierarquia)" e "Bloqueadores (Blockers)" no painel dinâmico (Drawer) foram aprimorados para incluir busca interativa (autocomplete) por ID ou Título da demanda. No campo de Demanda Pai, o usuário pode escolher "Nenhum (Sem pai)" (salvando o valor especial `"NONE"` no banco de dados para desvincular o item mesmo se houver um vínculo automático ativo vindo da API externa) ou restaurar o vínculo original. No campo de Bloqueadores, as demandas elegíveis são listadas e filtradas dinamicamente para evitar duplicidade ou auto-vinculação.
-16. **Resumo Inteligente de Demandas (Google Gemini):** Funcionalidade de resumo executivo baseada em inteligência artificial que lê o histórico de comentários de uma demanda e gera um resumo em bullet points focado em: 1. O que já foi feito, 2. Bloqueios atuais, 3. Próximos passos. Implementa cache local dinâmico baseado em timestamps de atualização para economizar chamadas à API e tokens (FinOps).
-17. **Gerador de Status Report por Projeto com IA (Google Gemini):** Funcionalidade para consolidar o status de todas as demandas que compõem um determinado projeto e gerar um relatório executivo estruturado. Conta com um modal detalhado exibindo as Principais Entregas/Avanços, O que está em Andamento, e Atenção Necessária, além de cópia rápida para a área de transferência.
-18. **Sistema de Cache Local & Otimização FinOps:** Para reduzir drasticamente o uso da API e custos do Gemini, os relatórios gerados por projeto são cacheados localmente na tabela `project_reports`. Ao clicar em "Ver Status Report", o sistema exibe instantaneamente o relatório cacheado com a data/hora da última atualização. O usuário pode forçar uma nova geração de IA a qualquer momento através do botão "Atualizar Resumo com IA" diretamente no modal, o qual exibe um indicador visual de carregamento enquanto consome a LLM.
-
----
-
-## 🧪 Testes Automatizados End-to-End
-
-O projeto inclui um script de testes E2E (`backend/run_e2e_test.py`) baseado em **Selenium WebDriver**. Para executá-lo:
-1. Garanta que o servidor backend esteja rodando.
-2. Execute o script:
-   ```bash
-   ..\..\rag-ia\venv\Scripts\python run_e2e_test.py
-   ```
-O script simulará o acesso ao dashboard, navegação na tabela, ordenação, clique e validação de renderização do Drawer, salvando screenshots de verificação no diretório correspondente.
+1. **Portfólio Executivo (PPM):** Dashboard centralizado com cards horizontais de projetos detalhados, exibindo progresso (com barra de progresso horizontal colorida), sponsor, previsão de lançamento e farol de saúde em estilo moderno dark/slate.
+2. **Criação de Demandas de Negócio:** Botão "+ Nova Demanda de Negócio" na tabela de demandas que permite cadastrar novos itens locais (com ID único no formato `BIZ-{timestamp}` e origem `Negocio`) vinculados opcionalmente a projetos do portfólio.
+3. **Visão Geral do Projeto (Overview Dashboard):** Visualização consolidada acessível em cada iniciativa do portfólio que exibe:
+   - **Header Executivo**: Principais KPIs consolidados e saúde.
+   - **Resumo Semanal**: O status report descritivo de impedimentos da iniciativa.
+   - **Board de Trilhas**: Divisão de entregas em 3 colunas de cards de demandas side-by-side agrupados por origem: **TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**.
+4. **Vínculo do Drawer Centralizado:** Menus de seleção dinâmicos de projetos adicionados na gaveta (Drawer) para demandas do Jira, Azure ou manuais, salvando e atualizando instantaneamente os relacionamentos no SQLite.
+5. **Autonomia de Dados Locais:** Atribuição manual de pais, bloqueios e anotações persistentes no SQLite local, imune a perdas durante as sincronizações automáticas externas do Jira e Azure DevOps.
+6. **Resumo Inteligente e Relatórios com IA:** Integração com a API do Google Gemini para resumos automáticos em lote com suporte a caches locais na tabela `project_reports` para redução de custos (FinOps).
