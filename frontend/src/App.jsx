@@ -8,6 +8,7 @@ import ManagerSyncView from './components/ManagerSyncView';
 import ProjectView from './components/ProjectView';
 import RoadmapGraphView from './components/RoadmapGraphView';
 import HistoryView from './components/HistoryView';
+import PortfolioView from './components/PortfolioView';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -85,7 +86,9 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {activeTab === 'dashboard' ? (
+        {activeTab === 'portfolio' ? (
+          <PortfolioView />
+        ) : activeTab === 'dashboard' ? (
           <div className="space-y-6 flex-1 overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full">
             {/* Header */}
             <div className="flex items-center justify-between">

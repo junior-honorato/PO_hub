@@ -80,6 +80,22 @@ class DemandUpdate(BaseModel):
     managerNotes: Optional[str] = None
     localParentId: Optional[str] = None
 
+class ProjectCreate(BaseModel):
+    name: str
+    health_status: str
+    progress: int
+    sponsor: Optional[str] = None
+    target_go_live: Optional[str] = None
+    executive_summary: Optional[str] = None
+
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    health_status: Optional[str] = None
+    progress: Optional[int] = None
+    sponsor: Optional[str] = None
+    target_go_live: Optional[str] = None
+    executive_summary: Optional[str] = None
+
 def extract_adf_text(node):
     if not node:
         return ""
@@ -1255,9 +1271,115 @@ def update_demand(external_id: str, payload: DemandUpdate):
         print(f"Erro ao atualizar demanda {external_id}: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao atualizar a demanda.")
 
+# Módulo PPM - Rotas CRUD de Projetos
+@app.get("/api/projects")
+async def get_projects():
+    try:
+        projects = fetch_all("SELECT * FROM projects ORDER BY id DESC", db_name="ativo")
+        return projects
+    except Exception as e:
+        print(f"Erro ao buscar projetos: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao buscar projetos.")
+
+@app.post("/api/projects")
+async def create_project(payload: ProjectCreate):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="O nome do projeto não pode ser vazio.")
+    if payload.health_status not in ('Verde', 'Amarelo', 'Vermelho'):
+        raise HTTPException(status_code=400, detail="health_status inválido. Valores aceitos: 'Verde', 'Amarelo', 'Vermelho'")
+    if not (0 <= payload.progress <= 100):
+        raise HTTPException(status_code=400, detail="progress deve ser um valor inteiro entre 0 e 100.")
+        
+    try:
+        existing = fetch_one("SELECT 1 FROM projects WHERE name = ?", (name,), "ativo")
+        if existing:
+            raise HTTPException(status_code=400, detail="Já existe um projeto com este nome.")
+            
+        cursor = execute_query(
+            """INSERT INTO projects (name, health_status, progress, sponsor, target_go_live, executive_summary) 
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (name, payload.health_status, payload.progress, payload.sponsor, payload.target_go_live, payload.executive_summary),
+            "ativo"
+        )
+        project_id = cursor.lastrowid
+        new_project = fetch_one("SELECT * FROM projects WHERE id = ?", (project_id,), "ativo")
+        return new_project
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao criar projeto: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao criar projeto.")
+
+@app.put("/api/projects/{project_id}")
+async def update_project(project_id: int, payload: ProjectUpdate):
+    try:
+        project = fetch_one("SELECT * FROM projects WHERE id = ?", (project_id,), "ativo")
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+            
+        update_data = payload.dict(exclude_unset=True)
+        if not update_data:
+            return project
+            
+        if "name" in update_data:
+            name = update_data["name"].strip()
+            if not name:
+                raise HTTPException(status_code=400, detail="O nome do projeto não pode ser vazio.")
+            existing = fetch_one("SELECT 1 FROM projects WHERE name = ? AND id != ?", (name, project_id), "ativo")
+            if existing:
+                raise HTTPException(status_code=400, detail="Já existe outro projeto com este nome.")
+            update_data["name"] = name
+            
+        if "health_status" in update_data and update_data["health_status"] not in ('Verde', 'Amarelo', 'Vermelho'):
+            raise HTTPException(status_code=400, detail="health_status inválido. Valores aceitos: 'Verde', 'Amarelo', 'Vermelho'")
+            
+        if "progress" in update_data and not (0 <= update_data["progress"] <= 100):
+            raise HTTPException(status_code=400, detail="progress deve ser um valor inteiro entre 0 e 100.")
+            
+        fields = []
+        values = []
+        for k, v in update_data.items():
+            fields.append(f"{k} = ?")
+            values.append(v)
+            
+        values.append(project_id)
+        execute_query(f"UPDATE projects SET {', '.join(fields)} WHERE id = ?", tuple(values), "ativo")
+        
+        updated_project = fetch_one("SELECT * FROM projects WHERE id = ?", (project_id,), "ativo")
+        return updated_project
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao atualizar projeto: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao atualizar projeto.")
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project(project_id: int):
+    try:
+        project = fetch_one("SELECT 1 FROM projects WHERE id = ?", (project_id,), "ativo")
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+            
+        execute_query("DELETE FROM projects WHERE id = ?", (project_id,), "ativo")
+        return {"success": True}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao deletar projeto: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao deletar projeto.")
+
 # Monta o diretório static na raiz `/` (DEVE vir após as rotas da API)
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 else:
     print(f"Aviso: Diretório estático {static_dir} não encontrado. Certifique-se de criá-lo.")
+
+if __name__ == "__main__":
+    import uvicorn
+    # Carrega a porta do .env (com fallback para 8080)
+    port = int(os.getenv("PORT", 8080))
+    print(f"[*] Iniciando PO Hub na porta {port} (lida do .env)...")
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target, FolderKanban, Network, History } from 'lucide-react';
+import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target, FolderKanban, Network, History, Briefcase } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, lastSyncStatus }) {
   return (
@@ -17,6 +17,17 @@ export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, la
 
       {/* Navegação */}
       <nav className="flex-1 px-4 py-6 space-y-1">
+        <button
+          onClick={() => setActiveTab('portfolio')}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+            activeTab === 'portfolio'
+              ? 'bg-slate-900 text-white border-l-4 border-brand-500 shadow-sm'
+              : 'text-slate-400 hover:bg-slate-900/50 hover:text-slate-200'
+          }`}
+        >
+          <Briefcase className="w-5 h-5" />
+          Portfólio Executivo
+        </button>
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${

@@ -106,6 +106,19 @@ def init_db():
                     generated_at TEXT
                 )
             """)
+
+            # Tabela Projects (Portfólio de Projetos - PPM)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS projects (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    health_status TEXT NOT NULL CHECK(health_status IN ('Verde', 'Amarelo', 'Vermelho')),
+                    progress INTEGER NOT NULL CHECK(progress >= 0 AND progress <= 100),
+                    sponsor TEXT,
+                    target_go_live TEXT,
+                    executive_summary TEXT
+                )
+            """)
             conn.commit()
             print(f"Banco de dados SQLite {db_name} inicializado com sucesso.")
         except Exception as e:

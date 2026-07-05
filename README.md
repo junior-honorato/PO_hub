@@ -75,7 +75,7 @@ Como a sua máquina já possui um ambiente virtual Python (`venv`) com todas as 
    ```
 2. Inicialize o servidor usando o interpretador do ambiente virtual da raiz:
    ```powershell
-   ..\..\venv\Scripts\python -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload
+   ..\..\rag-ia\venv\Scripts\python -m uvicorn main:app --host 0.0.0.0 --port 5000 --reload
    ```
 3. Abra o seu navegador e acesse a interface gráfica:
    👉 **[http://localhost:5000](http://localhost:5000)**
@@ -166,6 +166,6 @@ O projeto inclui um script de testes E2E (`backend/run_e2e_test.py`) baseado em 
 1. Garanta que o servidor backend esteja rodando.
 2. Execute o script:
    ```bash
-   ..\..\venv\Scripts\python run_e2e_test.py
+   ..\..\rag-ia\venv\Scripts\python run_e2e_test.py
    ```
 O script simulará o acesso ao dashboard, navegação na tabela, ordenação, clique e validação de renderização do Drawer, salvando screenshots de verificação no diretório correspondente.

@@ -59,7 +59,7 @@ def run_test():
     driver = webdriver.Chrome(service=service, options=options)
     
     try:
-        url = "http://127.0.0.1:5000"
+        url = "http://127.0.0.1:8080"
         print(f"[E2E] Acessando {url}...")
         driver.get(url)
         
