@@ -17,6 +17,25 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
   const [currentStatusNotes, setCurrentStatusNotes] = useState('');
   const [blockerNotes, setBlockerNotes] = useState('');
 
+  const getExternalUrl = () => {
+    if (!demand) return null;
+    if (demand.origin === 'Jira') {
+      const jiraUrl = localStorage.getItem('jira_url');
+      if (jiraUrl) {
+        const cleanUrl = jiraUrl.replace(/\/$/, '');
+        return `${cleanUrl}/browse/${demand.externalId}`;
+      }
+    } else if (demand.origin === 'Azure') {
+      const azureOrg = localStorage.getItem('azure_org');
+      const azureProject = localStorage.getItem('azure_project');
+      if (azureOrg && azureProject) {
+        return `https://dev.azure.com/${azureOrg}/${azureProject}/_workitems/edit/${demand.externalId}`;
+      }
+    }
+    return demand.externalUrl;
+  };
+  const externalUrl = getExternalUrl();
+
   useEffect(() => {
     if (isOpen && demandId) {
       loadDemandDetail();
@@ -267,9 +286,9 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {demand?.externalUrl && (
+            {externalUrl && (
               <a
-                href={demand.externalUrl}
+                href={externalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl transition-all"
@@ -300,9 +319,9 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-4">
                 <h2 className="text-xl font-bold text-white leading-snug">{demand.title}</h2>
-                {demand.externalUrl && (
+                {externalUrl && (
                   <a
-                    href={demand.externalUrl}
+                    href={externalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-slate-400 hover:text-white transition-colors pt-1 flex-shrink-0"

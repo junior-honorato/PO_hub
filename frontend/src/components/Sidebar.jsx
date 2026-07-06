@@ -1,7 +1,6 @@
-import React from 'react';
-import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target, FolderKanban, Network, History, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target, FolderKanban, Network, History, Briefcase, Settings } from 'lucide-react';
 
-export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, lastSyncStatus }) {
+export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, lastSyncStatus, onOpenSettings }) {
   return (
     <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full z-20">
       {/* Logo */}
@@ -75,7 +74,15 @@ export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, la
       </nav>
 
       {/* Sincronização e Rodapé */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/50">
+      <div className="p-4 border-t border-slate-800 bg-slate-950/50 space-y-3">
+        <button
+          onClick={onOpenSettings}
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-slate-900 hover:bg-slate-850 border border-slate-800 transition-all select-none"
+        >
+          <Settings className="w-4 h-4 text-slate-500 group-hover:text-slate-300" />
+          Configurações
+        </button>
+
         <button
           onClick={onSync}
           disabled={isSyncing}

@@ -68,6 +68,14 @@ class TagCreate(BaseModel):
 class DependencyCreate(BaseModel):
     blocker_id: str
 
+class SyncRequest(BaseModel):
+    jiraUrl: Optional[str] = None
+    jiraEmail: Optional[str] = None
+    jiraToken: Optional[str] = None
+    azureOrg: Optional[str] = None
+    azureProject: Optional[str] = None
+    azureToken: Optional[str] = None
+
 class ProjectSummaryRequest(BaseModel):
     project_name: str
     demand_ids: list[str]
@@ -299,9 +307,10 @@ def save_demand(demand, db_name):
         updated_at
     ), db_name)
 
-def fetch_jira_issue_details(key):
+def fetch_jira_issue_details(key, jira_url_raw=None, user_email=None, pat=None):
     try:
-        jira_url_raw = os.getenv("JIRA_API_URL")
+        if not jira_url_raw:
+            jira_url_raw = os.getenv("JIRA_API_URL")
         if not jira_url_raw:
             return None
         jira_url_base = jira_url_raw.rstrip('/')
@@ -309,8 +318,12 @@ def fetch_jira_issue_details(key):
             jira_url_base = jira_url_base.lower().replace("/jira", "")
         
         detail_url = f"{jira_url_base}/rest/api/3/issue/{key}"
-        user_email = os.getenv("JIRA_USER_EMAIL")
-        pat = os.getenv("JIRA_PAT")
+        if not user_email:
+            user_email = os.getenv("JIRA_USER_EMAIL")
+        if not pat:
+            pat = os.getenv("JIRA_PAT")
+        if not user_email or not pat:
+            return None
         auth_str = f"{user_email}:{pat}"
         auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
         
@@ -509,7 +522,7 @@ def parse_azure_item(item, azure_url, headers):
         "updatedAt": updated_at
     }
 
-def process_sync_for_demands(fetched_demands, origin):
+def process_sync_for_demands(fetched_demands, origin, jira_creds=None, azure_creds=None):
     # Fetch DB active keys
     db_active = fetch_all("SELECT externalId FROM demands WHERE origin = ?", (origin,), "ativo")
     db_active_keys = {d["externalId"] for d in db_active}
@@ -547,22 +560,33 @@ def process_sync_for_demands(fetched_demands, origin):
             demand = fetched_map[key]
         else:
             # Not in fetched list (meaning it wasn't returned by active sync, e.g. it was finalized)
-            if origin == "Jira" and has_jira_credentials():
-                issue_data = fetch_jira_issue_details(key)
-                if issue_data:
-                    demand = parse_jira_issue(issue_data)
-            elif origin == "Azure" and has_azure_credentials():
-                if key.startswith("AZ-"):
+            if origin == "Jira":
+                jira_url = jira_creds.get("url") if jira_creds else None
+                jira_email = jira_creds.get("email") if jira_creds else None
+                jira_token = jira_creds.get("token") if jira_creds else None
+                
+                has_jira = bool(jira_url and jira_email and jira_token) or has_jira_credentials()
+                if has_jira:
+                    issue_data = fetch_jira_issue_details(key, jira_url, jira_email, jira_token)
+                    if issue_data:
+                        demand = parse_jira_issue(issue_data)
+            elif origin == "Azure":
+                azure_url = azure_creds.get("url") if azure_creds else None
+                headers = azure_creds.get("headers") if azure_creds else None
+                
+                has_azure = bool(azure_url and headers) or has_azure_credentials()
+                if has_azure and key.startswith("AZ-"):
                     try:
                         num_id = int(key.replace("AZ-", ""))
-                        azure_url = os.getenv("AZURE_API_URL").rstrip('/')
-                        pat = os.getenv("AZURE_PAT")
-                        auth_str = f":{pat}"
-                        auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
-                        headers = {
-                            "Authorization": f"Basic {auth_b64}",
-                            "Content-Type": "application/json"
-                        }
+                        if not azure_url or not headers:
+                            azure_url = os.getenv("AZURE_API_URL").rstrip('/')
+                            pat = os.getenv("AZURE_PAT")
+                            auth_str = f":{pat}"
+                            auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+                            headers = {
+                                "Authorization": f"Basic {auth_b64}",
+                                "Content-Type": "application/json"
+                            }
                         item_data = fetch_azure_item_details(num_id, azure_url, headers)
                         if item_data:
                             demand = parse_azure_item(item_data, azure_url, headers)
@@ -705,18 +729,21 @@ def get_demands_data(db_name="ativo"):
 # FastAPI API Endpoints
 
 @app.post("/api/sync")
-def sync_demands():
+def sync_demands(req: SyncRequest = Body(...)):
     print("Iniciando sincronização com Dois Bancos...")
     
+    has_jira_payload = bool(req.jiraUrl and req.jiraEmail and req.jiraToken)
+    has_azure_payload = bool(req.azureOrg and req.azureProject and req.azureToken)
+    
     # Se houver credenciais reais, remove os itens fictícios (mock) remanescentes para evitar poluição
-    if has_jira_credentials():
+    if has_jira_payload:
         try:
             execute_query("DELETE FROM demands WHERE origin = 'Jira' AND externalId LIKE 'JIRA-%'", db_name="ativo")
             execute_query("DELETE FROM demands WHERE origin = 'Jira' AND externalId LIKE 'JIRA-%'", db_name="historico")
         except Exception as e:
             print(f"Erro ao limpar dados fictícios do Jira: {e}")
             
-    if has_azure_credentials():
+    if has_azure_payload:
         try:
             execute_query("DELETE FROM demands WHERE origin = 'Azure' AND externalId LIKE 'AZURE-%'", db_name="ativo")
             execute_query("DELETE FROM demands WHERE origin = 'Azure' AND externalId LIKE 'AZURE-%'", db_name="historico")
@@ -729,17 +756,17 @@ def sync_demands():
     errors = []
 
     # 1. Jira Sync
-    if has_jira_credentials():
+    if has_jira_payload:
         try:
             print("Buscando dados reais do Jira...")
-            jira_url_raw = os.getenv("JIRA_API_URL")
+            jira_url_raw = req.jiraUrl
             jira_url_base = jira_url_raw.rstrip('/')
             if ".atlassian.net/jira" in jira_url_base.lower():
                 jira_url_base = jira_url_base.lower().replace("/jira", "")
                 
             jira_url = f"{jira_url_base}/rest/api/3/search/jql"
-            user_email = os.getenv("JIRA_USER_EMAIL")
-            pat = os.getenv("JIRA_PAT")
+            user_email = req.jiraEmail
+            pat = req.jiraToken
             auth_str = f"{user_email}:{pat}"
             auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
             
@@ -781,21 +808,15 @@ def sync_demands():
             print(err_msg)
             errors.append(err_msg)
     else:
-        env_exists = os.path.exists(env_path)
-        if env_exists and os.getenv("JIRA_API_URL"):
-            err_msg = "Credenciais do Jira (JIRA_PAT ou JIRA_USER_EMAIL) estão vazias no arquivo .env."
-            print(err_msg)
-            errors.append(err_msg)
-        else:
-            print("Credenciais do Jira ausentes. Usando dados fictícios.")
-            jira_fetched = MOCK_JIRA_DEMANDS
+        print("Credenciais do Jira ausentes na requisição. Usando dados fictícios.")
+        jira_fetched = MOCK_JIRA_DEMANDS
 
     # 2. Azure DevOps Sync
-    if has_azure_credentials():
+    if has_azure_payload:
         try:
             print("Buscando dados reais do Azure DevOps...")
-            azure_url = os.getenv("AZURE_API_URL").rstrip('/')
-            pat = os.getenv("AZURE_PAT")
+            azure_url = f"https://dev.azure.com/{req.azureOrg}/{req.azureProject}".rstrip('/')
+            pat = req.azureToken
             auth_str = f":{pat}"
             auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
             
@@ -853,27 +874,42 @@ def sync_demands():
             print(err_msg)
             errors.append(err_msg)
     else:
-        env_exists = os.path.exists(env_path)
-        if env_exists and os.getenv("AZURE_API_URL"):
-            err_msg = "Credencial do Azure DevOps (AZURE_PAT) está vazia no arquivo .env."
-            print(err_msg)
-            errors.append(err_msg)
-        else:
-            print("Credenciais do Azure DevOps ausentes. Usando dados fictícios.")
-            azure_fetched = MOCK_AZURE_DEMANDS
+        print("Credenciais do Azure DevOps ausentes na requisição. Usando dados fictícios.")
+        azure_fetched = MOCK_AZURE_DEMANDS
 
-    # Process sync using our unified selective sync function
+    # Process sync using our unified selective sync function, passing payload credentials
+    jira_creds = {
+        "url": req.jiraUrl,
+        "email": req.jiraEmail,
+        "token": req.jiraToken
+    } if has_jira_payload else None
+
+    azure_url_constructed = f"https://dev.azure.com/{req.azureOrg}/{req.azureProject}" if has_azure_payload else None
+    azure_pat = req.azureToken if has_azure_payload else None
+    azure_headers = {
+        "Authorization": f"Basic {base64.b64encode(f':{azure_pat}'.encode('utf-8')).decode('utf-8')}",
+        "Content-Type": "application/json"
+    } if has_azure_payload else None
+
+    azure_creds = {
+        "url": azure_url_constructed,
+        "headers": azure_headers
+    } if has_azure_payload else None
+
     try:
-        jira_count = process_sync_for_demands(jira_fetched, "Jira")
-        azure_count = process_sync_for_demands(azure_fetched, "Azure")
+        jira_count = process_sync_for_demands(jira_fetched, "Jira", jira_creds=jira_creds, azure_creds=azure_creds)
+        azure_count = process_sync_for_demands(azure_fetched, "Azure", jira_creds=jira_creds, azure_creds=azure_creds)
         
         return {
             "success": len(errors) < 2,
-            "message": "Sincronização processada com arquitetura de Dois Bancos.",
+            "message": "Sincronização processada com arquitetura de Dois Bancos e credenciais dinâmicas.",
             "sources": sync_source,
             "count": jira_count + azure_count,
             "errors": errors if errors else None
         }
+    except Exception as db_err:
+        print(f"Erro ao persistir sincronização no banco: {db_err}")
+        raise HTTPException(status_code=500, detail="Erro interno ao gravar demandas sincronizadas.")
     except Exception as db_err:
         print(f"Erro ao persistir sincronização no banco: {db_err}")
         raise HTTPException(status_code=500, detail="Erro interno ao gravar demandas sincronizadas.")

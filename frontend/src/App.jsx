@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ArrowUpRight } from 'lucide-react';
+import Sidebar from './components/Sidebar';
+import SettingsModal from './components/SettingsModal';
 import DemandTable from './components/DemandTable';
 import DemandDrawer from './components/DemandDrawer';
 import ManagerSyncView from './components/ManagerSyncView';
@@ -15,6 +17,7 @@ export default function App() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedDemandId, setSelectedDemandId] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [lastSyncStatus, setLastSyncStatus] = useState(null);
 
   useEffect(() => {
@@ -38,9 +41,37 @@ export default function App() {
   };
 
   const handleSync = async () => {
+    const jiraUrl = localStorage.getItem('jira_url');
+    const jiraEmail = localStorage.getItem('jira_email');
+    const jiraToken = localStorage.getItem('jira_token');
+    const azureOrg = localStorage.getItem('azure_org');
+    const azureProject = localStorage.getItem('azure_project');
+    const azureToken = localStorage.getItem('azure_token');
+
+    const hasJira = jiraUrl && jiraEmail && jiraToken;
+    const hasAzure = azureOrg && azureProject && azureToken;
+
+    if (!hasJira && !hasAzure) {
+      alert('Por favor, preencha as credenciais do Jira ou do Azure DevOps no menu de Configurações antes de sincronizar.');
+      return;
+    }
+
     setIsSyncing(true);
     try {
-      const res = await fetch('/api/sync', { method: 'POST' });
+      const res = await fetch('/api/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          jiraUrl: jiraUrl || null,
+          jiraEmail: jiraEmail || null,
+          jiraToken: jiraToken || null,
+          azureOrg: azureOrg || null,
+          azureProject: azureProject || null,
+          azureToken: azureToken || null
+        })
+      });
       if (res.ok) {
         const result = await res.json();
         await loadDemands();
@@ -84,7 +115,10 @@ export default function App() {
         onSync={handleSync}
         isSyncing={isSyncing}
         lastSyncStatus={lastSyncStatus}
-      />      {/* Main Content Area */}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+
+      {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {selectedProjectId ? (
           <ProjectOverview
@@ -117,6 +151,12 @@ export default function App() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onRefreshDemands={loadDemands}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );
