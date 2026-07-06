@@ -778,7 +778,7 @@ def sync_demands(req: SyncRequest = Body(...)):
             max_results = 100
             while True:
                 params = {
-                    "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia", Legend, "Legend") AND (reporter = currentUser() OR reporter = "arlindo.junior@sicoob.com.br")',
+                    "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia", Legend, "Legend") AND (reporter = currentUser() OR assignee = currentUser())',
                     "maxResults": max_results,
                     "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated"
                 }
@@ -808,8 +808,13 @@ def sync_demands(req: SyncRequest = Body(...)):
             print(err_msg)
             errors.append(err_msg)
     else:
-        print("Credenciais do Jira ausentes na requisição. Usando dados fictícios.")
-        jira_fetched = MOCK_JIRA_DEMANDS
+        # Fallback to mock only if BOTH Jira and Azure credentials are empty
+        if not has_azure_payload:
+            print("Nenhuma credencial configurada. Usando dados fictícios para Jira.")
+            jira_fetched = MOCK_JIRA_DEMANDS
+        else:
+            print("Jira não configurado na requisição (sincronização real ativa para outra API). Mantendo vazio.")
+            jira_fetched = []
 
     # 2. Azure DevOps Sync
     if has_azure_payload:
@@ -831,13 +836,7 @@ def sync_demands(req: SyncRequest = Body(...)):
                     "Select [System.Id] From WorkItems Where [System.State] <> 'Removed' "
                     "AND ("
                     "[System.CreatedBy] = @me "
-                    "OR [System.CreatedBy] = 'arlindo.junior@sicoob.com.br' "
-                    "OR [System.CreatedBy] = 'Arlindo Honorato Pereira Junior' "
-                    "OR [System.CreatedBy] = 'Arlindo Honorato Pereira Júnior' "
-                    "OR [System.AssignedTo] = @me "
-                    "OR [System.AssignedTo] = 'arlindo.junior@sicoob.com.br' "
-                    "OR [System.AssignedTo] = 'Arlindo Honorato Pereira Junior' "
-                    "OR [System.AssignedTo] = 'Arlindo Honorato Pereira Júnior'"
+                    "OR [System.AssignedTo] = @me"
                     ")"
                 )
             }
@@ -874,8 +873,13 @@ def sync_demands(req: SyncRequest = Body(...)):
             print(err_msg)
             errors.append(err_msg)
     else:
-        print("Credenciais do Azure DevOps ausentes na requisição. Usando dados fictícios.")
-        azure_fetched = MOCK_AZURE_DEMANDS
+        # Fallback to mock only if BOTH Jira and Azure credentials are empty
+        if not has_jira_payload:
+            print("Nenhuma credencial configurada. Usando dados fictícios para Azure.")
+            azure_fetched = MOCK_AZURE_DEMANDS
+        else:
+            print("Azure DevOps não configurado na requisição (sincronização real ativa para outra API). Mantendo vazio.")
+            azure_fetched = []
 
     # Process sync using our unified selective sync function, passing payload credentials
     jira_creds = {
@@ -907,9 +911,6 @@ def sync_demands(req: SyncRequest = Body(...)):
             "count": jira_count + azure_count,
             "errors": errors if errors else None
         }
-    except Exception as db_err:
-        print(f"Erro ao persistir sincronização no banco: {db_err}")
-        raise HTTPException(status_code=500, detail="Erro interno ao gravar demandas sincronizadas.")
     except Exception as db_err:
         print(f"Erro ao persistir sincronização no banco: {db_err}")
         raise HTTPException(status_code=500, detail="Erro interno ao gravar demandas sincronizadas.")
