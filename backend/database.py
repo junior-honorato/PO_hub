@@ -36,7 +36,9 @@ def init_db():
                     blocked_by TEXT,
                     ai_summary TEXT,
                     summary_updated_at TEXT,
-                    project TEXT
+                    project TEXT,
+                    current_status_notes TEXT,
+                    blocker_notes TEXT
                 )
             """)
 
@@ -71,7 +73,9 @@ def init_db():
                             blocked_by TEXT,
                             ai_summary TEXT,
                             summary_updated_at TEXT,
-                            project TEXT
+                            project TEXT,
+                            current_status_notes TEXT,
+                            blocker_notes TEXT
                         )
                     """)
                     # Repopula colunas existentes
@@ -111,6 +115,10 @@ def init_db():
                 conn.execute("ALTER TABLE demands ADD COLUMN summary_updated_at TEXT")
             if "project" not in columns:
                 conn.execute("ALTER TABLE demands ADD COLUMN project TEXT")
+            if "current_status_notes" not in columns:
+                conn.execute("ALTER TABLE demands ADD COLUMN current_status_notes TEXT")
+            if "blocker_notes" not in columns:
+                conn.execute("ALTER TABLE demands ADD COLUMN blocker_notes TEXT")
 
             # Tabela Annotations (Apontamentos/Histórico local)
             conn.execute("""

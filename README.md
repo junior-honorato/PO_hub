@@ -94,7 +94,7 @@ Armazena as iniciativas estratégicas cadastradas pelo usuário.
 - `strategic_notes` (TEXT) - Notas de cobrança de alinhamento com times externos.
 
 ### 2. `demands`
-Armazena as demandas. Atualizada com suporte a projeto e canal local.
+Armazena as demandas. Atualizada com suporte a projeto, canal local e campos de Status Report.
 - `externalId` (TEXT PRIMARY KEY) - Ex: `JIRA-101`, `AZ-501`, `BIZ-178321`.
 - `origin` (TEXT) - `'Jira'`, `'Azure'`, ou `'Negocio'`.
 - `title` (TEXT) - Título da demanda.
@@ -104,6 +104,8 @@ Armazena as demandas. Atualizada com suporte a projeto e canal local.
 - `promisedDate` (TEXT) / `followUpDate` (TEXT) - Gestão local de prazos.
 - `managerNotes` (TEXT) - Notas semanais da reunião de status.
 - `project` (TEXT) - Nome da iniciativa vinculada na tabela `projects`.
+- `current_status_notes` (TEXT) - Situação atual e evolução da demanda para o Report Semanal.
+- `blocker_notes` (TEXT) - Impedimentos e riscos da demanda para o Report Semanal.
 
 ---
 
@@ -111,10 +113,11 @@ Armazena as demandas. Atualizada com suporte a projeto e canal local.
 
 1. **Portfólio Executivo (PPM):** Dashboard centralizado com cards horizontais de projetos detalhados, exibindo progresso (com barra de progresso horizontal colorida), sponsor, previsão de lançamento e farol de saúde (Verde, Amarelo, Vermelho) dinâmico e inteligente.
 2. **Criação de Demandas de Negócio:** Botão "+ Nova Demanda de Negócio" na tabela de demandas que permite cadastrar novos itens locais (com ID único no formato `BIZ-{timestamp}` e origem `Negocio`) vinculados opcionalmente a projetos do portfólio.
-3. **Visão Geral do Projeto (Overview Dashboard):** Visualização consolidada acessível em cada iniciativa do portfólio que exibe:
-   - **Farol de Saúde Inteligente**: Calculado automaticamente a cada requisição (Vermelho para demandas com blockers ou vencidas; Amarelo para demandas ativas próximas ao prazo; Verde caso contrário).
-   - **Resumo Executivo & Notas de Cobrança Interativos**: Edição e salvamento imediato do Status Report e das notas de cobrança para alinhamento semanal com equipes de apoio diretoria/externas.
-   - **Board de Trilhas**: Divisão de entregas em 3 colunas de cards de demandas side-by-side agrupados por origem (**TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**) com contadores de Impedimentos Ativos e cartões bloqueados destacados visualmente em rosa/vermelho.
-4. **Vínculo do Drawer Centralizado:** Menus de seleção dinâmicos de projetos adicionados na gaveta (Drawer) para demandas do Jira, Azure ou manuais, salvando e atualizando instantaneamente os relacionamentos no SQLite.
-5. **Autonomia de Dados Locais:** Atribuição manual de pais, bloqueios e anotações persistentes no SQLite local, imune a perdas durante as sincronizações automáticas externas do Jira e Azure DevOps.
-6. **Resumo Inteligente e Relatórios com IA:** Integração com a API do Google Gemini para resumos automáticos em lote com suporte a caches locais na tabela `project_reports` para redução de custos (FinOps).
+3. **Visão Geral do Projeto em Abas (Dashboard & Slide):** A visão de iniciativa do portfólio é organizada em duas abas:
+   - **Gestão Operacional**: Kanban board de trilhas side-by-side agrupados por origem (**TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**) com contadores de impedimentos e destaque visual de cards travados.
+   - **Report Executivo**: Tabela executiva horizontal de status semanal que consolida automaticamente as demandas em andamento, situação atual/evolução (`current_status_notes`) e impedimentos/riscos (`blocker_notes`), agrupados por Epics (Jira/Azure) ou Eixos (Negócios) e com badges de promessa de entrega formatados (ex: "Jun/26").
+4. **Modo Apresentação Premium:** Botão na aba de report que oculta sidebar e botões operacionais, exibindo e centralizando a tabela em formato de slide de leitura com fundo escuro. Conta com suporte a rolagem inteligente antioverflow e atalho `ESC` para retorno.
+5. **Edição Estruturada de Status:** Inserção estruturada na gaveta lateral de demandas dos campos "Evolução / Situação Atual" e "Impedimentos / Pontos de Atenção" com auto-save em tempo real no evento `onBlur`.
+6. **Vínculo do Drawer Centralizado:** Menus de seleção dinâmicos de projetos adicionados na gaveta (Drawer) para demandas do Jira, Azure ou manuais, salvando e atualizando instantaneamente os relacionamentos no SQLite.
+7. **Autonomia de Dados Locais:** Atribuição manual de pais, bloqueios e anotações persistentes no SQLite local, imune a perdas durante as sincronizações automáticas externas do Jira e Azure DevOps.
+8. **Resumo Inteligente e Relatórios com IA:** Integração com a API do Google Gemini para resumos automáticos em lote com suporte a caches locais na tabela `project_reports` para redução de custos (FinOps).

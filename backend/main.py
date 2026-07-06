@@ -80,6 +80,8 @@ class DemandUpdate(BaseModel):
     managerNotes: Optional[str] = None
     localParentId: Optional[str] = None
     project: Optional[str] = None
+    current_status_notes: Optional[str] = None
+    blocker_notes: Optional[str] = None
 
 class DemandManualCreate(BaseModel):
     title: str
@@ -694,7 +696,9 @@ def get_demands_data(db_name="ativo"):
             "parentId": None if row.get("localParentId") == "NONE" else (row.get("localParentId") or row.get("parentId")),
             "localParentId": row.get("localParentId"),
             "isStale": is_stale,
-            "project": row.get("project")
+            "project": row.get("project"),
+            "current_status_notes": row.get("current_status_notes"),
+            "blocker_notes": row.get("blocker_notes")
         })
     return demands
 
@@ -965,7 +969,9 @@ def get_demand(external_id: str):
             "comments_history": demand["comments_history"],
             "ai_summary": demand.get("ai_summary"),
             "summary_updated_at": demand.get("summary_updated_at"),
-            "project": demand.get("project")
+            "project": demand.get("project"),
+            "current_status_notes": demand.get("current_status_notes"),
+            "blocker_notes": demand.get("blocker_notes")
         }
     except HTTPException as he:
         raise he
@@ -1405,7 +1411,9 @@ async def get_project_overview(project_id: int):
                 "parentId": None if row.get("localParentId") == "NONE" else (row.get("localParentId") or row.get("parentId")),
                 "localParentId": row.get("localParentId"),
                 "isStale": is_stale,
-                "project": row.get("project")
+                "project": row.get("project"),
+                "current_status_notes": row.get("current_status_notes"),
+                "blocker_notes": row.get("blocker_notes")
             })
             
         # PASSO 1: Inteligência do Farol

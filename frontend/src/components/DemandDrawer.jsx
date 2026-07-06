@@ -14,6 +14,8 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
   const [isParentSearchOpen, setIsParentSearchOpen] = useState(false);
   const [blockerSearchQuery, setBlockerSearchQuery] = useState('');
   const [isBlockerSearchOpen, setIsBlockerSearchOpen] = useState(false);
+  const [currentStatusNotes, setCurrentStatusNotes] = useState('');
+  const [blockerNotes, setBlockerNotes] = useState('');
 
   useEffect(() => {
     if (isOpen && demandId) {
@@ -30,6 +32,8 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
       setIsBlockerSearchOpen(false);
       setParentSearchQuery('');
       setBlockerSearchQuery('');
+      setCurrentStatusNotes('');
+      setBlockerNotes('');
     }
   }, [demandId, isOpen]);
 
@@ -40,6 +44,8 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
       if (res.ok) {
         const data = await res.json();
         setDemand(data);
+        setCurrentStatusNotes(data.current_status_notes || '');
+        setBlockerNotes(data.blocker_notes || '');
       }
     } catch (e) {
       console.error(e);
@@ -406,6 +412,35 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
                   className="w-full bg-yellow-500/5 border border-yellow-500/20 hover:border-yellow-500/30 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-yellow-500/50 transition-colors resize-none"
                 />
               </div>
+
+              {/* PO Weekly Report Fields */}
+              <div className="space-y-4 pt-3 border-t border-slate-800/60">
+                <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Status Report Semanal</h4>
+                
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-medium">Evolução / Situação Atual (Para o Report Semanal)</label>
+                  <textarea
+                    placeholder="Situação atual e evolução da demanda..."
+                    rows="3"
+                    value={currentStatusNotes}
+                    onChange={e => setCurrentStatusNotes(e.target.value)}
+                    onBlur={() => handleUpdateManagementField('current_status_notes', currentStatusNotes)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs text-slate-400 font-medium">Impedimentos / Pontos de Atenção (Para o Report Semanal)</label>
+                  <textarea
+                    placeholder="Impedimentos, riscos ou pontos de atenção..."
+                    rows="3"
+                    value={blockerNotes}
+                    onChange={e => setBlockerNotes(e.target.value)}
+                    onBlur={() => handleUpdateManagementField('blocker_notes', blockerNotes)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
+                  />
+                </div>
+              </div>
             </div>
 
              <hr className="border-slate-800" />
@@ -607,33 +642,6 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
              </div>
 
              <hr className="border-slate-800" />
-
-            {/* Add Annotation Form */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                <Pencil className="w-4 h-4" /> Novo Apontamento
-              </h3>
-              <form onSubmit={handleAddNote} className="space-y-3">
-                <textarea
-                  placeholder="Adicione anotações ricas..."
-                  rows="3"
-                  value={note}
-                  onChange={e => setNote(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800/80 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors resize-none"
-                />
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={!note.trim()}
-                    className="bg-slate-100 hover:bg-white text-slate-950 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Salvar Apontamento
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <hr className="border-slate-800" />
 
             {/* Histórico de Comentários Externos (Jira/Azure) */}
             <div className="space-y-3">
