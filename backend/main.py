@@ -92,6 +92,7 @@ class ProjectCreate(BaseModel):
     sponsor: Optional[str] = None
     target_go_live: Optional[str] = None
     executive_summary: Optional[str] = None
+    strategic_notes: Optional[str] = None
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
@@ -100,6 +101,7 @@ class ProjectUpdate(BaseModel):
     sponsor: Optional[str] = None
     target_go_live: Optional[str] = None
     executive_summary: Optional[str] = None
+    strategic_notes: Optional[str] = None
 
 def extract_adf_text(node):
     if not node:
@@ -1406,6 +1408,54 @@ async def get_project_overview(project_id: int):
                 "project": row.get("project")
             })
             
+        # PASSO 1: Inteligência do Farol
+        import datetime
+        today_str = datetime.date.today().strftime("%Y-%m-%d")
+        today = datetime.date.today()
+        
+        has_blocked = False
+        has_overdue = False
+        has_close_to_deadline = False
+        
+        for d in demands:
+            is_blocked = False
+            if d.get("externalStatus") and d["externalStatus"].strip().lower() == "blocked":
+                is_blocked = True
+            if d.get("blockers") and len(d["blockers"]) > 0:
+                is_blocked = True
+                
+            if is_blocked:
+                has_blocked = True
+                
+            if d.get("promisedDate"):
+                promised_str = d["promisedDate"].strip()
+                status_lower = d["externalStatus"].strip().lower()
+                is_completed = status_lower in ("concluido", "concluído", "done", "closed", "fechado", "resolved")
+                
+                if not is_completed:
+                    try:
+                        promised_date = datetime.datetime.strptime(promised_str, "%Y-%m-%d").date()
+                        if promised_str < today_str:
+                            has_overdue = True
+                        else:
+                            is_in_progress = status_lower not in ("backlog", "a fazer", "to do")
+                            if is_in_progress:
+                                diff_days = (promised_date - today).days
+                                if 0 <= diff_days <= 3:
+                                    has_close_to_deadline = True
+                    except Exception:
+                        pass
+                        
+        calculated_health = "Verde"
+        if has_blocked or has_overdue:
+            calculated_health = "Vermelho"
+        elif has_close_to_deadline:
+            calculated_health = "Amarelo"
+            
+        if project_dict.get("health_status") != calculated_health:
+            execute_query("UPDATE projects SET health_status = ? WHERE id = ?", (calculated_health, project_id), "ativo")
+            project_dict["health_status"] = calculated_health
+            
         return {
             "project": project_dict,
             "demands": demands
@@ -1432,9 +1482,9 @@ async def create_project(payload: ProjectCreate):
             raise HTTPException(status_code=400, detail="Já existe um projeto com este nome.")
             
         cursor = execute_query(
-            """INSERT INTO projects (name, health_status, progress, sponsor, target_go_live, executive_summary) 
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (name, payload.health_status, payload.progress, payload.sponsor, payload.target_go_live, payload.executive_summary),
+            """INSERT INTO projects (name, health_status, progress, sponsor, target_go_live, executive_summary, strategic_notes) 
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (name, payload.health_status, payload.progress, payload.sponsor, payload.target_go_live, payload.executive_summary, payload.strategic_notes),
             "ativo"
         )
         project_id = cursor.lastrowid

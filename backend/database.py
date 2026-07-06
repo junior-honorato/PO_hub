@@ -162,9 +162,17 @@ def init_db():
                     progress INTEGER NOT NULL CHECK(progress >= 0 AND progress <= 100),
                     sponsor TEXT,
                     target_go_live TEXT,
-                    executive_summary TEXT
+                    executive_summary TEXT,
+                    strategic_notes TEXT
                 )
             """)
+
+            # Garante migração para novos campos da tabela projects se o banco já existia
+            cursor.execute("PRAGMA table_info(projects)")
+            proj_columns = [row[1] for row in cursor.fetchall()]
+            if "strategic_notes" not in proj_columns:
+                conn.execute("ALTER TABLE projects ADD COLUMN strategic_notes TEXT")
+
             conn.commit()
             print(f"Banco de dados SQLite {db_name} inicializado com sucesso.")
         except Exception as e:

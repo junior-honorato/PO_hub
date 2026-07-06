@@ -90,7 +90,8 @@ Armazena as iniciativas estratégicas cadastradas pelo usuário.
 - `progress` (INTEGER) - Porcentagem de progresso real da iniciativa (0 a 100).
 - `sponsor` (TEXT) - Patrocinador executivo responsável.
 - `target_go_live` (TEXT) - Previsão de lançamento (Ex: "Dezembro 2026").
-- `executive_summary` (TEXT) - Resumo executivo semanal e eventuais impedimentos.
+- `executive_summary` (TEXT) - Resumo executivo (Status Report) semanal.
+- `strategic_notes` (TEXT) - Notas de cobrança de alinhamento com times externos.
 
 ### 2. `demands`
 Armazena as demandas. Atualizada com suporte a projeto e canal local.
@@ -108,12 +109,12 @@ Armazena as demandas. Atualizada com suporte a projeto e canal local.
 
 ## 🎯 Principais Funcionalidades da Interface UI/UX
 
-1. **Portfólio Executivo (PPM):** Dashboard centralizado com cards horizontais de projetos detalhados, exibindo progresso (com barra de progresso horizontal colorida), sponsor, previsão de lançamento e farol de saúde em estilo moderno dark/slate.
+1. **Portfólio Executivo (PPM):** Dashboard centralizado com cards horizontais de projetos detalhados, exibindo progresso (com barra de progresso horizontal colorida), sponsor, previsão de lançamento e farol de saúde (Verde, Amarelo, Vermelho) dinâmico e inteligente.
 2. **Criação de Demandas de Negócio:** Botão "+ Nova Demanda de Negócio" na tabela de demandas que permite cadastrar novos itens locais (com ID único no formato `BIZ-{timestamp}` e origem `Negocio`) vinculados opcionalmente a projetos do portfólio.
 3. **Visão Geral do Projeto (Overview Dashboard):** Visualização consolidada acessível em cada iniciativa do portfólio que exibe:
-   - **Header Executivo**: Principais KPIs consolidados e saúde.
-   - **Resumo Semanal**: O status report descritivo de impedimentos da iniciativa.
-   - **Board de Trilhas**: Divisão de entregas em 3 colunas de cards de demandas side-by-side agrupados por origem: **TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**.
+   - **Farol de Saúde Inteligente**: Calculado automaticamente a cada requisição (Vermelho para demandas com blockers ou vencidas; Amarelo para demandas ativas próximas ao prazo; Verde caso contrário).
+   - **Resumo Executivo & Notas de Cobrança Interativos**: Edição e salvamento imediato do Status Report e das notas de cobrança para alinhamento semanal com equipes de apoio diretoria/externas.
+   - **Board de Trilhas**: Divisão de entregas em 3 colunas de cards de demandas side-by-side agrupados por origem (**TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**) com contadores de Impedimentos Ativos e cartões bloqueados destacados visualmente em rosa/vermelho.
 4. **Vínculo do Drawer Centralizado:** Menus de seleção dinâmicos de projetos adicionados na gaveta (Drawer) para demandas do Jira, Azure ou manuais, salvando e atualizando instantaneamente os relacionamentos no SQLite.
 5. **Autonomia de Dados Locais:** Atribuição manual de pais, bloqueios e anotações persistentes no SQLite local, imune a perdas durante as sincronizações automáticas externas do Jira e Azure DevOps.
 6. **Resumo Inteligente e Relatórios com IA:** Integração com a API do Google Gemini para resumos automáticos em lote com suporte a caches locais na tabela `project_reports` para redução de custos (FinOps).
