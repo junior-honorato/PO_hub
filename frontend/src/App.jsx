@@ -107,7 +107,7 @@ export default function App() {
   return (
     <div className="flex h-full overflow-hidden bg-slate-950">
       {/* Mobile Sidebar Overlay */}
-      <div className={`fixed inset-0 z-40 lg:hidden no-print transition-all duration-300 ${isSidebarOpen ? 'visible' : 'invisible'}`}>
+      <div className={`fixed inset-0 z-40 lg:hidden transition-all duration-300 ${isSidebarOpen ? 'visible' : 'invisible'}`}>
         {/* Backdrop */}
         <div 
           onClick={() => setIsSidebarOpen(false)}
@@ -142,7 +142,7 @@ export default function App() {
       </div>
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex h-full shrink-0 no-print">
+      <div className="hidden lg:flex h-full shrink-0">
         <Sidebar
           activeTab={activeTab}
           setActiveTab={(tab) => {
@@ -159,7 +159,7 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950 no-print">
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(true)}

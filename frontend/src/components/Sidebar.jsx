@@ -2,7 +2,7 @@ import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target, FolderKanban, Netwo
 
 export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, lastSyncStatus, onOpenSettings }) {
   return (
-    <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full z-20 print:hidden">
+    <aside className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col h-full z-20">
       {/* Logo */}
       <div className="p-6 border-b border-slate-800 flex items-center gap-3">
         <div className="bg-gradient-to-tr from-brand-600 to-indigo-400 p-2 rounded-xl text-white shadow-md shadow-brand-500/20">

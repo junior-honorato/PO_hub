@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X, Printer } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X } from 'lucide-react';
 
 export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const [data, setData] = useState(null);
@@ -201,7 +201,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   });
 
   return (
-    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start print:static print:w-full print:h-auto print:overflow-visible print:p-0 print:bg-slate-900 print:block presentation-mode-container' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
+    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
       {isPresentationMode && (
         <style dangerouslySetInnerHTML={{ __html: `
           aside { display: none !important; }
@@ -240,24 +240,15 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         </div>
       )}
 
-      {/* Floating Presentation Mode controls (Hidden in Print) */}
+      {/* Floating Close Presentation Mode Button */}
       {isPresentationMode && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 print:hidden select-none no-print">
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-500 hover:from-brand-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all flex items-center gap-1.5 active:scale-95"
-            title="Exportar como PDF / Imprimir"
-          >
-            <Printer className="w-4 h-4" /> Exportar PDF
-          </button>
-          <button
-            onClick={() => setIsPresentationMode(false)}
-            className="px-4 py-2.5 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all opacity-70 hover:opacity-100 flex items-center gap-1.5"
-            title="Pressione ESC para sair"
-          >
-            <X className="w-4 h-4" /> Sair da Apresentação
-          </button>
-        </div>
+        <button
+          onClick={() => setIsPresentationMode(false)}
+          className="fixed top-6 right-6 z-50 px-4 py-2.5 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all opacity-30 hover:opacity-100 flex items-center gap-1.5 select-none"
+          title="Pressione ESC para sair"
+        >
+          <X className="w-4 h-4" /> Sair da Apresentação
+        </button>
       )}
 
       {/* Header Executivo Card (Hidden in Presentation Mode) */}
@@ -472,23 +463,14 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
             </div>
           </div>
 
-          {/* Sicoob Executive Header (Visible only in Presentation Mode/Print) */}
-          {isPresentationMode && (
-            <header className="flex justify-between items-end border-b-4 border-[#00ae9d] pb-4 mb-6 print:border-[#00ae9d] w-full select-none">
-              <span className="text-4xl font-extrabold text-[#00ae9d] tracking-tighter print:text-[#00ae9d]">SICOOB</span>
-              <h2 className="text-2xl font-bold text-white print:text-white uppercase tracking-wider">Status Report Executivo</h2>
-              <span className="text-sm font-medium text-slate-400 print:text-slate-400">Atualizado em: {new Date().toLocaleDateString('pt-BR')}</span>
-            </header>
-          )}
-
-          <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40 printable-report">
-            <table className="w-full table-fixed border-collapse text-left print:w-full">
-              <thead className="bg-[#00ae9d] text-white print:bg-[#00ae9d] print:text-white">
-                <tr className="border-b border-slate-800 text-inherit uppercase text-[10px] tracking-wider font-extrabold select-none">
-                  <th className="px-6 py-4 w-1/6">EIXO / EPIC</th>
-                  <th className="px-6 py-4 w-1/4">DEMANDAS EM ANDAMENTO</th>
-                  <th className="px-6 py-4 w-1/4">SITUAÇÃO ATUAL</th>
-                  <th className="px-6 py-4 w-1/4">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
+          <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
+            <table className="w-full min-w-max table-auto border-collapse text-left">
+              <thead>
+                <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold select-none">
+                  <th className="px-6 py-4 w-1/5 min-w-[200px]">EIXO / EPIC</th>
+                  <th className="px-6 py-4 w-1/4 min-w-[250px]">DEMANDAS EM ANDAMENTO</th>
+                  <th className="px-6 py-4 w-[27.5%] min-w-[280px]">SITUAÇÃO ATUAL</th>
+                  <th className="px-6 py-4 w-[27.5%] min-w-[280px]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850">
@@ -536,7 +518,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   }
 
                   return (
-                    <tr key={epic.externalId} className="align-top animate-in fade-in duration-300 break-inside-avoid">
+                    <tr key={epic.externalId} className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo (Epic Name) */}
                       <td className="px-6 py-5 font-bold text-xs text-white break-words">
                         <div className="border-l-4 border-emerald-500 pl-3 py-0.5 space-y-1.5">
@@ -639,7 +621,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   }
 
                   return (
-                    <tr className="align-top animate-in fade-in duration-300 break-inside-avoid">
+                    <tr className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo */}
                       <td className="px-6 py-5 font-bold text-xs text-white break-words">
                         <div className="border-l-4 border-slate-600 pl-3 py-0.5 space-y-1">
