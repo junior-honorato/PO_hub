@@ -201,7 +201,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   });
 
   return (
-    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start print:static print:w-full print:h-auto print:overflow-visible print:p-0 print:bg-slate-900 print:block' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
+    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start print:static print:w-full print:h-auto print:overflow-visible print:p-0 print:bg-slate-900 print:block presentation-mode-container' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
       {isPresentationMode && (
         <style dangerouslySetInnerHTML={{ __html: `
           aside { display: none !important; }
@@ -482,13 +482,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
           )}
 
           <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
-            <table className="w-full min-w-max table-auto border-collapse text-left print:w-full">
+            <table className="w-full table-fixed border-collapse text-left print:w-full">
               <thead className="bg-[#00ae9d] text-white print:bg-[#00ae9d] print:text-white">
                 <tr className="border-b border-slate-800 text-inherit uppercase text-[10px] tracking-wider font-extrabold select-none">
-                  <th className="px-6 py-4 w-1/5 min-w-[200px]">EIXO / EPIC</th>
-                  <th className="px-6 py-4 w-1/4 min-w-[250px]">DEMANDAS EM ANDAMENTO</th>
-                  <th className="px-6 py-4 w-[27.5%] min-w-[280px]">SITUAÇÃO ATUAL</th>
-                  <th className="px-6 py-4 w-[27.5%] min-w-[280px]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
+                  <th className="px-6 py-4 w-1/6">EIXO / EPIC</th>
+                  <th className="px-6 py-4 w-1/4">DEMANDAS EM ANDAMENTO</th>
+                  <th className="px-6 py-4 w-1/4">SITUAÇÃO ATUAL</th>
+                  <th className="px-6 py-4 w-1/4">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850">
@@ -536,7 +536,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   }
 
                   return (
-                    <tr key={epic.externalId} className="align-top animate-in fade-in duration-300">
+                    <tr key={epic.externalId} className="align-top animate-in fade-in duration-300 break-inside-avoid">
                       {/* Cell 1: Eixo (Epic Name) */}
                       <td className="px-6 py-5 font-bold text-xs text-white break-words">
                         <div className="border-l-4 border-emerald-500 pl-3 py-0.5 space-y-1.5">
@@ -639,7 +639,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   }
 
                   return (
-                    <tr className="align-top animate-in fade-in duration-300">
+                    <tr className="align-top animate-in fade-in duration-300 break-inside-avoid">
                       {/* Cell 1: Eixo */}
                       <td className="px-6 py-5 font-bold text-xs text-white break-words">
                         <div className="border-l-4 border-slate-600 pl-3 py-0.5 space-y-1">
