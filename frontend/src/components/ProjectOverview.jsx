@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X, Printer } from 'lucide-react';
 
 export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const [data, setData] = useState(null);
@@ -201,7 +201,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   });
 
   return (
-    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
+    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start print:absolute print:inset-0 print:block print:overflow-visible print:bg-slate-900 print:w-full print:h-auto' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
       {isPresentationMode && (
         <style dangerouslySetInnerHTML={{ __html: `
           aside { display: none !important; }
@@ -240,15 +240,24 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         </div>
       )}
 
-      {/* Floating Close Presentation Mode Button */}
+      {/* Floating Presentation Mode controls (Hidden in Print) */}
       {isPresentationMode && (
-        <button
-          onClick={() => setIsPresentationMode(false)}
-          className="fixed top-6 right-6 z-50 px-4 py-2.5 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all opacity-30 hover:opacity-100 flex items-center gap-1.5 select-none"
-          title="Pressione ESC para sair"
-        >
-          <X className="w-4 h-4" /> Sair da Apresentação
-        </button>
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 print:hidden select-none">
+          <button
+            onClick={() => window.print()}
+            className="px-4 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-500 hover:from-brand-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all flex items-center gap-1.5 active:scale-95"
+            title="Exportar como PDF / Imprimir"
+          >
+            <Printer className="w-4 h-4" /> Exportar PDF
+          </button>
+          <button
+            onClick={() => setIsPresentationMode(false)}
+            className="px-4 py-2.5 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all opacity-70 hover:opacity-100 flex items-center gap-1.5"
+            title="Pressione ESC para sair"
+          >
+            <X className="w-4 h-4" /> Sair da Apresentação
+          </button>
+        </div>
       )}
 
       {/* Header Executivo Card (Hidden in Presentation Mode) */}
@@ -464,7 +473,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
           </div>
 
           <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
-            <table className="w-full min-w-max table-auto border-collapse text-left">
+            <table className="w-full min-w-max table-auto border-collapse text-left print:w-full">
               <thead>
                 <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold select-none">
                   <th className="px-6 py-4 w-1/5 min-w-[200px]">EIXO / EPIC</th>
