@@ -179,7 +179,9 @@ def get_external_url(origin: str, external_id: str):
 
 # API Endpoints Helpers & Business Logic
 
-FINAL_STATUSES = {"Concluído", "Done", "Resolved", "Closed", "Improcedente", "Cancelado"}
+# Resolved não é considerado concluído (continua em andamento).
+# Apenas Closed (ou equivalente final) indica que foi efetivamente concluído.
+FINAL_STATUSES = {"Concluído", "Done", "Closed", "Improcedente", "Cancelado"}
 FINAL_STATUSES_LOWER = {s.lower() for s in FINAL_STATUSES}
 
 def is_final_status(status):
@@ -638,7 +640,8 @@ def is_status_active(status):
         return False
     status_lower = status.strip().lower()
     # List of known non-active/finished/backlog/todo statuses
-    inactive = {"concluído", "concluido", "done", "resolved", "closed", "fechado", "backlog", "a fazer", "to do", "removed", "removido", "cancelado", "canceled"}
+    # Resolved é considerado ainda em andamento. Closed é que a demanda foi efetivamente concluída.
+    inactive = {"concluído", "concluido", "done", "closed", "fechado", "backlog", "a fazer", "to do", "removed", "removido", "cancelado", "canceled"}
     return status_lower not in inactive
 
 def get_demands_data(db_name="ativo"):
@@ -1468,8 +1471,8 @@ async def get_project_overview(project_id: int):
                 
             if d.get("promisedDate"):
                 promised_str = d["promisedDate"].strip()
-                status_lower = d["externalStatus"].strip().lower()
-                is_completed = status_lower in ("concluido", "concluído", "done", "closed", "fechado", "resolved")
+                # Resolved é considerado ainda em andamento. Closed é que a demanda foi efetivamente concluída.
+                is_completed = status_lower in ("concluido", "concluído", "done", "closed", "fechado")
                 
                 if not is_completed:
                     try:

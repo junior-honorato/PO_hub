@@ -130,7 +130,8 @@ def run_test():
             found_final = False
             found_active = False
             
-            final_statuses = {"Concluído", "Done", "Resolved", "Closed", "Improcedente", "Cancelado"}
+            # Resolved é considerado ainda em andamento. Closed é que a demanda foi efetivamente concluída.
+            final_statuses = {"Concluído", "Done", "Closed", "Improcedente", "Cancelado"}
             for idx, row in enumerate(history_rows):
                 cols = row.find_elements(By.TAG_NAME, "td")
                 if len(cols) >= 3:

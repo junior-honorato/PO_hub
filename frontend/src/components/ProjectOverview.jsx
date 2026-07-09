@@ -149,8 +149,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const isInProgress = (status) => {
     if (!status) return false;
     const s = status.trim().toLowerCase();
+    // Resolved é considerado ainda em andamento. Closed é que a demanda foi efetivamente concluída.
     const inactive = [
-      'concluído', 'concluido', 'done', 'resolved', 'closed', 'fechado',
+      'concluído', 'concluido', 'done', 'closed', 'fechado',
       'backlog', 'a fazer', 'to do', 'removed', 'removido', 'cancelado', 'canceled'
     ];
     return !inactive.includes(s);
@@ -957,8 +958,8 @@ function DemandCard({ demand, onSelect }) {
           )}
         </span>
         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-          demand.externalStatus === 'Concluído' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Done' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-          demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing' ? 'bg-amber-500/10 text-amber-400 border border-emerald-500/20' :
+          demand.externalStatus === 'Concluído' || demand.externalStatus === 'Concluido' || demand.externalStatus === 'Done' || demand.externalStatus === 'Closed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+          demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Active' || demand.externalStatus === 'Em andamento' ? 'bg-amber-500/10 text-amber-400 border border-emerald-500/20' :
           isBlocked || demand.externalStatus === 'Blocked' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
           'bg-slate-800 text-slate-400 border border-slate-700'
         }`}>

@@ -338,9 +338,9 @@ function DemandProjectCard({ demand, onSelect }) {
         <div className="flex items-center justify-between gap-3">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{demand.externalId}</span>
           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-            demand.externalStatus === 'Concluído' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Done'
+            demand.externalStatus === 'Concluído' || demand.externalStatus === 'Concluido' || demand.externalStatus === 'Done' || demand.externalStatus === 'Closed'
               ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-              : demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing'
+              : demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Active' || demand.externalStatus === 'Em andamento'
               ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
               : 'bg-slate-800 text-slate-400 border border-slate-700/50'
           }`}>

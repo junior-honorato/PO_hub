@@ -363,9 +363,9 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        demand.externalStatus === 'Concluído' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Done'
+                        demand.externalStatus === 'Concluído' || demand.externalStatus === 'Concluido' || demand.externalStatus === 'Done' || demand.externalStatus === 'Closed'
                           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing'
+                          : demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Active' || demand.externalStatus === 'Em andamento'
                           ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                           : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
                       }`}>
