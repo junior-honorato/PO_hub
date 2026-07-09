@@ -242,7 +242,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
       {/* Floating Presentation Mode controls (Hidden in Print) */}
       {isPresentationMode && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 print:hidden select-none">
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-3 print:hidden select-none no-print">
           <button
             onClick={() => window.print()}
             className="px-4 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-500 hover:from-brand-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all flex items-center gap-1.5 active:scale-95"
@@ -481,7 +481,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
             </header>
           )}
 
-          <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
+          <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40 printable-report">
             <table className="w-full table-fixed border-collapse text-left print:w-full">
               <thead className="bg-[#00ae9d] text-white print:bg-[#00ae9d] print:text-white">
                 <tr className="border-b border-slate-800 text-inherit uppercase text-[10px] tracking-wider font-extrabold select-none">
