@@ -201,7 +201,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   });
 
   return (
-    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start print:absolute print:inset-0 print:block print:overflow-visible print:bg-slate-900 print:w-full print:h-auto' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
+    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start print:static print:w-full print:h-auto print:overflow-visible print:p-0 print:bg-slate-900 print:block' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
       {isPresentationMode && (
         <style dangerouslySetInnerHTML={{ __html: `
           aside { display: none !important; }
@@ -472,10 +472,19 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
             </div>
           </div>
 
+          {/* Sicoob Executive Header (Visible only in Presentation Mode/Print) */}
+          {isPresentationMode && (
+            <header className="flex justify-between items-end border-b-4 border-[#00ae9d] pb-4 mb-6 print:border-[#00ae9d] w-full select-none">
+              <span className="text-4xl font-extrabold text-[#00ae9d] tracking-tighter print:text-[#00ae9d]">SICOOB</span>
+              <h2 className="text-2xl font-bold text-white print:text-white uppercase tracking-wider">Status Report Executivo</h2>
+              <span className="text-sm font-medium text-slate-400 print:text-slate-400">Atualizado em: {new Date().toLocaleDateString('pt-BR')}</span>
+            </header>
+          )}
+
           <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
             <table className="w-full min-w-max table-auto border-collapse text-left print:w-full">
-              <thead>
-                <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold select-none">
+              <thead className="bg-[#00ae9d] text-white print:bg-[#00ae9d] print:text-white">
+                <tr className="border-b border-slate-800 text-inherit uppercase text-[10px] tracking-wider font-extrabold select-none">
                   <th className="px-6 py-4 w-1/5 min-w-[200px]">EIXO / EPIC</th>
                   <th className="px-6 py-4 w-1/4 min-w-[250px]">DEMANDAS EM ANDAMENTO</th>
                   <th className="px-6 py-4 w-[27.5%] min-w-[280px]">SITUAÇÃO ATUAL</th>
