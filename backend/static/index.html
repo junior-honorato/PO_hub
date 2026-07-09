@@ -3285,6 +3285,7 @@
       const techEpics = [];
       const techEpicMap = {};
       const bizEpicMap = {};
+      const standaloneDemands = [];
       const standaloneBizDemands = [];
 
       const parentIds = new Set(demands.map(d => d.parentId || d.localParentId).filter(Boolean));
@@ -3314,6 +3315,8 @@
           const pId = d.parentId || d.localParentId;
           if (pId && techEpicMap[pId] !== undefined) {
             techEpicMap[pId].push(d);
+          } else {
+            standaloneDemands.push(d);
           }
         }
       });

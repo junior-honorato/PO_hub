@@ -115,7 +115,7 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local e campos de 
 2. **Criação de Demandas de Negócio:** Botão "+ Nova Demanda de Negócio" na tabela de demandas que permite cadastrar novos itens locais (com ID único no formato `BIZ-{timestamp}` e origem `Negocio`) vinculados opcionalmente a projetos do portfólio.
 3. **Visão Geral do Projeto em Abas (Dashboard & Slide):** A visão de iniciativa do portfólio é organizada em duas abas:
    - **Gestão Operacional**: Kanban board de trilhas side-by-side agrupados por origem (**TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**) com contadores de impedimentos e destaque visual de cards travados.
-   - **Report Executivo**: Tabela executiva horizontal de status semanal que consolida automaticamente as demandas em andamento, situação atual/evolução (`current_status_notes`) e impedimentos/riscos (`blocker_notes`), agrupados por Epics (Jira/Azure) ou Eixos (Negócios) e com badges de promessa de entrega formatados (ex: "Jun/26").
+   - **Report Executivo**: Tabela executiva horizontal de status semanal que consolida automaticamente as demandas em andamento, situação atual/evolução (`current_status_notes`) e impedimentos/riscos (`blocker_notes`), agrupados por Epics (Jira/Azure) ou Eixos (Negócios) e com badges de promessa de entrega formatados (ex: "Jun/26"). Conta com suporte a **Demandas Independentes / Avulsas** (TI e Negócios sem Epic/Eixo vinculado), exibidas em seções apartadas para garantir visibilidade total do portfólio.
 4. **Modelo Híbrido de Curadoria Refinado:** Regras de negócio aprimoradas para exibição inteligente de demandas no Report Executivo:
    - *Condição de Curadoria do PO:* Qualquer demanda com o campo de "Impedimentos / Pontos de Atenção (Para o Report Semanal)" (`blocker_notes`) preenchido é exibida, independentemente do seu `State` atual.
    - *Regra de Exclusão:* Demandas com status diferente de `"Active"` / `"Em andamento"` que possuam o campo "Evolução / Situação Atual" (`current_status_notes`) vazio são automaticamente ocultadas para evitar poluição visual.
@@ -130,5 +130,6 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local e campos de 
    - Modais responsivos e scrolláveis (`max-h-[90vh]`) com margens de segurança.
 9. **Autonomia de Dados Locais:** Atribuição manual de pais, bloqueios e anotações persistentes no SQLite local (como a tabela `demands`), imune a perdas durante as sincronizações automáticas externas do Jira e Azure DevOps.
 10. **Resumo Inteligente e Relatórios com IA:** Integração com a API do Google Gemini para resumos automáticos em lote com suporte a caches locais na tabela `project_reports` para redução de custos (FinOps).
+11. **Suporte a Demandas Independentes:** Agrupamento automático de demandas de TI (Jira/Azure) ou Negócios que não possuem um Epic ou Eixo de parentesco associado sob uma seção específica de "Demandas Independentes" (ou "Demandas de Negócio Avulsas"), garantindo que nenhuma atividade relevante fique oculta no Report Executivo.
 
 

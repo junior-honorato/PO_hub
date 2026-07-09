@@ -193,6 +193,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const techEpics = [];
   const techEpicMap = {};
   const bizEpicMap = {};
+  const standaloneDemands = [];
   const standaloneBizDemands = [];
 
   const parentIds = new Set(demands.map(d => d.parentId || d.localParentId).filter(Boolean));
@@ -222,6 +223,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
       const pId = d.parentId || d.localParentId;
       if (pId && techEpicMap[pId] !== undefined) {
         techEpicMap[pId].push(d);
+      } else {
+        standaloneDemands.push(d);
       }
     }
   });
@@ -943,12 +946,6 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       <span className="text-slate-500 text-xs italic">-</span>
                     )}
                   </div>
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-              );
             })()}
           </div>
         </div>

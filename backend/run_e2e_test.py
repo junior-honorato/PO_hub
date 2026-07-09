@@ -109,6 +109,38 @@ def run_test():
             scr4_path = os.path.join(ARTIFACTS_DIR, "step4_projects_view.png")
             driver.save_screenshot(scr4_path)
             print(f"[E2E] Screenshot da Visão de Projetos salvo em: {scr4_path}")
+            
+            # Clicar no primeiro projeto
+            print("[E2E] Abrindo detalhes do primeiro projeto...")
+            try:
+                view_btn = driver.find_element(By.XPATH, "//button[contains(., 'Ver Visão Geral')]")
+                view_btn.click()
+                time.sleep(2)
+                
+                # Clicar na aba Report Executivo Tecnologia
+                print("[E2E] Clicando na aba 'Report Executivo Tecnologia'...")
+                tech_tab = driver.find_element(By.XPATH, "//button[contains(., 'Tecnologia')]")
+                tech_tab.click()
+                time.sleep(2)
+                scr_tech_path = os.path.join(ARTIFACTS_DIR, "step4_tech_report.png")
+                driver.save_screenshot(scr_tech_path)
+                print(f"[E2E] Screenshot do Report Tecnologia salvo em: {scr_tech_path}")
+                
+                # Clicar na aba Report Executivo Negócios
+                print("[E2E] Clicando na aba 'Report Executivo Negócios'...")
+                biz_tab = driver.find_element(By.XPATH, "//button[contains(., 'Negócios')]")
+                biz_tab.click()
+                time.sleep(2)
+                scr_biz_path = os.path.join(ARTIFACTS_DIR, "step4_biz_report.png")
+                driver.save_screenshot(scr_biz_path)
+                print(f"[E2E] Screenshot do Report Negócios salvo em: {scr_biz_path}")
+                
+                # Voltar ao Portfólio
+                back_btn = driver.find_element(By.XPATH, "//button[contains(., 'Voltar')]")
+                back_btn.click()
+                time.sleep(1)
+            except Exception as proj_err:
+                print(f"[E2E] Erro ao abrir detalhes do projeto ou clicar nas abas de report: {proj_err}")
         except Exception as btn_err:
             print(f"[E2E] Erro ao ir para aba de projetos: {btn_err}")
 
