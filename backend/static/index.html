@@ -3508,7 +3508,7 @@
 
                     <div className="border-t border-slate-800/60 pt-3 flex items-center justify-between text-xs text-slate-400 mt-auto">
                       <span>Impedimentos Ativos:</span>
-                      <span className={`font-bold \${jiraBlockedCount > 0 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}`}>
+                      <span className={`font-bold ${jiraBlockedCount > 0 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}`}>
                         {jiraBlockedCount}
                       </span>
                     </div>
@@ -3538,7 +3538,7 @@
 
                     <div className="border-t border-slate-800/60 pt-3 flex items-center justify-between text-xs text-slate-400 mt-auto">
                       <span>Impedimentos Ativos:</span>
-                      <span className={`font-bold \${azureBlockedCount > 0 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}`}>
+                      <span className={`font-bold ${azureBlockedCount > 0 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}`}>
                         {azureBlockedCount}
                       </span>
                     </div>
@@ -3568,7 +3568,7 @@
 
                     <div className="border-t border-slate-800/60 pt-3 flex items-center justify-between text-xs text-slate-400 mt-auto">
                       <span>Impedimentos Ativos:</span>
-                      <span className={`font-bold \${businessBlockedCount > 0 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}`}>
+                      <span className={`font-bold ${businessBlockedCount > 0 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}`}>
                         {businessBlockedCount}
                       </span>
                     </div>
@@ -3578,7 +3578,7 @@
             </div>
           ) : (activeTab === 'report_tech' || (isPresentationMode && activeTab === 'report_tech')) ? (
             /* Report Executivo Slide view */
-            <div className={`bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-850 rounded-2xl p-8 shadow-2xl w-full \${isPresentationMode ? 'animate-in zoom-in-95 duration-300' : ''}`}>
+            <div className={`bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-850 rounded-2xl p-8 shadow-2xl w-full ${isPresentationMode ? 'animate-in zoom-in-95 duration-300' : ''}`}>
               {/* Slide Header */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800/80 pb-5 mb-6">
                 <div>
