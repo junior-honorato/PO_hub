@@ -966,6 +966,8 @@
       const [blockerNotes, setBlockerNotes] = useState('');
       const [promisedDate, setPromisedDate] = useState('');
       const [followUpDate, setFollowUpDate] = useState('');
+      const [titleInput, setTitleInput] = useState('');
+      const [isEditingTitle, setIsEditingTitle] = useState(false);
 
       const getExternalUrl = () => {
         if (!demand) return null;
@@ -1015,8 +1017,34 @@
           setBlockerNotes('');
           setPromisedDate('');
           setFollowUpDate('');
+          setTitleInput('');
+          setIsEditingTitle(false);
         }
       }, [demandId, isOpen]);
+
+      const handleDeleteDemand = async () => {
+        if (!demandId) return;
+        const confirmed = window.confirm("Tem certeza de que deseja excluir permanentemente esta demanda local?");
+        if (!confirmed) return;
+        
+        try {
+          const res = await fetch(`/api/demands/${demandId}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            onClose();
+            if (onRefreshDemands) {
+              onRefreshDemands();
+            }
+          } else {
+            const err = await res.json();
+            alert(err.detail || "Erro ao excluir a demanda.");
+          }
+        } catch (e) {
+          console.error(e);
+          alert("Erro ao conectar ao servidor.");
+        }
+      };
 
       const loadDemandDetail = async () => {
         setLoading(true);
@@ -1025,6 +1053,7 @@
           if (res.ok) {
             const data = await res.json();
             setDemand(data);
+            setTitleInput(data.title || '');
             setCurrentStatusNotes(data.current_status_notes || '');
             setBlockerNotes(data.blocker_notes || '');
             setPromisedDate(data.promisedDate || '');
@@ -1256,7 +1285,55 @@
                 <div className="flex-1 space-y-6 lg:pr-6 lg:border-r lg:border-slate-800/60 min-w-0">
                   {/* Title & Status */}
                   <div className="space-y-3">
-                    <h2 className="text-xl font-bold text-white leading-snug break-words">{demand.title}</h2>
+                    {demand.origin === 'Negocio' ? (
+                      isEditingTitle ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={titleInput}
+                            onChange={e => setTitleInput(e.target.value)}
+                            onBlur={() => {
+                              setIsEditingTitle(false);
+                              if (titleInput.trim() && titleInput.trim() !== demand.title) {
+                                handleUpdateManagementField('title', titleInput.trim());
+                              }
+                            }}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                setIsEditingTitle(false);
+                                if (titleInput.trim() && titleInput.trim() !== demand.title) {
+                                  handleUpdateManagementField('title', titleInput.trim());
+                                }
+                              } else if (e.key === 'Escape') {
+                                setIsEditingTitle(false);
+                                setTitleInput(demand.title);
+                              }
+                            }}
+                            autoFocus
+                            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xl font-bold text-white focus:outline-none focus:border-brand-500 transition-colors"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 group">
+                          <h2 
+                            className="text-xl font-bold text-white leading-snug break-words cursor-pointer hover:text-slate-200 flex-1"
+                            onClick={() => setIsEditingTitle(true)}
+                          >
+                            {demand.title}
+                          </h2>
+                          <button 
+                            type="button"
+                            onClick={() => setIsEditingTitle(true)}
+                            className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-white hover:border-slate-700 transition-all shrink-0"
+                            title="Editar título"
+                          >
+                            <Icon name="pencil" className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )
+                    ) : (
+                      <h2 className="text-xl font-bold text-white leading-snug break-words">{demand.title}</h2>
+                    )}
                     <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
                       <div className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-slate-500" />
@@ -1726,6 +1803,20 @@
                         )}
                       </div>
                     </div>
+
+                    {/* Excluir Demanda (apenas para Negocio) */}
+                    {demand.origin === 'Negocio' && (
+                      <div className="pt-4 border-t border-slate-800/40">
+                        <button
+                          type="button"
+                          onClick={handleDeleteDemand}
+                          className="w-full py-2.5 px-4 rounded-xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 hover:border-rose-500/30 active:scale-95 text-rose-455 text-xs font-bold transition-all flex items-center justify-center gap-2 select-none"
+                        >
+                          <Icon name="x" className="w-3.5 h-3.5" />
+                          Excluir Demanda
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

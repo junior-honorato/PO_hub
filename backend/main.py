@@ -83,6 +83,7 @@ class ProjectSummaryRequest(BaseModel):
 
 
 class DemandUpdate(BaseModel):
+    title: Optional[str] = None
     promisedDate: Optional[str] = None
     followUpDate: Optional[str] = None
     managerNotes: Optional[str] = None
@@ -1353,6 +1354,33 @@ def update_demand(external_id: str, payload: DemandUpdate):
     except Exception as e:
         print(f"Erro ao atualizar demanda {external_id}: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao atualizar a demanda.")
+
+@app.delete("/api/demands/{external_id}")
+def delete_demand(external_id: str):
+    try:
+        db_name = "ativo"
+        demand = fetch_one("SELECT origin FROM demands WHERE externalId = ?", (external_id,), "ativo")
+        if not demand:
+            demand = fetch_one("SELECT origin FROM demands WHERE externalId = ?", (external_id,), "historico")
+            db_name = "historico"
+        if not demand:
+            raise HTTPException(status_code=404, detail="Demanda não encontrada no banco local.")
+        
+        # Apenas permite excluir demandas com origem 'Negocio' (locais/manuais)
+        if demand["origin"] != "Negocio":
+            raise HTTPException(status_code=400, detail="Apenas demandas locais (com origem 'Negocio') podem ser excluídas.")
+            
+        execute_query("DELETE FROM annotations WHERE externalId = ?", (external_id,), db_name)
+        execute_query("DELETE FROM tags WHERE externalId = ?", (external_id,), db_name)
+        execute_query("DELETE FROM dependencies WHERE blocked_id = ? OR blocker_id = ?", (external_id, external_id), db_name)
+        execute_query("DELETE FROM demands WHERE externalId = ?", (external_id,), db_name)
+        
+        return {"success": True, "message": "Demanda local excluída com sucesso."}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao excluir demanda {external_id}: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno ao excluir a demanda.")
 
 # Módulo PPM - Rotas CRUD de Projetos
 @app.get("/api/projects")
