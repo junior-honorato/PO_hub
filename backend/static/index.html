@@ -3162,7 +3162,7 @@
         if (!d) return false;
         const hasStatusReport = !!(d.current_status_notes && d.current_status_notes.trim() !== '');
         const hasBlockerReport = !!(d.blocker_notes && d.blocker_notes.trim() !== '');
-        const isActiveStatus = !!(d.externalStatus && (d.externalStatus.trim().toLowerCase() === 'active' || d.externalStatus.trim().toLowerCase() === 'em andamento'));
+        const isActiveStatus = isInProgress(d.externalStatus);
         
         // Condição A (Curadoria do PO): blocker_notes preenchido, independentemente do status
         if (hasBlockerReport) return true;
