@@ -195,7 +195,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const bizEpicMap = {};
   const standaloneBizDemands = [];
 
-  const parentIds = new Set(demands.map(d => d.parentId).filter(Boolean));
+  const parentIds = new Set(demands.map(d => d.parentId || d.localParentId).filter(Boolean));
 
   demands.forEach(d => {
     const isEpicType = (d.itemType === 'Epic' || d.itemType === 'Oportunidade');
@@ -219,7 +219,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         standaloneBizDemands.push(d);
       }
     } else {
-      const pId = d.parentId;
+      const pId = d.parentId || d.localParentId;
       if (pId && techEpicMap[pId] !== undefined) {
         techEpicMap[pId].push(d);
       }
