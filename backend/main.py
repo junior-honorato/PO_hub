@@ -735,20 +735,14 @@ def sync_demands(req: SyncRequest = Body(...)):
     has_jira_payload = bool(req.jiraUrl and req.jiraEmail and req.jiraToken)
     has_azure_payload = bool(req.azureOrg and req.azureProject and req.azureToken)
     
-    # Se houver credenciais reais, remove os itens fictícios (mock) remanescentes para evitar poluição
-    if has_jira_payload:
+    # Se houver credenciais reais em qualquer uma das APIs, limpa TODOS os dados mockados do banco local
+    if has_jira_payload or has_azure_payload:
         try:
-            execute_query("DELETE FROM demands WHERE origin = 'Jira' AND externalId LIKE 'JIRA-%'", db_name="ativo")
-            execute_query("DELETE FROM demands WHERE origin = 'Jira' AND externalId LIKE 'JIRA-%'", db_name="historico")
+            execute_query("DELETE FROM demands WHERE externalId LIKE 'JIRA-%' OR externalId LIKE 'AZURE-%'", db_name="ativo")
+            execute_query("DELETE FROM demands WHERE externalId LIKE 'JIRA-%' OR externalId LIKE 'AZURE-%'", db_name="historico")
+            print("[*] Banco de dados limpo de dados fictícios de demonstração.")
         except Exception as e:
-            print(f"Erro ao limpar dados fictícios do Jira: {e}")
-            
-    if has_azure_payload:
-        try:
-            execute_query("DELETE FROM demands WHERE origin = 'Azure' AND externalId LIKE 'AZURE-%'", db_name="ativo")
-            execute_query("DELETE FROM demands WHERE origin = 'Azure' AND externalId LIKE 'AZURE-%'", db_name="historico")
-        except Exception as e:
-            print(f"Erro ao limpar dados fictícios do Azure: {e}")
+            print(f"Erro ao limpar dados fictícios do banco: {e}")
 
     jira_fetched = []
     azure_fetched = []

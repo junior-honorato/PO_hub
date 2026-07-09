@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, ArrowUpRight } from 'lucide-react';
+import { ChevronRight, ArrowUpRight, Menu, X, Settings, LayoutDashboard } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
 import DemandTable from './components/DemandTable';
@@ -19,6 +19,7 @@ export default function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [lastSyncStatus, setLastSyncStatus] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     loadDemands();
@@ -105,21 +106,82 @@ export default function App() {
 
   return (
     <div className="flex h-full overflow-hidden bg-slate-950">
-      {/* Sidebar */}
-      <Sidebar
-        activeTab={activeTab}
-        setActiveTab={(tab) => {
-          setSelectedProjectId(null);
-          setActiveTab(tab);
-        }}
-        onSync={handleSync}
-        isSyncing={isSyncing}
-        lastSyncStatus={lastSyncStatus}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-      />
+      {/* Mobile Sidebar Overlay */}
+      <div className={`fixed inset-0 z-40 lg:hidden transition-all duration-300 ${isSidebarOpen ? 'visible' : 'invisible'}`}>
+        {/* Backdrop */}
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className={`absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}
+        />
+        {/* Panel */}
+        <div className={`absolute left-0 top-0 h-full w-64 shadow-2xl transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="absolute top-4 right-4 z-30">
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={(tab) => {
+              setSelectedProjectId(null);
+              setActiveTab(tab);
+              setIsSidebarOpen(false);
+            }}
+            onSync={handleSync}
+            isSyncing={isSyncing}
+            lastSyncStatus={lastSyncStatus}
+            onOpenSettings={() => {
+              setIsSettingsOpen(true);
+              setIsSidebarOpen(false);
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex h-full shrink-0">
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setSelectedProjectId(null);
+            setActiveTab(tab);
+          }}
+          onSync={handleSync}
+          isSyncing={isSyncing}
+          lastSyncStatus={lastSyncStatus}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+      </div>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Mobile Header */}
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white active:scale-95 transition-all"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="bg-gradient-to-tr from-brand-600 to-indigo-400 p-1.5 rounded-lg text-white">
+                <LayoutDashboard className="w-4 h-4" />
+              </div>
+              <span className="font-bold text-sm tracking-tight text-white">PO Hub</span>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white active:scale-95 transition-all"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </header>
+
         {selectedProjectId ? (
           <ProjectOverview
             projectId={selectedProjectId}
@@ -135,7 +197,7 @@ export default function App() {
         ) : activeTab === 'history' ? (
           <HistoryView onSelectDemand={handleSelectDemand} />
         ) : (
-          <div className="flex-1 overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full space-y-6">
+          <div className="flex-1 overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6">
             <div>
               <h2 className="text-2xl font-bold text-white tracking-tight">Demandas Sincronizadas</h2>
               <p className="text-sm text-slate-400">Consolidado geral de itens de backlog com tags e filtros rápidos</p>
@@ -151,6 +213,7 @@ export default function App() {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         onRefreshDemands={loadDemands}
+        allDemands={demands}
       />
 
       {/* Settings Modal */}

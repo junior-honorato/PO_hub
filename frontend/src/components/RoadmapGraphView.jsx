@@ -210,7 +210,7 @@ export default function RoadmapGraphView({ demands, onSelectDemand }) {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-950 text-slate-100 overflow-hidden relative">
-      <div className="px-8 py-6 border-b border-slate-900 flex items-center justify-between z-10 bg-slate-950/80 backdrop-blur-md">
+      <div className="px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 border-b border-slate-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 z-10 bg-slate-950/80 backdrop-blur-md">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <Network className="w-6 h-6 text-indigo-400" /> Mapa do Roadmap

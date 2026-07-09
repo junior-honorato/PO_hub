@@ -173,7 +173,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
       <div className="flex flex-col gap-4 bg-slate-900/20 p-4 border border-slate-800/60 rounded-2xl backdrop-blur-sm">
         {/* Linha Principal: Pesquisa e Controles Básicos */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 flex-1 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 w-full lg:w-auto">
             <div className="flex-1 relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                 <Search className="w-4 h-4" />
@@ -188,7 +188,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
             </div>
             <button
               onClick={handleOpenManualModal}
-              className="flex items-center gap-1.5 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-brand-600/20 whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-brand-600/20 whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" /> + Nova Demanda de Negócio
             </button>

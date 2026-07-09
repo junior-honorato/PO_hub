@@ -19,7 +19,7 @@ export default function ManagerSyncView({ demands, onSelectDemand }) {
   });
 
   return (
-    <div className="space-y-6 flex-1 overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full">
+    <div className="space-y-6 flex-1 overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6">
       <div>
         <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
           <Target className="w-6 h-6 text-yellow-400 animate-pulse" />

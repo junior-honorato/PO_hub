@@ -26,8 +26,8 @@ export default function HistoryView({ onSelectDemand }) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="flex-1 overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
             <History className="w-6 h-6 text-indigo-400" /> Histórico de Demandas

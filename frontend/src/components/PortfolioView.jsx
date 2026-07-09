@@ -131,9 +131,9 @@ export default function PortfolioView({ onSelectProject }) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full space-y-6">
+    <div className="flex-1 overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
             <Briefcase className="w-6 h-6 text-indigo-400" /> Portfólio Executivo (PPM)
@@ -142,7 +142,7 @@ export default function PortfolioView({ onSelectProject }) {
         </div>
         <button
           onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-brand-600 to-indigo-500 hover:from-brand-500 hover:to-indigo-400 active:scale-95 transition-all shadow-lg shadow-brand-600/20"
+          className="flex items-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-brand-600 to-indigo-500 hover:from-brand-500 hover:to-indigo-400 active:scale-95 transition-all shadow-lg shadow-brand-600/20 w-fit"
         >
           <Plus className="w-4 h-4" /> Nova Iniciativa
         </button>

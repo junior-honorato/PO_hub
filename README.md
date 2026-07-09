@@ -116,8 +116,14 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local e campos de 
 3. **Visão Geral do Projeto em Abas (Dashboard & Slide):** A visão de iniciativa do portfólio é organizada em duas abas:
    - **Gestão Operacional**: Kanban board de trilhas side-by-side agrupados por origem (**TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**) com contadores de impedimentos e destaque visual de cards travados.
    - **Report Executivo**: Tabela executiva horizontal de status semanal que consolida automaticamente as demandas em andamento, situação atual/evolução (`current_status_notes`) e impedimentos/riscos (`blocker_notes`), agrupados por Epics (Jira/Azure) ou Eixos (Negócios) e com badges de promessa de entrega formatados (ex: "Jun/26").
-4. **Modo Apresentação Premium:** Botão na aba de report que oculta sidebar e botões operacionais, exibindo e centralizando a tabela em formato de slide de leitura com fundo escuro. Conta com suporte a rolagem inteligente antioverflow e atalho `ESC` para retorno.
-5. **Edição Estruturada de Status:** Inserção estruturada na gaveta lateral de demandas dos campos "Evolução / Situação Atual" e "Impedimentos / Pontos de Atenção" com auto-save em tempo real no evento `onBlur`.
-6. **Vínculo do Drawer Centralizado:** Menus de seleção dinâmicos de projetos adicionados na gaveta (Drawer) para demandas do Jira, Azure ou manuais, salvando e atualizando instantaneamente os relacionamentos no SQLite.
-7. **Autonomia de Dados Locais:** Atribuição manual de pais, bloqueios e anotações persistentes no SQLite local, imune a perdas durante as sincronizações automáticas externas do Jira e Azure DevOps.
-8. **Resumo Inteligente e Relatórios com IA:** Integração com a API do Google Gemini para resumos automáticos em lote com suporte a caches locais na tabela `project_reports` para redução de custos (FinOps).
+4. **Modo Apresentação Premium & Fullscreen Real:** Botão na aba de report que projeta o relatório cobrindo 100% da viewport de forma absoluta (`fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12`), ocultando menus laterais e botões operacionais. Conta com suporte a atalho `ESC` para retorno rápido.
+5. **Layout Fluido para Telas Grandes (Widescreen):** Refatoração da interface principal para remover limites estáticos de largura (`max-w-7xl` / 1280px) e centralizações vazias nas laterais. O conteúdo agora ocupa `w-full` com margens dinâmicas de segurança (`px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6`) proporcionando a melhor densidade de informação em monitores widescreen.
+6. **Responsividade Mobile & Tablet Completa:**
+   - Menu lateral (Sidebar) retrátil que se transforma em um Slide-over flutuante no celular, acionado por menu hambúrguer no cabeçalho mobile.
+   - Cabeçalhos, filtros e botões auto-organizáveis (stacked) e tabelas com rolagem horizontal própria (`overflow-x-auto`) que evitam quebras e distorções visuais em telas menores.
+   - Modais responsivos e scrolláveis (`max-h-[90vh]`) com margens de segurança laterais.
+7. **Edição Estruturada de Status:** Inserção estruturada na gaveta lateral de demandas dos campos "Evolução / Situação Atual" e "Impedimentos / Pontos de Atenção" com auto-save em tempo real no evento `onBlur`.
+8. **Vínculo do Drawer Centralizado:** Menus de seleção dinâmicos de projetos adicionados na gaveta (Drawer) para demandas do Jira, Azure ou manuais, salvando e atualizando instantaneamente os relacionamentos no SQLite.
+9. **Autonomia de Dados Locais:** Atribuição manual de pais, bloqueios e anotações persistentes no SQLite local, imune a perdas durante as sincronizações automáticas externas do Jira e Azure DevOps.
+10. **Resumo Inteligente e Relatórios com IA:** Integração com a API do Google Gemini para resumos automáticos em lote com suporte a caches locais na tabela `project_reports` para redução de custos (FinOps).
+

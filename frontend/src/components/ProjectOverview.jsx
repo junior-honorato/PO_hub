@@ -201,7 +201,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   });
 
   return (
-    <div className={`flex-1 ${isPresentationMode ? 'h-screen overflow-y-auto bg-slate-950 p-8 flex flex-col items-center justify-start pt-12 pb-20' : 'overflow-y-auto px-8 py-6 max-w-7xl mx-auto w-full space-y-6'}`}>
+    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
       {isPresentationMode && (
         <style dangerouslySetInnerHTML={{ __html: `
           aside { display: none !important; }
@@ -211,10 +211,10 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
       {/* Top Navigation (Hidden in Presentation Mode) */}
       {!isPresentationMode && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold select-none"
+            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold select-none w-fit"
           >
             <ArrowLeft className="w-4 h-4" /> Voltar ao Portfólio
           </button>
@@ -446,9 +446,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         </div>
       ) : activeTab === 'report' || isPresentationMode ? (
         /* Report Executivo Slide view */
-        <div className={`bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-850 rounded-2xl p-8 shadow-2xl ${isPresentationMode ? 'w-[95%] max-w-[1400px] mx-auto animate-in zoom-in-95 duration-300' : 'w-full'}`}>
+        <div className={`bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-850 rounded-2xl p-8 shadow-2xl w-full ${isPresentationMode ? 'animate-in zoom-in-95 duration-300' : ''}`}>
           {/* Slide Header */}
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-5 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800/80 pb-5 mb-6">
             <div>
               <span className="text-[10px] text-emerald-450 font-extrabold uppercase tracking-widest bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg">
                 PO STATUS REPORT
@@ -457,21 +457,20 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                 Status Report Semanal
               </h2>
             </div>
-            <div className="text-right text-xs text-slate-400 space-y-1">
+            <div className="text-left sm:text-right text-xs text-slate-400 space-y-1">
               <div>Data: <strong className="text-slate-200">{new Date().toLocaleDateString('pt-BR')}</strong></div>
               {project.sponsor && <div>Sponsor: <strong className="text-slate-200">{project.sponsor}</strong></div>}
             </div>
           </div>
 
-          {/* Slide Table */}
           <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
-            <table className="w-full border-collapse text-left table-fixed min-w-[900px]">
+            <table className="w-full min-w-max table-auto border-collapse text-left">
               <thead>
-                <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold">
-                  <th className="px-6 py-4 w-[22%]">EIXO / EPIC</th>
-                  <th className="px-6 py-4 w-[28%]">DEMANDAS EM ANDAMENTO</th>
-                  <th className="px-6 py-4 w-[25%]">SITUAÇÃO ATUAL</th>
-                  <th className="px-6 py-4 w-[25%]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
+                <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold select-none">
+                  <th className="px-6 py-4 w-1/5 min-w-[200px]">EIXO / EPIC</th>
+                  <th className="px-6 py-4 w-1/4 min-w-[250px]">DEMANDAS EM ANDAMENTO</th>
+                  <th className="px-6 py-4 w-[27.5%] min-w-[280px]">SITUAÇÃO ATUAL</th>
+                  <th className="px-6 py-4 w-[27.5%] min-w-[280px]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850">
@@ -521,7 +520,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   return (
                     <tr key={epic.externalId} className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo (Epic Name) */}
-                      <td className="px-6 py-5 font-bold text-xs text-white">
+                      <td className="px-6 py-5 font-bold text-xs text-white break-words">
                         <div className="border-l-4 border-emerald-500 pl-3 py-0.5 space-y-1.5">
                           <span className="text-slate-100 text-sm font-semibold tracking-tight leading-snug block">{epic.title}</span>
                           <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
@@ -534,7 +533,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 2: Demandas em Andamento */}
-                      <td className="px-6 py-5 border-l border-slate-850">
+                      <td className="px-6 py-5 border-l border-slate-850 break-words">
                         {inProgressChildren.length > 0 ? (
                           <div className="space-y-1.5">
                             {inProgressChildren.map(c => (
@@ -561,7 +560,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 3: Situação Atual */}
-                      <td className="px-6 py-5 border-l border-slate-850">
+                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
                         {statusNotesList.length > 0 ? (
                           <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
                             {statusNotesList.map((item, idx) => (
@@ -577,7 +576,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 4: Impedimentos */}
-                      <td className="px-6 py-5 border-l border-slate-850">
+                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
                         {impedimentsList.length > 0 ? (
                           <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
                             {impedimentsList.map((item, idx) => (
@@ -624,7 +623,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   return (
                     <tr className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo */}
-                      <td className="px-6 py-5 font-bold text-xs text-white">
+                      <td className="px-6 py-5 font-bold text-xs text-white break-words">
                         <div className="border-l-4 border-slate-600 pl-3 py-0.5 space-y-1">
                           <span className="text-slate-300 text-sm font-semibold block leading-snug">Demandas Independentes</span>
                           <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Sem Epic/Eixo Vinculado</span>
@@ -632,7 +631,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 2: Demandas em Andamento */}
-                      <td className="px-6 py-5 border-l border-slate-850">
+                      <td className="px-6 py-5 border-l border-slate-850 break-words">
                         {inProgressStandalone.length > 0 ? (
                           <div className="space-y-1.5">
                             {inProgressStandalone.map(d => (
@@ -659,7 +658,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 3: Situação Atual */}
-                      <td className="px-6 py-5 border-l border-slate-850">
+                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
                         {statusNotesList.length > 0 ? (
                           <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
                             {statusNotesList.map((item, idx) => (
@@ -675,7 +674,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 4: Impedimentos */}
-                      <td className="px-6 py-5 border-l border-slate-850">
+                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
                         {impedimentsList.length > 0 ? (
                           <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
                             {impedimentsList.map((item, idx) => (

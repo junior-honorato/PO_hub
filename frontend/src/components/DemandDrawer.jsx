@@ -16,6 +16,8 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
   const [isBlockerSearchOpen, setIsBlockerSearchOpen] = useState(false);
   const [currentStatusNotes, setCurrentStatusNotes] = useState('');
   const [blockerNotes, setBlockerNotes] = useState('');
+  const [promisedDate, setPromisedDate] = useState('');
+  const [followUpDate, setFollowUpDate] = useState('');
 
   const getExternalUrl = () => {
     if (!demand) return null;
@@ -53,6 +55,8 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
       setBlockerSearchQuery('');
       setCurrentStatusNotes('');
       setBlockerNotes('');
+      setPromisedDate('');
+      setFollowUpDate('');
     }
   }, [demandId, isOpen]);
 
@@ -65,6 +69,8 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
         setDemand(data);
         setCurrentStatusNotes(data.current_status_notes || '');
         setBlockerNotes(data.blocker_notes || '');
+        setPromisedDate(data.promisedDate || '');
+        setFollowUpDate(data.followUpDate || '');
       }
     } catch (e) {
       console.error(e);
@@ -186,6 +192,8 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
       ...prev,
       [field]: value
     }));
+    if (field === 'promisedDate') setPromisedDate(value || '');
+    if (field === 'followUpDate') setFollowUpDate(value || '');
     try {
       await fetch(`/api/demands/${demandId}`, {
         method: 'PATCH',
@@ -391,18 +399,22 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
                   <label className="text-xs text-slate-400 font-medium">Promessa de Entrega</label>
                   <input
                     type="date"
-                    value={demand.promisedDate || ''}
-                    onChange={e => handleUpdateManagementField('promisedDate', e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
+                    value={promisedDate}
+                    onChange={e => setPromisedDate(e.target.value)}
+                    onBlur={() => handleUpdateManagementField('promisedDate', promisedDate)}
+                    onClick={e => { if (typeof e.target.showPicker === 'function') { try { e.target.showPicker(); } catch (err) {} } }}
+                    className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer"
                   />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs text-slate-400 font-medium">Agendar Próxima Cobrança</label>
                   <input
                     type="date"
-                    value={demand.followUpDate || ''}
-                    onChange={e => handleUpdateManagementField('followUpDate', e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
+                    value={followUpDate}
+                    onChange={e => setFollowUpDate(e.target.value)}
+                    onBlur={() => handleUpdateManagementField('followUpDate', followUpDate)}
+                    onClick={e => { if (typeof e.target.showPicker === 'function') { try { e.target.showPicker(); } catch (err) {} } }}
+                    className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer"
                   />
                 </div>
               </div>
