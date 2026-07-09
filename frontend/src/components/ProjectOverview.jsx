@@ -156,6 +156,22 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
     return !inactive.includes(s);
   };
 
+  const shouldShowInExecutiveReport = (d) => {
+    if (!d) return false;
+    const hasStatusReport = !!(d.current_status_notes && d.current_status_notes.trim() !== '');
+    const hasBlockerReport = !!(d.blocker_notes && d.blocker_notes.trim() !== '');
+    const isActiveStatus = !!(d.externalStatus && (d.externalStatus.trim().toLowerCase() === 'active' || d.externalStatus.trim().toLowerCase() === 'em andamento'));
+    
+    // Condição A (Curadoria do PO): blocker_notes preenchido, independentemente do status
+    if (hasBlockerReport) return true;
+    
+    // Regra de Exclusão: status diferente de "Active" E current_status_notes vazio -> ocultar
+    if (!isActiveStatus && !hasStatusReport) return false;
+    
+    // Caso contrário (é Active ou tem status report), exibir
+    return true;
+  };
+
   const formatPromisedDate = (dateStr) => {
     if (!dateStr) return '';
     try {
@@ -463,28 +479,29 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
             </div>
           </div>
 
-          <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
-            <table className="w-full min-w-max table-auto border-collapse text-left">
+          {/* Desktop view (lg and up): fluid fixed table with no horizontal scroll */}
+          <div className="hidden lg:block w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
+            <table className="w-full min-w-full table-fixed border-collapse text-left">
               <thead>
                 <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold select-none">
-                  <th className="px-6 py-4 w-1/5 min-w-[200px]">EIXO / EPIC</th>
-                  <th className="px-6 py-4 w-1/4 min-w-[250px]">DEMANDAS EM ANDAMENTO</th>
-                  <th className="px-6 py-4 w-[27.5%] min-w-[280px]">SITUAÇÃO ATUAL</th>
-                  <th className="px-6 py-4 w-[27.5%] min-w-[280px]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
+                  <th className="px-6 py-4 w-[20%]">EIXO / EPIC</th>
+                  <th className="px-6 py-4 w-[25%]">DEMANDAS EM ANDAMENTO</th>
+                  <th className="px-6 py-4 w-[27.5%]">SITUAÇÃO ATUAL</th>
+                  <th className="px-6 py-4 w-[27.5%]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-850">
                 {/* Epics / Eixos rows */}
                 {epics.map(epic => {
                   const children = epicMap[epic.externalId] || [];
-                  const inProgressChildren = children.filter(c => isInProgress(c.externalStatus));
+                  const visibleChildren = children.filter(shouldShowInExecutiveReport);
                   
                   // Collect status notes
                   const statusNotesList = [];
                   if (epic.current_status_notes && epic.current_status_notes.trim()) {
                     statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
                   }
-                  children.forEach(c => {
+                  visibleChildren.forEach(c => {
                     if (c.current_status_notes && c.current_status_notes.trim()) {
                       statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
                     }
@@ -499,7 +516,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                     impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
                   }
                   // Check Children
-                  children.forEach(c => {
+                  visibleChildren.forEach(c => {
                     if (c.blocker_notes && c.blocker_notes.trim()) {
                       impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
                     } else if (isDemandBlocked(c)) {
@@ -512,8 +529,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                     }
                   });
 
-                  // Only render row if Epic is active, or if it has child demands (in progress or has status reports)
-                  if (inProgressChildren.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0 && !isInProgress(epic.externalStatus)) {
+                  // Only render row if Epic is visible, or if it has visible child demands or impediments
+                  if (visibleChildren.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0 && !shouldShowInExecutiveReport(epic)) {
                     return null;
                   }
 
@@ -534,9 +551,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                       {/* Cell 2: Demandas em Andamento */}
                       <td className="px-6 py-5 border-l border-slate-850 break-words">
-                        {inProgressChildren.length > 0 ? (
+                        {visibleChildren.length > 0 ? (
                           <div className="space-y-1.5">
-                            {inProgressChildren.map(c => (
+                            {visibleChildren.map(c => (
                               <div
                                 key={c.externalId}
                                 onClick={() => onSelectDemand(c.externalId)}
@@ -596,11 +613,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                 {/* Standalone demands row */}
                 {(() => {
-                  const inProgressStandalone = standaloneDemands.filter(d => isInProgress(d.externalStatus));
+                  const visibleStandalone = standaloneDemands.filter(shouldShowInExecutiveReport);
                   const statusNotesList = [];
                   const impedimentsList = [];
 
-                  standaloneDemands.forEach(d => {
+                  visibleStandalone.forEach(d => {
                     if (d.current_status_notes && d.current_status_notes.trim()) {
                       statusNotesList.push({ id: d.externalId, text: d.current_status_notes.trim() });
                     }
@@ -616,7 +633,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                     }
                   });
 
-                  if (inProgressStandalone.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0) {
+                  if (visibleStandalone.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0) {
                     return null;
                   }
 
@@ -632,9 +649,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                       {/* Cell 2: Demandas em Andamento */}
                       <td className="px-6 py-5 border-l border-slate-850 break-words">
-                        {inProgressStandalone.length > 0 ? (
+                        {visibleStandalone.length > 0 ? (
                           <div className="space-y-1.5">
-                            {inProgressStandalone.map(d => (
+                            {visibleStandalone.map(d => (
                               <div
                                 key={d.externalId}
                                 onClick={() => onSelectDemand(d.externalId)}
@@ -645,7 +662,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                                   {d.title}
                                 </span>
                                 {d.promisedDate && (
-                                  <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                  <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
                                     {formatPromisedDate(d.promisedDate)}
                                   </span>
                                 )}
@@ -693,6 +710,218 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                 })()}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile/Tablet view (below lg): stacked cards to prevent horizontal scroll */}
+          <div className="lg:hidden space-y-5">
+            {epics.map(epic => {
+              const children = epicMap[epic.externalId] || [];
+              const visibleChildren = children.filter(shouldShowInExecutiveReport);
+              
+              const statusNotesList = [];
+              if (epic.current_status_notes && epic.current_status_notes.trim()) {
+                statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
+              }
+              visibleChildren.forEach(c => {
+                if (c.current_status_notes && c.current_status_notes.trim()) {
+                  statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
+                }
+              });
+
+              const impedimentsList = [];
+              if (epic.blocker_notes && epic.blocker_notes.trim()) {
+                impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
+              } else if (isDemandBlocked(epic)) {
+                impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+              }
+              visibleChildren.forEach(c => {
+                if (c.blocker_notes && c.blocker_notes.trim()) {
+                  impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
+                } else if (isDemandBlocked(c)) {
+                  let bList = c.blockers;
+                  if (typeof bList === 'string') {
+                    try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                  }
+                  const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+                  impedimentsList.push({ id: c.externalId, text: `Impedida${bStr}` });
+                }
+              });
+
+              if (visibleChildren.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0 && !shouldShowInExecutiveReport(epic)) {
+                return null;
+              }
+
+              return (
+                <div key={epic.externalId} className="bg-slate-900/30 border border-slate-800/80 rounded-xl p-5 space-y-4">
+                  {/* Header Eixo */}
+                  <div className="border-l-4 border-emerald-500 pl-3">
+                    <h4 className="text-white font-bold text-sm leading-snug">{epic.title}</h4>
+                    <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
+                  </div>
+
+                  {/* Demandas em Andamento */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Demandas em Andamento</span>
+                    {visibleChildren.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {visibleChildren.map(c => (
+                          <div
+                            key={c.externalId}
+                            onClick={() => onSelectDemand(c.externalId)}
+                            className="flex items-start justify-between gap-2.5 bg-slate-950/40 border border-slate-850 p-2.5 rounded-lg cursor-pointer hover:border-emerald-500/30 transition-all"
+                          >
+                            <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                              <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
+                              {c.title}
+                            </span>
+                            {c.promisedDate && (
+                              <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                {formatPromisedDate(c.promisedDate)}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-500 text-xs italic">Nenhuma demanda ativa vinculada.</span>
+                    )}
+                  </div>
+
+                  {/* Situação Atual */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Situação Atual</span>
+                    {statusNotesList.length > 0 ? (
+                      <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
+                        {statusNotesList.map((item, idx) => (
+                          <li key={idx} className="leading-relaxed">
+                            <strong className="text-emerald-400 mr-1 font-mono">[{item.id}]:</strong>
+                            <span>{item.text}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="text-slate-500 text-xs italic">-</span>
+                    )}
+                  </div>
+
+                  {/* Impedimentos */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
+                    {impedimentsList.length > 0 ? (
+                      <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
+                        {impedimentsList.map((item, idx) => (
+                          <li key={idx} className="leading-relaxed">
+                            <strong className="text-rose-455 mr-1 font-mono">[{item.id}]:</strong>
+                            <span>{item.text}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="text-slate-500 text-xs italic">-</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Standalone demands card */}
+            {(() => {
+              const visibleStandalone = standaloneDemands.filter(shouldShowInExecutiveReport);
+              const statusNotesList = [];
+              const impedimentsList = [];
+
+              visibleStandalone.forEach(d => {
+                if (d.current_status_notes && d.current_status_notes.trim()) {
+                  statusNotesList.push({ id: d.externalId, text: d.current_status_notes.trim() });
+                }
+                if (d.blocker_notes && d.blocker_notes.trim()) {
+                  impedimentsList.push({ id: d.externalId, text: d.blocker_notes.trim() });
+                } else if (isDemandBlocked(d)) {
+                  let bList = d.blockers;
+                  if (typeof bList === 'string') {
+                    try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                  }
+                  const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+                  impedimentsList.push({ id: d.externalId, text: `Impedida${bStr}` });
+                }
+              });
+
+              if (visibleStandalone.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0) {
+                return null;
+              }
+
+              return (
+                <div className="bg-slate-900/30 border border-slate-800/80 rounded-xl p-5 space-y-4">
+                  {/* Header */}
+                  <div className="border-l-4 border-slate-600 pl-3">
+                    <h4 className="text-white font-bold text-sm leading-snug">Demandas Independentes</h4>
+                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Sem Epic/Eixo Vinculado</span>
+                  </div>
+
+                  {/* Demandas em Andamento */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Demandas em Andamento</span>
+                    {visibleStandalone.length > 0 ? (
+                      <div className="space-y-1.5">
+                        {visibleStandalone.map(d => (
+                          <div
+                            key={d.externalId}
+                            onClick={() => onSelectDemand(d.externalId)}
+                            className="flex items-start justify-between gap-2.5 bg-slate-950/40 border border-slate-850 p-2.5 rounded-lg cursor-pointer hover:border-slate-700/85 transition-all"
+                          >
+                            <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                              <span className="text-slate-500 font-bold mr-1">[{d.externalId}]</span>
+                              {d.title}
+                            </span>
+                            {d.promisedDate && (
+                              <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-455 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                {formatPromisedDate(d.promisedDate)}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-500 text-xs italic">Nenhuma demanda ativa independente.</span>
+                    )}
+                  </div>
+
+                  {/* Situação Atual */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Situação Atual</span>
+                    {statusNotesList.length > 0 ? (
+                      <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
+                        {statusNotesList.map((item, idx) => (
+                          <li key={idx} className="leading-relaxed">
+                            <strong className="text-emerald-400 mr-1 font-mono">[{item.id}]:</strong>
+                            <span>{item.text}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="text-slate-500 text-xs italic">-</span>
+                    )}
+                  </div>
+
+                  {/* Impedimentos */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
+                    {impedimentsList.length > 0 ? (
+                      <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
+                        {impedimentsList.map((item, idx) => (
+                          <li key={idx} className="leading-relaxed">
+                            <strong className="text-rose-455 mr-1 font-mono">[{item.id}]:</strong>
+                            <span>{item.text}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="text-slate-500 text-xs italic">-</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       ) : null}

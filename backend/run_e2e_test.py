@@ -74,9 +74,16 @@ def run_test():
         # Clica no botão de sincronizar
         try:
             print("[E2E] Sincronizando APIs para carregar dados...")
-            sync_btn = driver.find_element(By.XPATH, "//button[contains(., 'Sincronizar APIs')]")
+            sync_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'lg:flex')]//button[contains(., 'Sincronizar')]")
             sync_btn.click()
-            time.sleep(5) # Aguarda a sincronização concluir
+            time.sleep(2)
+            try:
+                alert = driver.switch_to.alert
+                print(f"[E2E] Alerta detectado e aceito: {alert.text}")
+                alert.accept()
+            except Exception:
+                pass
+            time.sleep(3) # Aguarda a sincronização concluir
         except Exception as sync_err:
             print(f"[E2E] Erro ao sincronizar: {sync_err}")
 
@@ -84,7 +91,7 @@ def run_test():
         # No menu lateral, temos "Demandas" como botão. Vamos clicar nele para ver a tabela completa
         try:
             print("[E2E] Tentando mudar para a aba 'Demandas'...")
-            demands_btn = driver.find_element(By.XPATH, "//button[contains(., 'Demandas')]")
+            demands_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'lg:flex')]//button[contains(., 'Demandas')]")
             demands_btn.click()
             time.sleep(2)
             scr2_path = os.path.join(ARTIFACTS_DIR, "step2_demands_list.png")
@@ -95,8 +102,8 @@ def run_test():
 
         # Encontra o link / botão dos Projetos no menu lateral
         try:
-            print("[E2E] Tentando mudar para a aba 'Projetos'...")
-            projects_btn = driver.find_element(By.XPATH, "//button[contains(., 'Projetos')]")
+            print("[E2E] Tentando mudar para a aba 'Portfólio Executivo'...")
+            projects_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'lg:flex')]//button[contains(., 'Executivo')]")
             projects_btn.click()
             time.sleep(2)
             scr4_path = os.path.join(ARTIFACTS_DIR, "step4_projects_view.png")
@@ -108,7 +115,7 @@ def run_test():
         # Encontra o link / botão do Histórico no menu lateral
         try:
             print("[E2E] Tentando mudar para a aba 'Histórico'...")
-            history_btn = driver.find_element(By.XPATH, "//button[contains(., 'Histórico')]")
+            history_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'lg:flex')]//button[contains(., 'ist') and contains(., 'rico')]")
             history_btn.click()
             time.sleep(2)
             scr5_path = os.path.join(ARTIFACTS_DIR, "step5_history_view.png")
@@ -147,7 +154,7 @@ def run_test():
 
         # Volta para a aba de Demandas para o restante do teste (Drawer e Comentários)
         try:
-            demands_btn = driver.find_element(By.XPATH, "//button[contains(., 'Demandas')]")
+            demands_btn = driver.find_element(By.XPATH, "//div[contains(@class, 'lg:flex')]//button[contains(., 'Demandas')]")
             demands_btn.click()
             time.sleep(1)
         except Exception as btn_err:
@@ -170,7 +177,7 @@ def run_test():
             # Tenta clicar no acordeão de comentários externos
             try:
                 print("[E2E] Procurando o botão de comentários externos...")
-                comments_btn = driver.find_element(By.XPATH, "//button[contains(., 'Histórico de Comentários')]")
+                comments_btn = driver.find_element(By.XPATH, "//button[contains(., 'Coment')]")
                 print("[E2E] Rolando até o botão...")
                 driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", comments_btn)
                 time.sleep(1)
@@ -198,6 +205,13 @@ def run_test():
             
     except Exception as e:
         print(f"[E2E] Falha crítica no teste: {e}")
+        try:
+            print("\n--- LOGS DO CONSOLE DO NAVEGADOR (FALHA) ---")
+            logs = driver.get_log('browser')
+            for entry in logs:
+                print(f"[{entry['level']}] {entry['timestamp']} - {entry['message']}")
+        except Exception as log_err:
+            print(f"Erro ao capturar logs do console: {log_err}")
         raise e
     finally:
         driver.quit()

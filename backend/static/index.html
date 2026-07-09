@@ -1203,22 +1203,22 @@
       if (!isOpen) return null;
 
       return (
-        <div className="fixed inset-0 z-50 flex justify-end overflow-hidden">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 transition-all duration-300 ${isOpen ? 'visible opacity-100' : 'invisible opacity-0'}`}>
           {/* Backdrop */}
           <div
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-200"
+            className="fixed inset-0 bg-black/65 backdrop-blur-xs transition-opacity duration-300"
           />
           
-          {/* Drawer Panel */}
-          <div className="relative w-full max-w-lg bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col h-full z-10">
+          {/* Modal Container */}
+          <div className="relative bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] md:h-[90vh] flex flex-col overflow-hidden z-10 animate-in zoom-in-95 duration-200">
             {/* Header */}
-            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${
                   demand?.origin === 'Jira' ? 'bg-sky-400' : 'bg-emerald-400'
                 }`} />
-                <span className="text-xs text-slate-400 uppercase tracking-widest font-semibold">
+                <span className="text-xs text-slate-400 uppercase tracking-widest font-semibold font-mono">
                   {demand?.origin} / {demand?.externalId}
                 </span>
               </div>
@@ -1228,7 +1228,7 @@
                     href={externalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-800 rounded-xl transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-slate-800/80 rounded-xl transition-all"
                     title={`Ver no ${demand.origin}`}
                   >
                     <Icon name="external-link" className="w-3.5 h-3.5" />
@@ -1250,431 +1250,59 @@
                 Carregando detalhes...
               </div>
             ) : demand ? (
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col lg:flex-row gap-6">
                 
-                {/* Demand Title & Status */}
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <h2 className="text-xl font-bold text-white leading-snug">{demand.title}</h2>
-                    {externalUrl && (
-                      <a
-                        href={externalUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-slate-400 hover:text-white transition-colors pt-1 flex-shrink-0"
-                        title={`Abrir no ${demand.origin}`}
-                      >
-                        <Icon name="external-link" className="w-5 h-5" />
-                      </a>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-slate-500" />
-                      Status: <strong className="text-slate-200">{demand.externalStatus}</strong>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Icon name="clock" className="w-3.5 h-3.5" />
-                      Última Atualização: <strong className="text-slate-200">{formatDate(demand.updatedAt)}</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <hr className="border-slate-800" />
-
-                {/* Tags Section */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                    <Icon name="tag" className="w-4 h-4" /> Tags Customizadas
-                  </h3>
-                  <div className="flex flex-wrap gap-1.5 items-center">
-                    {demand.tags.map(tag => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 text-xs font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20 pl-2.5 pr-1 py-1 rounded-lg group"
-                      >
-                        {tag}
-                        <button
-                          onClick={() => handleRemoveTag(tag)}
-                          className="p-0.5 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        >
-                          <Icon name="x" className="w-3.5 h-3.5" />
-                        </button>
-                      </span>
-                    ))}
-                    
-                    {/* Add Tag Form */}
-                    <form onSubmit={handleAddTag} className="inline-flex items-center ml-1">
-                      <input
-                        type="text"
-                        placeholder="+ Nova tag"
-                        value={tagInput}
-                        onChange={e => setTagInput(e.target.value)}
-                        className="bg-slate-950 border border-slate-800/80 hover:border-slate-700 text-xs text-slate-300 placeholder-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:border-brand-500 w-24 transition-colors"
-                      />
-                    </form>
-                  </div>
-                </div>
-
-                <hr className="border-slate-800" />
-
-                {/* Controle de Prazos e Cobrança */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                    <Icon name="calendar" className="w-4 h-4" /> Controle de Prazos e Cobrança
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-slate-400 font-medium">Promessa de Entrega</label>
-                      <input
-                        type="date"
-                        value={promisedDate}
-                        onChange={e => setPromisedDate(e.target.value)}
-                        onBlur={() => handleUpdateManagementField('promisedDate', promisedDate)}
-                        onClick={e => { if (typeof e.target.showPicker === 'function') { try { e.target.showPicker(); } catch (err) {} } }}
-                        className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-slate-400 font-medium">Agendar Próxima Cobrança</label>
-                      <input
-                        type="date"
-                        value={followUpDate}
-                        onChange={e => setFollowUpDate(e.target.value)}
-                        onBlur={() => handleUpdateManagementField('followUpDate', followUpDate)}
-                        onClick={e => { if (typeof e.target.showPicker === 'function') { try { e.target.showPicker(); } catch (err) {} } }}
-                        className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer"
-                      />
+                {/* Left Column: Description, Status Report, AI Summary, Annotations */}
+                <div className="flex-1 space-y-6 lg:pr-6 lg:border-r lg:border-slate-800/60 min-w-0">
+                  {/* Title & Status */}
+                  <div className="space-y-3">
+                    <h2 className="text-xl font-bold text-white leading-snug break-words">{demand.title}</h2>
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-slate-500" />
+                        Status: <strong className="text-slate-200">{demand.externalStatus}</strong>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Icon name="clock" className="w-3.5 h-3.5" />
+                        Última Atualização: <strong className="text-slate-200">{formatDate(demand.updatedAt)}</strong>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-slate-400 font-medium">Projeto Vinculado</label>
-                    <select
-                      value={demand.project || ''}
-                      onChange={e => handleUpdateManagementField('project', e.target.value || null)}
-                      className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
-                    >
-                      <option value="">Sem projeto</option>
-                      {projects.map(p => (
-                        <option key={p.id} value={p.name}>{p.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <hr className="border-slate-800/60" />
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs text-slate-400 font-medium">Resumo para a Gestora (One-on-One)</label>
-                    <textarea
-                      placeholder="Pontos críticos, alinhamentos informais ou notas para a reunião de status..."
-                      rows="2"
-                      value={demand.managerNotes || ''}
-                      onChange={e => handleUpdateManagementField('managerNotes', e.target.value)}
-                      className="w-full bg-yellow-500/5 border border-yellow-500/20 hover:border-yellow-500/30 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-yellow-500/50 transition-colors resize-none"
-                    />
-                  </div>
-
-                  {/* PO Weekly Report Fields */}
-                  <div className="space-y-4 pt-3 border-t border-slate-800/60">
+                  {/* Status Report Semanal */}
+                  <div className="space-y-4">
                     <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Status Report Semanal</h4>
-                    
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-slate-400 font-medium">Evolução / Situação Atual (Para o Report Semanal)</label>
-                      <textarea
-                        placeholder="Situação atual e evolução da demanda..."
-                        rows="3"
-                        value={currentStatusNotes}
-                        onChange={e => setCurrentStatusNotes(e.target.value)}
-                        onBlur={() => handleUpdateManagementField('current_status_notes', currentStatusNotes)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-xs text-slate-400 font-medium">Impedimentos / Pontos de Atenção (Para o Report Semanal)</label>
-                      <textarea
-                        placeholder="Impedimentos, riscos ou pontos de atenção..."
-                        rows="3"
-                        value={blockerNotes}
-                        onChange={e => setBlockerNotes(e.target.value)}
-                        onBlur={() => handleUpdateManagementField('blocker_notes', blockerNotes)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-brand-500 transition-colors resize-none"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-400 font-medium">Evolução / Situação Atual (Para o Report Semanal)</label>
+                        <textarea
+                          placeholder="Situação atual e evolução da demanda..."
+                          rows="4"
+                          value={currentStatusNotes}
+                          onChange={e => setCurrentStatusNotes(e.target.value)}
+                          onBlur={() => handleUpdateManagementField('current_status_notes', currentStatusNotes)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-650 focus:outline-none focus:border-brand-500 transition-colors resize-none"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-400 font-medium">Impedimentos / Pontos de Atenção (Para o Report Semanal)</label>
+                        <textarea
+                          placeholder="Impedimentos, riscos ou pontos de atenção..."
+                          rows="4"
+                          value={blockerNotes}
+                          onChange={e => setBlockerNotes(e.target.value)}
+                          onBlur={() => handleUpdateManagementField('blocker_notes', blockerNotes)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-650 focus:outline-none focus:border-brand-500 transition-colors resize-none"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <hr className="border-slate-800" />
+                  <hr className="border-slate-800/60" />
 
-                 {/* Atribuição Manual de Dependências */}
-                 <div className="space-y-4">
-                   <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                     <Icon name="plus" className="w-4 h-4 text-indigo-400" /> Atribuição Manual de Dependências
-                   </h3>
-                   
-                   {/* Item Pai Manual */}
-                   <div className="space-y-1.5 relative">
-                     <label className="text-xs text-slate-400 font-medium">Demanda Pai (Hierarquia)</label>
-                     
-                     {isParentSearchOpen && (
-                       <div className="fixed inset-0 z-10" onClick={() => setIsParentSearchOpen(false)} />
-                     )}
-                     
-                     <div className="relative">
-                       <button
-                         type="button"
-                         onClick={() => setIsParentSearchOpen(!isParentSearchOpen)}
-                         className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-left text-slate-300 flex items-center justify-between hover:border-slate-700 transition-colors"
-                       >
-                         <span className="truncate">
-                           {demand.parentId ? (
-                             <>
-                               <strong className="text-indigo-400">[{demand.parentId}]</strong>{' '}
-                               {allDemands.find(d => d.externalId === demand.parentId)?.title || ''}
-                               {demand.localParentId && demand.localParentId !== 'NONE' ? (
-                                 <span className="ml-2 text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-500/20">Manual</span>
-                               ) : demand.localParentId === 'NONE' ? (
-                                 <span className="ml-2 text-[9px] bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded border border-rose-500/20">Removido</span>
-                               ) : (
-                                 <span className="ml-2 text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">Auto</span>
-                               )}
-                             </>
-                           ) : (
-                             <span className="text-slate-500">Nenhum (Sem pai)</span>
-                           )}
-                         </span>
-                         <Icon name="chevron-down" className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                       </button>
-
-                       {isParentSearchOpen && (
-                         <div className="absolute left-0 right-0 mt-1.5 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl z-20 p-2 space-y-2 max-h-60 flex flex-col">
-                           <div className="flex items-center gap-2 border-b border-slate-800 pb-1.5">
-                             <Icon name="search" className="w-3.5 h-3.5 text-slate-500 ml-1.5" />
-                             <input
-                               type="text"
-                               placeholder="Filtrar por ID ou Título..."
-                               value={parentSearchQuery}
-                               onChange={e => setParentSearchQuery(e.target.value)}
-                               className="w-full bg-transparent text-xs text-slate-300 focus:outline-none placeholder-slate-600"
-                               autoFocus
-                             />
-                             {parentSearchQuery && (
-                               <button type="button" onClick={() => setParentSearchQuery('')}>
-                                 <Icon name="x" className="w-3 h-3 text-slate-500 hover:text-slate-300" />
-                               </button>
-                             )}
-                           </div>
-                           <div className="overflow-y-auto flex-1 space-y-0.5 pr-1 max-h-40">
-                             {/* Option to restore auto if manual override is active */}
-                             {demand.localParentId && (
-                               <button
-                                 type="button"
-                                 onClick={() => handleSelectParent(null)}
-                                 className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 flex items-center justify-between"
-                               >
-                                 <span>Restaurar vínculo automático</span>
-                                 <Icon name="refresh-cw" className="w-3 h-3 text-slate-500" />
-                               </button>
-                             )}
-                             
-                             {/* Option for Nenhum */}
-                             <button
-                               type="button"
-                               onClick={() => handleSelectParent('NONE')}
-                               className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-300 flex items-center justify-between"
-                             >
-                               <span>Sem pai (Nenhum)</span>
-                               {demand.localParentId === 'NONE' && <Icon name="check" className="w-3.5 h-3.5 text-brand-500" />}
-                             </button>
-
-                             {/* List of filtered demands */}
-                             {allDemands
-                               .filter(d => d.externalId !== demandId)
-                               .filter(d => 
-                                 !parentSearchQuery ||
-                                 d.externalId.toLowerCase().includes(parentSearchQuery.toLowerCase()) ||
-                                 d.title.toLowerCase().includes(parentSearchQuery.toLowerCase())
-                               )
-                               .map(d => (
-                                 <button
-                                   key={d.externalId}
-                                   type="button"
-                                   onClick={() => handleSelectParent(d.externalId)}
-                                   className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-300 flex items-center justify-between gap-2"
-                                 >
-                                   <span className="truncate">
-                                     <strong className="text-slate-400">[{d.externalId}]</strong> {d.title}
-                                   </span>
-                                   {demand.localParentId === d.externalId && <Icon name="check" className="w-3.5 h-3.5 text-brand-500" />}
-                                 </button>
-                               ))}
-                           </div>
-                         </div>
-                       )}
-                     </div>
-                   </div>
-
-                   {/* Bloqueadores Manuais */}
-                   <div className="space-y-2.5 pt-2 border-t border-slate-800/40 relative">
-                     <label className="text-xs text-slate-400 font-medium block">Bloqueadores (Blockers)</label>
-                     
-                     {/* Lista de Bloqueadores */}
-                     {demand.blockers && demand.blockers.length > 0 ? (
-                       <div className="flex flex-wrap gap-1.5 mb-2">
-                         {demand.blockers.map(blockerId => (
-                           <span
-                             key={blockerId}
-                             className="inline-flex items-center gap-1.5 text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 pl-2.5 pr-1 py-1 rounded-lg"
-                           >
-                             {blockerId}
-                             <button
-                               type="button"
-                               onClick={() => handleRemoveBlocker(blockerId)}
-                               className="p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                             >
-                               <Icon name="x" className="w-3 h-3" />
-                             </button>
-                           </span>
-                         ))}
-                       </div>
-                     ) : (
-                       <span className="text-[10px] text-slate-500 block mb-1">Nenhum bloqueador manual associado.</span>
-                     )}
-
-                     {/* Form Adicionar Bloqueador como Dropdown */}
-                     <div className="relative">
-                       {isBlockerSearchOpen && (
-                         <div className="fixed inset-0 z-10" onClick={() => setIsBlockerSearchOpen(false)} />
-                       )}
-                       
-                       <button
-                         type="button"
-                         onClick={() => setIsBlockerSearchOpen(!isBlockerSearchOpen)}
-                         className="w-full bg-slate-950 border border-slate-800/80 hover:border-slate-700 rounded-xl px-3 py-2 text-xs text-left text-slate-500 flex items-center justify-between transition-colors"
-                       >
-                         <span>Vincular demanda bloqueadora...</span>
-                         <Icon name="search" className="w-3.5 h-3.5 text-slate-500" />
-                       </button>
-
-                       {isBlockerSearchOpen && (
-                         <div className="absolute left-0 right-0 mt-1.5 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl z-20 p-2 space-y-2 max-h-60 flex flex-col">
-                           <div className="flex items-center gap-2 border-b border-slate-800 pb-1.5">
-                             <Icon name="search" className="w-3.5 h-3.5 text-slate-500 ml-1.5" />
-                             <input
-                               type="text"
-                               placeholder="Buscar por ID ou Título..."
-                               value={blockerSearchQuery}
-                               onChange={e => setBlockerSearchQuery(e.target.value)}
-                               className="w-full bg-transparent text-xs text-slate-300 focus:outline-none placeholder-slate-600"
-                               autoFocus
-                             />
-                             {blockerSearchQuery && (
-                               <button type="button" onClick={() => setBlockerSearchQuery('')}>
-                                 <Icon name="x" className="w-3 h-3 text-slate-500 hover:text-slate-300" />
-                               </button>
-                             )}
-                           </div>
-                           <div className="overflow-y-auto flex-1 space-y-0.5 pr-1 max-h-40">
-                             {allDemands
-                               .filter(d => d.externalId !== demandId)
-                               .filter(d => !demand.blockers.includes(d.externalId))
-                               .filter(d => 
-                                 !blockerSearchQuery ||
-                                 d.externalId.toLowerCase().includes(blockerSearchQuery.toLowerCase()) ||
-                                 d.title.toLowerCase().includes(blockerSearchQuery.toLowerCase())
-                               )
-                               .map(d => (
-                                 <button
-                                   key={d.externalId}
-                                   type="button"
-                                   onClick={() => handleSelectBlocker(d.externalId)}
-                                   className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-300 flex items-center gap-2"
-                                 >
-                                   <span className="truncate">
-                                     <strong className="text-slate-400">[{d.externalId}]</strong> {d.title}
-                                   </span>
-                                 </button>
-                               ))}
-                           </div>
-                         </div>
-                       )}
-                     </div>
-                   </div>
-                 </div>
-
-                 <hr className="border-slate-800" />
-
-                {/* Add Annotation Form */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                    <Icon name="pencil" className="w-4 h-4" /> Novo Apontamento
-                  </h3>
-                  <form onSubmit={handleAddNote} className="space-y-3">
-                    <textarea
-                      placeholder="Adicione anotações ricas sobre o andamento, discussões de refinamento ou priorizações..."
-                      rows="3"
-                      value={note}
-                      onChange={e => setNote(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800/80 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors resize-none"
-                    />
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={!note.trim()}
-                        className="bg-slate-100 hover:bg-white text-slate-950 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-                      >
-                        <Icon name="plus" className="w-3.5 h-3.5" /> Salvar Apontamento
-                      </button>
-                    </div>
-                  </form>
-                </div>
-
-                <hr className="border-slate-800" />
-
-                {/* Histórico de Comentários Externos (Jira/Azure) */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      disabled={!demand.comments_history}
-                      onClick={() => setShowExternalComments(!showExternalComments)}
-                      className={`flex items-center gap-2 text-sm font-semibold transition-colors ${
-                        demand.comments_history
-                          ? 'text-slate-300 hover:text-white'
-                          : 'text-slate-500 cursor-not-allowed'
-                      }`}
-                    >
-                      <Icon name="message-square" className="w-4 h-4 text-indigo-400" />
-                      Histórico de Comentários Externos ({demand.origin})
-                      {demand.comments_history ? (
-                        showExternalComments ? (
-                          <Icon name="chevron-up" className="w-4 h-4 text-slate-400 ml-1" />
-                        ) : (
-                          <Icon name="chevron-down" className="w-4 h-4 text-slate-400 ml-1" />
-                        )
-                      ) : (
-                        <span className="text-[10px] bg-slate-900 text-slate-600 px-2 py-0.5 rounded-full font-medium ml-1">Sem comentários</span>
-                      )}
-                    </button>
-                    
-                    {demand.comments_history && (
-                      <button
-                        type="button"
-                        onClick={handleSummarize}
-                        disabled={summarizing}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl transition-all disabled:opacity-50"
-                        title="Gerar ou atualizar resumo inteligente com Gemini"
-                      >
-                        {summarizing ? (
-                          <Icon name="refresh-cw" className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Icon name="sparkles" className="w-3.5 h-3.5" />
-                        )}
-                        Resumo IA
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Highlight Card for AI Summary */}
+                  {/* AI Summary */}
                   {demand.ai_summary && (
                     <div className="relative overflow-hidden bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 rounded-xl p-4 space-y-2">
                       <div className="flex items-center justify-between">
@@ -1683,8 +1311,8 @@
                           Resumo Executivo Inteligente
                         </span>
                         {demand.summary_updated_at && (
-                          <span className="text-[10px] text-slate-500 font-medium">
-                            Atualizado em {formatDate(demand.summary_updated_at)}
+                          <span className="text-[10px] text-slate-500 font-medium font-mono">
+                            {formatDate(demand.summary_updated_at)}
                           </span>
                         )}
                       </div>
@@ -1693,51 +1321,413 @@
                       </div>
                     </div>
                   )}
-                  
-                  {demand.comments_history && showExternalComments && (
-                    <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-xl max-h-64 overflow-y-auto custom-scrollbar">
-                      <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
-                        {demand.comments_history}
-                      </p>
+
+                  {/* Histórico de Comentários Externos */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <button
+                        type="button"
+                        disabled={!demand.comments_history}
+                        onClick={() => setShowExternalComments(!showExternalComments)}
+                        className={`flex items-center gap-2 text-sm font-semibold transition-colors text-left ${
+                          demand.comments_history
+                            ? 'text-slate-300 hover:text-white'
+                            : 'text-slate-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <Icon name="message-square" className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+                        <span className="truncate">Histórico de Comentários Externos ({demand.origin})</span>
+                        {demand.comments_history ? (
+                          showExternalComments ? (
+                            <Icon name="chevron-up" className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" />
+                          ) : (
+                            <Icon name="chevron-down" className="w-4 h-4 text-slate-400 flex-shrink-0 ml-1" />
+                          )
+                        ) : (
+                          <span className="text-[10px] bg-slate-900 text-slate-600 px-2 py-0.5 rounded-full font-medium ml-1">Sem comentários</span>
+                        )}
+                      </button>
+                      
+                      {demand.comments_history && (
+                        <button
+                          type="button"
+                          onClick={handleSummarize}
+                          disabled={summarizing}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20 rounded-xl transition-all disabled:opacity-50 flex-shrink-0"
+                          title="Gerar ou atualizar resumo inteligente com Gemini"
+                        >
+                          {summarizing ? (
+                            <Icon name="refresh-cw" className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Icon name="sparkles" className="w-3.5 h-3.5" />
+                          )}
+                          Resumo IA
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
+                    
+                    {demand.comments_history && showExternalComments && (
+                      <div className="bg-slate-950/45 p-4 border border-slate-800/80 rounded-xl max-h-64 overflow-y-auto custom-scrollbar">
+                        <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+                          {demand.comments_history}
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
-                <hr className="border-slate-800" />
+                  <hr className="border-slate-800/60" />
 
-                {/* Timeline History */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                    <Icon name="history" className="w-4 h-4" /> Histórico Local (Timeline)
-                  </h3>
-                  
-                  {demand.annotations.length > 0 ? (
-                    <div className="relative pl-6 border-l-2 border-slate-800 space-y-5 ml-2.5">
-                      {demand.annotations.map((ann, idx) => (
-                        <div key={ann.id} className="relative fade-enter">
-                          {/* Dot marker */}
-                          <span className="absolute -left-[31px] top-1.5 bg-slate-900 border-2 border-brand-500 w-4 h-4 rounded-full flex items-center justify-center">
-                            <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
-                          </span>
-                          
-                          <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-xl space-y-1.5">
-                            <span className="text-[10px] font-bold text-indigo-400 block">
-                              {formatDate(ann.createdAt)}
+                  {/* Add Annotation Form */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                      <Icon name="pencil" className="w-4 h-4 text-indigo-400" /> Novo Apontamento Local
+                    </h3>
+                    <form onSubmit={handleAddNote} className="space-y-3">
+                      <textarea
+                        placeholder="Adicione anotações ricas sobre o andamento, discussões de refinamento ou priorizações..."
+                        rows="3"
+                        value={note}
+                        onChange={e => setNote(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800/80 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors resize-none"
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          type="submit"
+                          disabled={!note.trim()}
+                          className="bg-slate-100 hover:bg-white text-slate-950 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          <Icon name="plus" className="w-3.5 h-3.5" /> Salvar Apontamento
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  <hr className="border-slate-800/60" />
+
+                  {/* Timeline */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                      <Icon name="history" className="w-4 h-4 text-indigo-400" /> Histórico Local (Timeline)
+                    </h3>
+                    
+                    {demand.annotations.length > 0 ? (
+                      <div className="relative pl-6 border-l-2 border-slate-800/60 space-y-5 ml-2.5">
+                        {demand.annotations.map((ann) => (
+                          <div key={ann.id} className="relative fade-enter">
+                            <span className="absolute -left-[31px] top-1.5 bg-slate-900 border-2 border-brand-500 w-4 h-4 rounded-full flex items-center justify-center">
+                              <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
                             </span>
-                            <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
-                              {ann.content}
-                            </p>
+                            
+                            <div className="bg-slate-950/40 p-4 border border-slate-800/80 rounded-xl space-y-1.5">
+                              <span className="text-[10px] font-bold text-indigo-400 block font-mono">
+                                {formatDate(ann.createdAt)}
+                              </span>
+                              <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                                {ann.content}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
-                      Nenhum apontamento feito nesta demanda ainda.
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
+                        Nenhum apontamento feito nesta demanda ainda.
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                {/* Right Column: Metadata, Dates, Project, Dependencies */}
+                <div className="w-full lg:w-80 shrink-0 space-y-6 lg:pl-2">
+                  {/* Tags */}
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                      <Icon name="tag" className="w-4 h-4 text-slate-500" /> Tags Customizadas
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5 items-center">
+                      {demand.tags.map(tag => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20 pl-2.5 pr-1 py-1 rounded-lg group"
+                        >
+                          {tag}
+                          <button
+                            onClick={() => handleRemoveTag(tag)}
+                            className="p-0.5 rounded text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <Icon name="x" className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                      
+                      {/* Add Tag */}
+                      <form onSubmit={handleAddTag} className="inline-flex items-center ml-1">
+                        <input
+                          type="text"
+                          placeholder="+ Nova tag"
+                          value={tagInput}
+                          onChange={e => setTagInput(e.target.value)}
+                          className="bg-slate-950 border border-slate-800/80 hover:border-slate-700 text-xs text-slate-300 placeholder-slate-650 rounded-lg px-2.5 py-1 focus:outline-none focus:border-brand-500 w-24 transition-colors"
+                        />
+                      </form>
+                    </div>
+                  </div>
+
+                  <hr className="border-slate-800/60" />
+
+                  {/* Dates & Project */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                      <Icon name="calendar" className="w-4 h-4 text-slate-500" /> Prazos e Vínculo
+                    </h3>
+                    <div className="space-y-3.5">
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-400 font-medium">Promessa de Entrega</label>
+                        <input
+                          type="date"
+                          value={promisedDate}
+                          onChange={e => setPromisedDate(e.target.value)}
+                          onBlur={() => handleUpdateManagementField('promisedDate', promisedDate)}
+                          onClick={e => { if (typeof e.target.showPicker === 'function') { try { e.target.showPicker(); } catch (err) {} } }}
+                          className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-400 font-medium">Agendar Próxima Cobrança</label>
+                        <input
+                          type="date"
+                          value={followUpDate}
+                          onChange={e => setFollowUpDate(e.target.value)}
+                          onBlur={() => handleUpdateManagementField('followUpDate', followUpDate)}
+                          onClick={e => { if (typeof e.target.showPicker === 'function') { try { e.target.showPicker(); } catch (err) {} } }}
+                          className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs text-slate-400 font-medium">Projeto Vinculado</label>
+                        <select
+                          value={demand.project || ''}
+                          onChange={e => handleUpdateManagementField('project', e.target.value || null)}
+                          className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500 transition-colors"
+                        >
+                          <option value="">Sem projeto</option>
+                          {projects.map(p => (
+                            <option key={p.id} value={p.name}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <hr className="border-slate-800/60" />
+
+                  {/* Resumo para a Gestora */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                      <Icon name="message-square" className="w-4 h-4 text-slate-500" /> Resumo One-on-One
+                    </label>
+                    <textarea
+                      placeholder="Pontos críticos, alinhamentos informais ou notas para a reunião de status..."
+                      rows="3"
+                      value={demand.managerNotes || ''}
+                      onChange={e => handleUpdateManagementField('managerNotes', e.target.value)}
+                      className="w-full bg-yellow-500/5 border border-yellow-500/20 hover:border-yellow-500/30 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-yellow-500/50 transition-colors resize-none"
+                    />
+                  </div>
+
+                  <hr className="border-slate-800/60" />
+
+                  {/* Atribuição de Dependências */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                      <Icon name="plus" className="w-4 h-4 text-slate-500" /> Dependências Manuais
+                    </h3>
+                    
+                    {/* Item Pai Manual */}
+                    <div className="space-y-1.5 relative">
+                      <label className="text-xs text-slate-455 font-medium">Demanda Pai (Hierarquia)</label>
+                      
+                      {isParentSearchOpen && (
+                        <div className="fixed inset-0 z-10" onClick={() => setIsParentSearchOpen(false)} />
+                      )}
+                      
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsParentSearchOpen(!isParentSearchOpen)}
+                          className="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-left text-slate-300 flex items-center justify-between hover:border-slate-700 transition-colors"
+                        >
+                          <span className="truncate">
+                            {demand.parentId ? (
+                              <>
+                                <strong className="text-indigo-400 font-mono">[{demand.parentId}]</strong>{' '}
+                                {allDemands.find(d => d.externalId === demand.parentId)?.title || ''}
+                                {demand.localParentId && demand.localParentId !== 'NONE' ? (
+                                  <span className="ml-2 text-[9px] bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded border border-indigo-500/20">Manual</span>
+                                ) : demand.localParentId === 'NONE' ? (
+                                  <span className="ml-2 text-[9px] bg-rose-500/10 text-rose-400 px-1.5 py-0.5 rounded border border-rose-500/20">Removido</span>
+                                ) : (
+                                  <span className="ml-2 text-[9px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">Auto</span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-slate-500">Nenhum (Sem pai)</span>
+                            )}
+                          </span>
+                          <Icon name="chevron-down" className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                        </button>
+
+                        {isParentSearchOpen && (
+                          <div className="absolute left-0 right-0 mt-1.5 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl z-20 p-2 space-y-2 max-h-60 flex flex-col">
+                            <div className="flex items-center gap-2 border-b border-slate-800 pb-1.5">
+                              <Icon name="search" className="w-3.5 h-3.5 text-slate-500 ml-1.5" />
+                              <input
+                                type="text"
+                                placeholder="Filtrar por ID ou Título..."
+                                value={parentSearchQuery}
+                                onChange={e => setParentSearchQuery(e.target.value)}
+                                className="w-full bg-transparent text-xs text-slate-300 focus:outline-none placeholder-slate-650"
+                                autoFocus
+                              />
+                              {parentSearchQuery && (
+                                <button type="button" onClick={() => setParentSearchQuery('')}>
+                                  <Icon name="x" className="w-3 h-3 text-slate-500 hover:text-slate-300" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="overflow-y-auto flex-1 space-y-0.5 pr-1 max-h-40">
+                              {demand.localParentId && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSelectParent(null)}
+                                  className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-400 flex items-center justify-between"
+                                >
+                                  <span>Restaurar vínculo automático</span>
+                                  <Icon name="refresh-cw" className="w-3 h-3 text-slate-500" />
+                                </button>
+                              )}
+                              
+                              <button
+                                type="button"
+                                onClick={() => handleSelectParent('NONE')}
+                                className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-300 flex items-center justify-between"
+                              >
+                                <span>Sem pai (Nenhum)</span>
+                                {demand.localParentId === 'NONE' && <Icon name="check" className="w-3.5 h-3.5 text-brand-500" />}
+                              </button>
+
+                              {allDemands
+                                .filter(d => d.externalId !== demandId)
+                                .filter(d => 
+                                  !parentSearchQuery ||
+                                  d.externalId.toLowerCase().includes(parentSearchQuery.toLowerCase()) ||
+                                  d.title.toLowerCase().includes(parentSearchQuery.toLowerCase())
+                                )
+                                .map(d => (
+                                  <button
+                                    key={d.externalId}
+                                    type="button"
+                                    onClick={() => handleSelectParent(d.externalId)}
+                                    className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-300 flex items-center justify-between gap-2"
+                                  >
+                                    <span className="truncate">
+                                      <strong className="text-slate-400 font-mono">[{d.externalId}]</strong> {d.title}
+                                    </span>
+                                    {demand.localParentId === d.externalId && <Icon name="check" className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bloqueadores Manuais */}
+                    <div className="space-y-2.5 pt-2 border-t border-slate-800/40 relative">
+                      <label className="text-xs text-slate-455 font-medium block">Bloqueadores (Blockers)</label>
+                      
+                      {demand.blockers && demand.blockers.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 mb-2">
+                          {demand.blockers.map(blockerId => (
+                            <span
+                              key={blockerId}
+                              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-rose-500/10 text-rose-455 border border-rose-500/20 pl-2.5 pr-1 py-1 rounded-lg"
+                            >
+                              {blockerId}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveBlocker(blockerId)}
+                                className="p-0.5 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                              >
+                                <Icon name="x" className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 block mb-1">Nenhum bloqueador manual associado.</span>
+                      )}
+
+                      <div className="relative">
+                        {isBlockerSearchOpen && (
+                          <div className="fixed inset-0 z-10" onClick={() => setIsBlockerSearchOpen(false)} />
+                        )}
+                        
+                        <button
+                          type="button"
+                          onClick={() => setIsBlockerSearchOpen(!isBlockerSearchOpen)}
+                          className="w-full bg-slate-950 border border-slate-800/80 hover:border-slate-700 rounded-xl px-3 py-2 text-xs text-left text-slate-500 flex items-center justify-between transition-colors"
+                        >
+                          <span>Vincular bloqueadora...</span>
+                          <Icon name="search" className="w-3.5 h-3.5 text-slate-500" />
+                        </button>
+
+                        {isBlockerSearchOpen && (
+                          <div className="absolute left-0 right-0 mt-1.5 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl z-20 p-2 space-y-2 max-h-60 flex flex-col">
+                            <div className="flex items-center gap-2 border-b border-slate-800 pb-1.5">
+                              <Icon name="search" className="w-3.5 h-3.5 text-slate-500 ml-1.5" />
+                              <input
+                                type="text"
+                                placeholder="Buscar por ID ou Título..."
+                                value={blockerSearchQuery}
+                                onChange={e => setBlockerSearchQuery(e.target.value)}
+                                className="w-full bg-transparent text-xs text-slate-300 focus:outline-none placeholder-slate-650"
+                                autoFocus
+                              />
+                              {blockerSearchQuery && (
+                                <button type="button" onClick={() => setBlockerSearchQuery('')}>
+                                  <Icon name="x" className="w-3 h-3 text-slate-500 hover:text-slate-300" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="overflow-y-auto flex-1 space-y-0.5 pr-1 max-h-40">
+                              {allDemands
+                                .filter(d => d.externalId !== demandId)
+                                .filter(d => !demand.blockers.includes(d.externalId))
+                                .filter(d => 
+                                  !blockerSearchQuery ||
+                                  d.externalId.toLowerCase().includes(blockerSearchQuery.toLowerCase()) ||
+                                  d.title.toLowerCase().includes(blockerSearchQuery.toLowerCase())
+                                )
+                                .map(d => (
+                                  <button
+                                    key={d.externalId}
+                                    type="button"
+                                    onClick={() => handleSelectBlocker(d.externalId)}
+                                    className="w-full text-left text-xs px-2 py-1.5 rounded-lg hover:bg-slate-900 text-slate-300 flex items-center gap-2"
+                                  >
+                                    <span className="truncate">
+                                      <strong className="text-slate-400 font-mono">[{d.externalId}]</strong> {d.title}
+                                    </span>
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : null}
 
@@ -1754,7 +1744,6 @@
       );
     }
 
-    // Componente Dashboard Principal
     function MainDashboard({ demands, onSelectDemand }) {
       const total = demands.length;
       const recentDemands = demands.slice(0, 5);
@@ -3168,6 +3157,22 @@
         return !inactive.includes(s);
       };
 
+      const shouldShowInExecutiveReport = (d) => {
+        if (!d) return false;
+        const hasStatusReport = !!(d.current_status_notes && d.current_status_notes.trim() !== '');
+        const hasBlockerReport = !!(d.blocker_notes && d.blocker_notes.trim() !== '');
+        const isActiveStatus = !!(d.externalStatus && (d.externalStatus.trim().toLowerCase() === 'active' || d.externalStatus.trim().toLowerCase() === 'em andamento'));
+        
+        // Condição A (Curadoria do PO): blocker_notes preenchido, independentemente do status
+        if (hasBlockerReport) return true;
+        
+        // Regra de Exclusão: status diferente de "Active" E current_status_notes vazio -> ocultar
+        if (!isActiveStatus && !hasStatusReport) return false;
+        
+        // Caso contrário (é Active ou tem status report), exibir
+        return true;
+      };
+
       const formatPromisedDate = (dateStr) => {
         if (!dateStr) return '';
         try {
@@ -3475,44 +3480,39 @@
                 </div>
               </div>
 
-              {/* Slide Table */}
-              <div className="w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
-                <table className="w-full min-w-max table-auto border-collapse text-left">
+              {/* Desktop view (lg and up): fluid fixed table with no horizontal scroll */}
+              <div className="hidden lg:block w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
+                <table className="w-full min-w-full table-fixed border-collapse text-left">
                   <thead>
                     <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold select-none">
-                      <th className="px-6 py-4 w-1/5 min-w-[200px]">EIXO / EPIC</th>
-                      <th className="px-6 py-4 w-1/4 min-w-[250px]">DEMANDAS EM ANDAMENTO</th>
-                      <th className="px-6 py-4 w-[27.5%] min-w-[280px]">SITUAÇÃO ATUAL</th>
-                      <th className="px-6 py-4 w-[27.5%] min-w-[280px]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
+                      <th className="px-6 py-4 w-[20%]">EIXO / EPIC</th>
+                      <th className="px-6 py-4 w-[25%]">DEMANDAS EM ANDAMENTO</th>
+                      <th className="px-6 py-4 w-[27.5%]">SITUAÇÃO ATUAL</th>
+                      <th className="px-6 py-4 w-[27.5%]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-850">
-                    {/* Epics / Eixos rows */}
                     {epics.map(epic => {
                       const children = epicMap[epic.externalId] || [];
-                      const inProgressChildren = children.filter(c => isInProgress(c.externalStatus));
+                      const visibleChildren = children.filter(shouldShowInExecutiveReport);
                       
-                      // Collect status notes
                       const statusNotesList = [];
                       if (epic.current_status_notes && epic.current_status_notes.trim()) {
                         statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
                       }
-                      children.forEach(c => {
+                      visibleChildren.forEach(c => {
                         if (c.current_status_notes && c.current_status_notes.trim()) {
                           statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
                         }
                       });
 
-                      // Collect impediments
                       const impedimentsList = [];
-                      // Check Epic itself
                       if (epic.blocker_notes && epic.blocker_notes.trim()) {
                         impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
                       } else if (isDemandBlocked(epic)) {
-                        impedimentsList.push({ id: epic.externalId, text: `Travada (Status: \${epic.externalStatus})` });
+                        impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
                       }
-                      // Check Children
-                      children.forEach(c => {
+                      visibleChildren.forEach(c => {
                         if (c.blocker_notes && c.blocker_notes.trim()) {
                           impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
                         } else if (isDemandBlocked(c)) {
@@ -3520,19 +3520,17 @@
                           if (typeof bList === 'string') {
                             try { bList = JSON.parse(bList); } catch(e) { bList = []; }
                           }
-                          const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: \${bList.join(', ')}` : '';
-                          impedimentsList.push({ id: c.externalId, text: `Impedida\${bStr}` });
+                          const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+                          impedimentsList.push({ id: c.externalId, text: `Impedida${bStr}` });
                         }
                       });
 
-                      // Only render row if Epic is active, or if it has child demands (in progress or has status reports)
-                      if (inProgressChildren.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0 && !isInProgress(epic.externalStatus)) {
+                      if (visibleChildren.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0 && !shouldShowInExecutiveReport(epic)) {
                         return null;
                       }
 
                       return (
                         <tr key={epic.externalId} className="align-top animate-in fade-in duration-300">
-                          {/* Cell 1: Eixo (Epic Name) */}
                           <td className="px-6 py-5 font-bold text-xs text-white break-words">
                             <div className="border-l-4 border-emerald-500 pl-3 py-0.5 space-y-1.5">
                               <span className="text-slate-100 text-sm font-semibold tracking-tight leading-snug block">{epic.title}</span>
@@ -3544,12 +3542,10 @@
                               )}
                             </div>
                           </td>
-
-                          {/* Cell 2: Demandas em Andamento */}
                           <td className="px-6 py-5 border-l border-slate-850 break-words">
-                            {inProgressChildren.length > 0 ? (
+                            {visibleChildren.length > 0 ? (
                               <div className="space-y-1.5">
-                                {inProgressChildren.map(c => (
+                                {visibleChildren.map(c => (
                                   <div
                                     key={c.externalId}
                                     onClick={() => onSelectDemand(c.externalId)}
@@ -3560,7 +3556,7 @@
                                       {c.title}
                                     </span>
                                     {c.promisedDate && (
-                                      <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                      <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-455 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
                                         {formatPromisedDate(c.promisedDate)}
                                       </span>
                                     )}
@@ -3571,11 +3567,9 @@
                               <span className="text-slate-500 text-xs italic py-1 block">Nenhuma demanda ativa vinculada.</span>
                             )}
                           </td>
-
-                          {/* Cell 3: Situação Atual */}
                           <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
                             {statusNotesList.length > 0 ? (
-                              <ul className="list-disc pl-4 space-y-1.5 text-slate-350 text-xs">
+                              <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
                                 {statusNotesList.map((item, idx) => (
                                   <li key={idx} className="leading-relaxed">
                                     <strong className="text-emerald-400 mr-1">[{item.id}]:</strong>
@@ -3587,11 +3581,9 @@
                               <span className="text-slate-500 text-xs italic">-</span>
                             )}
                           </td>
-
-                          {/* Cell 4: Impedimentos */}
                           <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
                             {impedimentsList.length > 0 ? (
-                              <ul className="list-disc pl-4 space-y-1.5 text-slate-350 text-xs">
+                              <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
                                 {impedimentsList.map((item, idx) => (
                                   <li key={idx} className="leading-relaxed">
                                     <strong className="text-rose-450 mr-1">[{item.id}]:</strong>
@@ -3606,14 +3598,11 @@
                         </tr>
                       );
                     })}
-
-                    {/* Standalone demands row */}
                     {(() => {
-                      const inProgressStandalone = standaloneDemands.filter(d => isInProgress(d.externalStatus));
+                      const visibleStandalone = standaloneDemands.filter(shouldShowInExecutiveReport);
                       const statusNotesList = [];
                       const impedimentsList = [];
-
-                      standaloneDemands.forEach(d => {
+                      visibleStandalone.forEach(d => {
                         if (d.current_status_notes && d.current_status_notes.trim()) {
                           statusNotesList.push({ id: d.externalId, text: d.current_status_notes.trim() });
                         }
@@ -3624,30 +3613,25 @@
                           if (typeof bList === 'string') {
                             try { bList = JSON.parse(bList); } catch(e) { bList = []; }
                           }
-                          const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: \${bList.join(', ')}` : '';
-                          impedimentsList.push({ id: d.externalId, text: `Impedida\${bStr}` });
+                          const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+                          impedimentsList.push({ id: d.externalId, text: `Impedida${bStr}` });
                         }
                       });
-
-                      if (inProgressStandalone.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0) {
+                      if (visibleStandalone.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0) {
                         return null;
                       }
-
                       return (
                         <tr className="align-top animate-in fade-in duration-300">
-                          {/* Cell 1: Eixo */}
                           <td className="px-6 py-5 font-bold text-xs text-white break-words">
                             <div className="border-l-4 border-slate-600 pl-3 py-0.5 space-y-1">
                               <span className="text-slate-300 text-sm font-semibold block leading-snug">Demandas Independentes</span>
                               <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Sem Epic/Eixo Vinculado</span>
                             </div>
                           </td>
-
-                          {/* Cell 2: Demandas em Andamento */}
                           <td className="px-6 py-5 border-l border-slate-850 break-words">
-                            {inProgressStandalone.length > 0 ? (
+                            {visibleStandalone.length > 0 ? (
                               <div className="space-y-1.5">
-                                {inProgressStandalone.map(d => (
+                                {visibleStandalone.map(d => (
                                   <div
                                     key={d.externalId}
                                     onClick={() => onSelectDemand(d.externalId)}
@@ -3658,7 +3642,7 @@
                                       {d.title}
                                     </span>
                                     {d.promisedDate && (
-                                      <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                      <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-455 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
                                         {formatPromisedDate(d.promisedDate)}
                                       </span>
                                     )}
@@ -3669,11 +3653,9 @@
                               <span className="text-slate-500 text-xs italic py-1 block">Nenhuma demanda ativa independente.</span>
                             )}
                           </td>
-
-                          {/* Cell 3: Situação Atual */}
                           <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
                             {statusNotesList.length > 0 ? (
-                              <ul className="list-disc pl-4 space-y-1.5 text-slate-350 text-xs">
+                              <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
                                 {statusNotesList.map((item, idx) => (
                                   <li key={idx} className="leading-relaxed">
                                     <strong className="text-emerald-400 mr-1">[{item.id}]:</strong>
@@ -3685,11 +3667,9 @@
                               <span className="text-slate-500 text-xs italic">-</span>
                             )}
                           </td>
-
-                          {/* Cell 4: Impedimentos */}
                           <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
                             {impedimentsList.length > 0 ? (
-                              <ul className="list-disc pl-4 space-y-1.5 text-slate-350 text-xs">
+                              <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
                                 {impedimentsList.map((item, idx) => (
                                   <li key={idx} className="leading-relaxed">
                                     <strong className="text-rose-455 mr-1">[{item.id}]:</strong>
@@ -3706,6 +3686,218 @@
                     })()}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile/Tablet view (below lg): stacked cards to prevent horizontal scroll */}
+              <div className="lg:hidden space-y-5">
+                {epics.map(epic => {
+                  const children = epicMap[epic.externalId] || [];
+                  const visibleChildren = children.filter(shouldShowInExecutiveReport);
+                  
+                  const statusNotesList = [];
+                  if (epic.current_status_notes && epic.current_status_notes.trim()) {
+                    statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
+                  }
+                  visibleChildren.forEach(c => {
+                    if (c.current_status_notes && c.current_status_notes.trim()) {
+                      statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
+                    }
+                  });
+
+                  const impedimentsList = [];
+                  if (epic.blocker_notes && epic.blocker_notes.trim()) {
+                    impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
+                  } else if (isDemandBlocked(epic)) {
+                    impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+                  }
+                  visibleChildren.forEach(c => {
+                    if (c.blocker_notes && c.blocker_notes.trim()) {
+                      impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
+                    } else if (isDemandBlocked(c)) {
+                      let bList = c.blockers;
+                      if (typeof bList === 'string') {
+                        try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                      }
+                      const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+                      impedimentsList.push({ id: c.externalId, text: `Impedida${bStr}` });
+                    }
+                  });
+
+                  if (visibleChildren.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0 && !shouldShowInExecutiveReport(epic)) {
+                    return null;
+                  }
+
+                  return (
+                    <div key={epic.externalId} className="bg-slate-900/30 border border-slate-800/80 rounded-xl p-5 space-y-4">
+                      {/* Header Eixo */}
+                      <div className="border-l-4 border-emerald-500 pl-3">
+                        <h4 className="text-white font-bold text-sm leading-snug">{epic.title}</h4>
+                        <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
+                      </div>
+
+                      {/* Demandas em Andamento */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Demandas em Andamento</span>
+                        {visibleChildren.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {visibleChildren.map(c => (
+                              <div
+                                key={c.externalId}
+                                onClick={() => onSelectDemand(c.externalId)}
+                                className="flex items-start justify-between gap-2.5 bg-slate-950/40 border border-slate-850 p-2.5 rounded-lg cursor-pointer hover:border-emerald-500/30 transition-all"
+                              >
+                                <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                                  <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
+                                  {c.title}
+                                </span>
+                                {c.promisedDate && (
+                                  <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-455 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                    {formatPromisedDate(c.promisedDate)}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 text-xs italic">Nenhuma demanda ativa vinculada.</span>
+                        )}
+                      </div>
+
+                      {/* Situação Atual */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Situação Atual</span>
+                        {statusNotesList.length > 0 ? (
+                          <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
+                            {statusNotesList.map((item, idx) => (
+                              <li key={idx} className="leading-relaxed">
+                                <strong className="text-emerald-400 mr-1 font-mono">[{item.id}]:</strong>
+                                <span>{item.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="text-slate-500 text-xs italic">-</span>
+                        )}
+                      </div>
+
+                      {/* Impedimentos */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
+                        {impedimentsList.length > 0 ? (
+                          <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
+                            {impedimentsList.map((item, idx) => (
+                              <li key={idx} className="leading-relaxed">
+                                <strong className="text-rose-455 mr-1 font-mono">[{item.id}]:</strong>
+                                <span>{item.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="text-slate-500 text-xs italic">-</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Standalone demands card */}
+                {(() => {
+                  const visibleStandalone = standaloneDemands.filter(shouldShowInExecutiveReport);
+                  const statusNotesList = [];
+                  const impedimentsList = [];
+
+                  visibleStandalone.forEach(d => {
+                    if (d.current_status_notes && d.current_status_notes.trim()) {
+                      statusNotesList.push({ id: d.externalId, text: d.current_status_notes.trim() });
+                    }
+                    if (d.blocker_notes && d.blocker_notes.trim()) {
+                      impedimentsList.push({ id: d.externalId, text: d.blocker_notes.trim() });
+                    } else if (isDemandBlocked(d)) {
+                      let bList = d.blockers;
+                      if (typeof bList === 'string') {
+                        try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                      }
+                      const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+                      impedimentsList.push({ id: d.externalId, text: `Impedida${bStr}` });
+                    }
+                  });
+
+                  if (visibleStandalone.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0) {
+                    return null;
+                  }
+
+                  return (
+                    <div className="bg-slate-900/30 border border-slate-800/80 rounded-xl p-5 space-y-4">
+                      {/* Header */}
+                      <div className="border-l-4 border-slate-600 pl-3">
+                        <h4 className="text-white font-bold text-sm leading-snug">Demandas Independentes</h4>
+                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Sem Epic/Eixo Vinculado</span>
+                      </div>
+
+                      {/* Demandas em Andamento */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Demandas em Andamento</span>
+                        {visibleStandalone.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {visibleStandalone.map(d => (
+                              <div
+                                key={d.externalId}
+                                onClick={() => onSelectDemand(d.externalId)}
+                                className="flex items-start justify-between gap-2.5 bg-slate-950/40 border border-slate-850 p-2.5 rounded-lg cursor-pointer hover:border-slate-700/85 transition-all"
+                              >
+                                <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                                  <span className="text-slate-500 font-bold mr-1">[{d.externalId}]</span>
+                                  {d.title}
+                                </span>
+                                {d.promisedDate && (
+                                  <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-455 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                    {formatPromisedDate(d.promisedDate)}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 text-xs italic">Nenhuma demanda ativa independente.</span>
+                        )}
+                      </div>
+
+                      {/* Situação Atual */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Situação Atual</span>
+                        {statusNotesList.length > 0 ? (
+                          <ul className="list-disc pl-4 space-y-1 text-slate-355 text-xs">
+                            {statusNotesList.map((item, idx) => (
+                              <li key={idx} className="leading-relaxed">
+                                <strong className="text-emerald-400 mr-1 font-mono">[{item.id}]:</strong>
+                                <span>{item.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="text-slate-500 text-xs italic">-</span>
+                        )}
+                      </div>
+
+                      {/* Impedimentos */}
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
+                        {impedimentsList.length > 0 ? (
+                          <ul className="list-disc pl-4 space-y-1 text-slate-355 text-xs">
+                            {impedimentsList.map((item, idx) => (
+                              <li key={idx} className="leading-relaxed">
+                                <strong className="text-rose-455 mr-1 font-mono">[{item.id}]:</strong>
+                                <span>{item.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="text-slate-500 text-xs italic">-</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ) : null}
