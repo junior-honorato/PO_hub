@@ -133,7 +133,7 @@ export default function StatusMapperTab() {
         <h4 className="text-xs font-bold text-slate-450 uppercase tracking-wider px-1">Mapeamentos Ativos</h4>
         {mappings.length > 0 ? (
           <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-900/10">
-            <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+            <div className="max-h-[450px] overflow-y-auto custom-scrollbar">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-950/60 text-slate-450 font-bold border-b border-slate-850">
