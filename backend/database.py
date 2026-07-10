@@ -181,6 +181,52 @@ def init_db():
             if "strategic_notes" not in proj_columns:
                 conn.execute("ALTER TABLE projects ADD COLUMN strategic_notes TEXT")
 
+            # Tabela Status Mappings (Mapeamento de Status para Categorias Unificadas)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS status_mappings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    origin TEXT CHECK(origin IN ('Jira', 'Azure', 'Negocio')),
+                    external_status TEXT NOT NULL,
+                    mapped_status TEXT NOT NULL CHECK(mapped_status IN ('Backlog', 'Desenvolvimento', 'Homologação', 'Entregue')),
+                    UNIQUE(origin, external_status)
+                )
+            """)
+
+            # Seed default status mappings if table is empty
+            cursor.execute("SELECT COUNT(*) FROM status_mappings")
+            count = cursor.fetchone()[0]
+            if count == 0:
+                defaults = [
+                    # Jira
+                    ('Jira', 'To Do', 'Backlog'),
+                    ('Jira', 'Backlog', 'Backlog'),
+                    ('Jira', 'Selected for Development', 'Backlog'),
+                    ('Jira', 'In Progress', 'Desenvolvimento'),
+                    ('Jira', 'Under Review', 'Homologação'),
+                    ('Jira', 'QA', 'Homologação'),
+                    ('Jira', 'Done', 'Entregue'),
+                    
+                    # Azure
+                    ('Azure', 'New', 'Backlog'),
+                    ('Azure', 'Approved', 'Backlog'),
+                    ('Azure', 'Committed', 'Desenvolvimento'),
+                    ('Azure', 'Active', 'Desenvolvimento'),
+                    ('Azure', 'Review', 'Homologação'),
+                    ('Azure', 'QA', 'Homologação'),
+                    ('Azure', 'Resolved', 'Homologação'),
+                    ('Azure', 'Done', 'Entregue'),
+                    ('Azure', 'Closed', 'Entregue'),
+                    
+                    # Negocio
+                    ('Negocio', 'To Do', 'Backlog'),
+                    ('Negocio', 'Em andamento', 'Desenvolvimento'),
+                    ('Negocio', 'Concluído', 'Entregue')
+                ]
+                conn.executemany(
+                    "INSERT INTO status_mappings (origin, external_status, mapped_status) VALUES (?, ?, ?)",
+                    defaults
+                )
+
             conn.commit()
             print(f"Banco de dados SQLite {db_name} inicializado com sucesso.")
         except Exception as e:

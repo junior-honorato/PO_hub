@@ -138,6 +138,10 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local e campos de 
     - *Correção de Importação:* Resolução do bug em que o `parentId` não era gravado no banco na sincronização, impedindo o aninhamento correto das demandas filhas.
     - *Herança de Projeto:* Implementação de propagação automática de projeto, de modo que demandas filhas recém-sincronizadas herdem automaticamente o projeto vinculado ao seu Epic pai.
     - *Filtro de Legends:* Exclusão total de demandas do tipo `'Legend'` da visão do quadro estratégico para manter o foco em entregáveis.
-    - *Nesting de Oportunidades:* Ajuste das regras para que Oportunidades que tenham um Epic pai sejam aninhadas sob o Epic no quadro executivo, em vez de aparecerem como Epics órfãos.
+14. **Mapeamento e Unificação de Status (Status Mapper):**
+    - Cadastro flexível de regras locais de mapeamento de status por canal (Jira, Azure DevOps, Negócio) integrado ao banco de dados SQLite (`status_mappings`).
+    - Nova aba "Mapeamento de Status" dentro das Configurações do painel que permite gerenciar (listar, adicionar e remover) as regras de tradução de status.
+    - O Board de Trilhas (Kanban) agrupa e organiza visualmente as demandas de cada coluna (Jira, Azure, Negócios) sob quatro subcategorias unificadas de status: *Backlog*, *Desenvolvimento*, *Homologação* e *Entregue*, facilitando a visualização integrada do progresso global.
+
 
 

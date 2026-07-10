@@ -191,6 +191,46 @@ def is_final_status(status):
     s = str(status).strip()
     return s in FINAL_STATUSES or s.lower() in FINAL_STATUSES_LOWER
 
+# Cache em memória e helper para Mapeamento de Status
+STATUS_MAPPINGS_CACHE = {}
+
+def load_status_mappings_cache():
+    global STATUS_MAPPINGS_CACHE
+    try:
+        rows = fetch_all("SELECT origin, external_status, mapped_status FROM status_mappings", db_name="ativo")
+        STATUS_MAPPINGS_CACHE = {
+            (row["origin"].lower(), row["external_status"].strip().lower()): row["mapped_status"]
+            for row in rows
+        }
+        print(f"[*] Cache de Mapeamento de Status carregado ({len(STATUS_MAPPINGS_CACHE)} regras).")
+    except Exception as e:
+        print(f"[!] Erro ao carregar cache de status_mappings: {e}")
+
+def get_mapped_status(origin, external_status):
+    if not external_status:
+        return "Backlog"
+    origin_key = origin.lower() if origin else "negocio"
+    status_key = external_status.strip().lower()
+    
+    mapped = STATUS_MAPPINGS_CACHE.get((origin_key, status_key))
+    if mapped:
+        return mapped
+        
+    if is_final_status(external_status):
+        return "Entregue"
+    elif status_key in {"review", "under review", "qa", "test", "testing", "homologação", "homologacao", "validando", "resolved"}:
+        return "Homologação"
+    elif status_key in {"to do", "new", "approved", "backlog", "a fazer", "selecionado", "selected"}:
+        return "Backlog"
+    else:
+        return "Desenvolvimento"
+
+# Inicializa o cache
+try:
+    load_status_mappings_cache()
+except Exception:
+    pass
+
 def migrate_to_history(external_id):
     # Fetch from active
     demand = fetch_one("SELECT * FROM demands WHERE externalId = ?", (external_id,), "ativo")
@@ -726,6 +766,7 @@ def get_demands_data(db_name="ativo"):
             "origin": row["origin"],
             "title": row["title"],
             "externalStatus": row["externalStatus"],
+            "mappedStatus": get_mapped_status(row["origin"], row["externalStatus"]),
             "itemType": row.get("itemType") or "Outro",
             "createdAt": row["createdAt"],
             "updatedAt": row["updatedAt"],
@@ -746,6 +787,50 @@ def get_demands_data(db_name="ativo"):
     return demands
 
 # FastAPI API Endpoints
+
+class StatusMappingCreate(BaseModel):
+    origin: str
+    external_status: str
+    mapped_status: str
+
+@app.get("/api/status-mappings")
+def get_status_mappings():
+    try:
+        return fetch_all("SELECT * FROM status_mappings ORDER BY origin, external_status", db_name="ativo")
+    except Exception as e:
+        print(f"Erro ao buscar mapeamentos de status: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao carregar mapeamentos de status.")
+
+@app.post("/api/status-mappings")
+def save_status_mapping(payload: StatusMappingCreate):
+    try:
+        if payload.origin not in ('Jira', 'Azure', 'Negocio'):
+            raise HTTPException(status_code=400, detail="Origem inválida.")
+        if payload.mapped_status not in ('Backlog', 'Desenvolvimento', 'Homologação', 'Entregue'):
+            raise HTTPException(status_code=400, detail="Status mapeado inválido.")
+        
+        execute_query("""
+            INSERT OR REPLACE INTO status_mappings (origin, external_status, mapped_status)
+            VALUES (?, ?, ?)
+        """, (payload.origin, payload.external_status.strip(), payload.mapped_status), "ativo")
+        
+        load_status_mappings_cache()
+        return {"success": True}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao salvar mapeamento de status: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao salvar mapeamento de status.")
+
+@app.delete("/api/status-mappings/{mapping_id}")
+def delete_status_mapping(mapping_id: int):
+    try:
+        execute_query("DELETE FROM status_mappings WHERE id = ?", (mapping_id,), "ativo")
+        load_status_mappings_cache()
+        return {"success": True}
+    except Exception as e:
+        print(f"Erro ao excluir mapeamento de status: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao excluir mapeamento de status.")
 
 @app.post("/api/sync")
 def sync_demands(req: SyncRequest = Body(...)):
@@ -1002,6 +1087,7 @@ def get_demand(external_id: str):
             "origin": demand["origin"],
             "title": demand["title"],
             "externalStatus": demand["externalStatus"],
+            "mappedStatus": get_mapped_status(demand["origin"], demand["externalStatus"]),
             "itemType": demand.get("itemType") or "Outro",
             "createdAt": demand["createdAt"],
             "updatedAt": demand["updatedAt"],
@@ -1484,6 +1570,7 @@ async def get_project_overview(project_id: int):
                 "origin": row["origin"],
                 "title": row["title"],
                 "externalStatus": row["externalStatus"],
+                "mappedStatus": get_mapped_status(row["origin"], row["externalStatus"]),
                 "itemType": row.get("itemType") or "Outro",
                 "createdAt": row["createdAt"],
                 "updatedAt": row["updatedAt"],

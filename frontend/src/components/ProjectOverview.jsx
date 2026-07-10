@@ -145,6 +145,40 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const azureBlockedCount = azureDemands.filter(isDemandBlocked).length;
   const businessBlockedCount = businessDemands.filter(isDemandBlocked).length;
 
+  const CATEGORIES = ['Backlog', 'Desenvolvimento', 'Homologação', 'Entregue'];
+
+  const renderColumnDemands = (columnDemands, emptyText) => {
+    if (columnDemands.length === 0) {
+      return <EmptyColumnPlaceholder text={emptyText} />;
+    }
+    return (
+      <div className="space-y-4">
+        {CATEGORIES.map(category => {
+          const catDemands = columnDemands.filter(d => (d.mappedStatus || 'Backlog') === category);
+          if (catDemands.length === 0) return null;
+          return (
+            <div key={category} className="space-y-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-950/45 rounded-lg border border-slate-850/50 text-[9px] font-extrabold uppercase tracking-wider text-slate-400 select-none">
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  category === 'Backlog' ? 'bg-slate-500' :
+                  category === 'Desenvolvimento' ? 'bg-amber-400' :
+                  category === 'Homologação' ? 'bg-blue-400' :
+                  'bg-emerald-400'
+                }`} />
+                {category} ({catDemands.length})
+              </div>
+              <div className="space-y-2">
+                {catDemands.map(d => (
+                  <DemandCard key={d.externalId} demand={d} onSelect={onSelectDemand} />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   // Helpers para o Report Executivo
   const isInProgress = (status) => {
     if (!status) return false;
@@ -437,14 +471,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   </span>
                 </div>
 
-                <div className="flex-1 space-y-3 overflow-y-auto max-h-[450px] pr-1 custom-scrollbar">
-                  {jiraDemands.length > 0 ? (
-                    jiraDemands.map(d => (
-                      <DemandCard key={d.externalId} demand={d} onSelect={onSelectDemand} />
-                    ))
-                  ) : (
-                    <EmptyColumnPlaceholder text="Sem entregas no Jira" />
-                  )}
+                <div className="flex-1 overflow-y-auto max-h-[500px] pr-1 custom-scrollbar">
+                  {renderColumnDemands(jiraDemands, "Sem entregas no Jira")}
                 </div>
 
                 <div className="border-t border-slate-800/60 pt-3 flex items-center justify-between text-xs text-slate-400 mt-auto">
@@ -467,14 +495,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   </span>
                 </div>
 
-                <div className="flex-1 space-y-3 overflow-y-auto max-h-[450px] pr-1 custom-scrollbar">
-                  {azureDemands.length > 0 ? (
-                    azureDemands.map(d => (
-                      <DemandCard key={d.externalId} demand={d} onSelect={onSelectDemand} />
-                    ))
-                  ) : (
-                    <EmptyColumnPlaceholder text="Sem entregas no Azure" />
-                  )}
+                <div className="flex-1 overflow-y-auto max-h-[500px] pr-1 custom-scrollbar">
+                  {renderColumnDemands(azureDemands, "Sem entregas no Azure")}
                 </div>
 
                 <div className="border-t border-slate-800/60 pt-3 flex items-center justify-between text-xs text-slate-400 mt-auto">
@@ -497,14 +519,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   </span>
                 </div>
 
-                <div className="flex-1 space-y-3 overflow-y-auto max-h-[450px] pr-1 custom-scrollbar">
-                  {businessDemands.length > 0 ? (
-                    businessDemands.map(d => (
-                      <DemandCard key={d.externalId} demand={d} onSelect={onSelectDemand} />
-                    ))
-                  ) : (
-                    <EmptyColumnPlaceholder text="Sem demandas de Negócio" />
-                  )}
+                <div className="flex-1 overflow-y-auto max-h-[500px] pr-1 custom-scrollbar">
+                  {renderColumnDemands(businessDemands, "Sem demandas de Negócio")}
                 </div>
 
                 <div className="border-t border-slate-800/60 pt-3 flex items-center justify-between text-xs text-slate-400 mt-auto">
@@ -1484,14 +1500,26 @@ function DemandCard({ demand, onSelect }) {
             </span>
           )}
         </span>
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-          demand.externalStatus === 'Concluído' || demand.externalStatus === 'Concluido' || demand.externalStatus === 'Done' || demand.externalStatus === 'Closed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-          demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Active' || demand.externalStatus === 'Em andamento' ? 'bg-amber-500/10 text-amber-400 border border-emerald-500/20' :
-          isBlocked || demand.externalStatus === 'Blocked' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-          'bg-slate-800 text-slate-400 border border-slate-700'
-        }`}>
-          {demand.externalStatus}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {demand.mappedStatus && (
+            <span className={`inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold rounded ${
+              demand.mappedStatus === 'Backlog' ? 'bg-slate-800 text-slate-400 border border-slate-700/60' :
+              demand.mappedStatus === 'Desenvolvimento' ? 'bg-amber-500/10 text-amber-450 border border-amber-500/20' :
+              demand.mappedStatus === 'Homologação' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+              'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+            }`}>
+              {demand.mappedStatus}
+            </span>
+          )}
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+            demand.externalStatus === 'Concluído' || demand.externalStatus === 'Concluido' || demand.externalStatus === 'Done' || demand.externalStatus === 'Closed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+            demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Active' || demand.externalStatus === 'Em andamento' ? 'bg-amber-500/10 text-amber-400 border border-emerald-500/20' :
+            isBlocked || demand.externalStatus === 'Blocked' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+            'bg-slate-800 text-slate-400 border border-slate-700'
+          }`}>
+            {demand.externalStatus}
+          </span>
+        </div>
       </div>
       
       <h4 className="text-sm font-semibold text-slate-200 line-clamp-2 leading-snug group-hover:text-white transition-colors">
