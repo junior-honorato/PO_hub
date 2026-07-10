@@ -91,6 +91,7 @@ class DemandUpdate(BaseModel):
     project: Optional[str] = None
     current_status_notes: Optional[str] = None
     blocker_notes: Optional[str] = None
+    externalStatus: Optional[str] = None
 
 class DemandManualCreate(BaseModel):
     title: str

@@ -404,7 +404,21 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
                 <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-slate-500" />
-                    Status: <strong className="text-slate-200">{demand.externalStatus}</strong>
+                    Status: 
+                    {demand.origin === 'Negocio' ? (
+                      <select
+                        value={demand.externalStatus || 'Backlog'}
+                        onChange={e => handleUpdateManagementField('externalStatus', e.target.value)}
+                        className="bg-slate-900 border border-slate-800 rounded px-2 py-0.5 text-xs text-slate-200 focus:outline-none focus:border-brand-500 transition-colors ml-1 cursor-pointer"
+                      >
+                        <option value="Backlog">Backlog</option>
+                        <option value="Em Progresso">Em Progresso</option>
+                        <option value="Homologação">Homologação</option>
+                        <option value="Concluído">Concluído</option>
+                      </select>
+                    ) : (
+                      <strong className="text-slate-200 ml-1">{demand.externalStatus}</strong>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5" />
