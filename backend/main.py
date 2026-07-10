@@ -291,14 +291,27 @@ def save_demand(demand, db_name):
     updated_at = demand.get("updatedAt")
     if not updated_at:
         updated_at = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        
+    project = demand.get("project")
+    parent_id = demand.get("parentId")
+    
+    if not project and parent_id:
+        parent_row = fetch_one("SELECT project FROM demands WHERE externalId = ?", (parent_id,), "ativo")
+        if not parent_row:
+            parent_row = fetch_one("SELECT project FROM demands WHERE externalId = ?", (parent_id,), "historico")
+        if parent_row and parent_row["project"]:
+            project = parent_row["project"]
+            
     execute_query("""
-        INSERT INTO demands (externalId, origin, title, externalStatus, itemType, comments_history, parentId, blockers, blocked_by, updatedAt)
-        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, ?)
+        INSERT INTO demands (externalId, origin, title, externalStatus, itemType, comments_history, parentId, project, updatedAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(externalId) DO UPDATE SET
             title = excluded.title,
             externalStatus = excluded.externalStatus,
             itemType = excluded.itemType,
             comments_history = excluded.comments_history,
+            parentId = excluded.parentId,
+            project = COALESCE(excluded.project, demands.project),
             updatedAt = excluded.updatedAt
     """, (
         demand["externalId"],
@@ -307,6 +320,8 @@ def save_demand(demand, db_name):
         demand["externalStatus"],
         demand.get("itemType", "Outro"),
         demand.get("comments_history"),
+        parent_id,
+        project,
         updated_at
     ), db_name)
 
@@ -1348,6 +1363,15 @@ def update_demand(external_id: str, payload: DemandUpdate):
             tuple(params),
             db_name
         )
+        
+        # Propagate project to children if updated
+        if "project" in data and data["project"]:
+            execute_query(
+                "UPDATE demands SET project = ? WHERE (parentId = ? OR localParentId = ?) AND (project IS NULL OR project = '')",
+                (data["project"], external_id, external_id),
+                db_name
+            )
+            
         return {"success": True}
     except HTTPException as he:
         raise he
@@ -1488,8 +1512,9 @@ async def get_project_overview(project_id: int):
         has_close_to_deadline = False
         
         for d in demands:
+            status_lower = d.get("externalStatus").strip().lower() if d.get("externalStatus") else ""
             is_blocked = False
-            if d.get("externalStatus") and d["externalStatus"].strip().lower() == "blocked":
+            if status_lower == "blocked":
                 is_blocked = True
             if d.get("blockers") and len(d["blockers"]) > 0:
                 is_blocked = True

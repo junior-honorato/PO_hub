@@ -159,6 +159,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
   const shouldShowInExecutiveReport = (d) => {
     if (!d) return false;
+    if (d.itemType?.toLowerCase() === 'legend') return false;
     const hasStatusReport = !!(d.current_status_notes && d.current_status_notes.trim() !== '');
     const hasBlockerReport = !!(d.blocker_notes && d.blocker_notes.trim() !== '');
     const isActiveStatus = isInProgress(d.externalStatus);
@@ -197,11 +198,37 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const standaloneBizDemands = [];
 
   const parentIds = new Set(demands.map(d => d.parentId || d.localParentId).filter(Boolean));
+  const demandsMap = {};
+  demands.forEach(d => {
+    demandsMap[d.externalId] = d;
+  });
 
   demands.forEach(d => {
+    if (d.itemType?.toLowerCase() === 'legend') {
+      return;
+    }
     const isEpicType = (d.itemType === 'Epic' || d.itemType === 'Oportunidade');
     const isParentOfSomeone = parentIds.has(d.externalId);
-    if (isEpicType || isParentOfSomeone) {
+    
+    // Determine if it should be a top-level Epic row:
+    let isTopLevelEpic = false;
+    if (d.itemType === 'Epic') {
+      isTopLevelEpic = true;
+    } else if (d.itemType === 'Oportunidade') {
+      // Opportunities are top-level only if they don't have an Epic as a parent
+      const parentId = d.parentId || d.localParentId;
+      const parentDemand = parentId ? demandsMap[parentId] : null;
+      const parentIsEpic = parentDemand && parentDemand.itemType === 'Epic';
+      isTopLevelEpic = !parentIsEpic;
+    } else if (isParentOfSomeone) {
+      // Non-Epic, non-Opportunity parents (like Legend or others)
+      // are top-level if they don't have a parent that is also in the project
+      const parentId = d.parentId || d.localParentId;
+      const hasParentInProject = parentId && demandsMap[parentId] !== undefined;
+      isTopLevelEpic = !hasParentInProject;
+    }
+
+    if (isTopLevelEpic) {
       techEpics.push(d);
       techEpicMap[d.externalId] = [];
       bizEpicMap[d.externalId] = [];
@@ -209,6 +236,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   });
 
   demands.forEach(d => {
+    if (d.itemType?.toLowerCase() === 'legend') {
+      return;
+    }
     if (techEpicMap[d.externalId] !== undefined) {
       return;
     }
@@ -565,10 +595,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                     <tr key={epic.externalId} className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo (Epic Name) */}
                       <td className="px-6 py-5 font-bold text-xs text-white break-words">
-                        <div className="border-l-4 border-emerald-500 pl-3 py-0.5 space-y-1.5">
-                          <span className="text-slate-100 text-sm font-semibold tracking-tight leading-snug block">{epic.title}</span>
+                        <div 
+                          onClick={() => onSelectDemand(epic.externalId)}
+                          className="border-l-4 border-emerald-500 pl-3 py-1 space-y-1.5 cursor-pointer hover:bg-slate-900/40 hover:border-emerald-400 p-1.5 rounded transition-all"
+                        >
+                          <span className="text-slate-100 text-sm font-semibold tracking-tight leading-snug block hover:underline">{epic.title}</span>
                           <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
-                          {isInProgress(epic.externalStatus) && (
+                          {epic.externalStatus && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2">
                               {epic.externalStatus}
                             </span>
@@ -589,6 +622,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                                 <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
                                   <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                                   {c.title}
+                                  {c.externalStatus && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                      {c.externalStatus}
+                                    </span>
+                                  )}
                                 </span>
                                 {c.promisedDate && (
                                   <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
@@ -687,6 +725,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                                 <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
                                   <span className="text-slate-500 font-bold mr-1">[{d.externalId}]</span>
                                   {d.title}
+                                  {d.externalStatus && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                      {d.externalStatus}
+                                    </span>
+                                  )}
                                 </span>
                                 {d.promisedDate && (
                                   <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
@@ -781,8 +824,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               return (
                 <div key={epic.externalId} className="bg-slate-900/30 border border-slate-800/80 rounded-xl p-5 space-y-4">
                   {/* Header Eixo */}
-                  <div className="border-l-4 border-emerald-500 pl-3">
-                    <h4 className="text-white font-bold text-sm leading-snug">{epic.title}</h4>
+                  <div 
+                    onClick={() => onSelectDemand(epic.externalId)}
+                    className="border-l-4 border-emerald-500 pl-3 cursor-pointer hover:bg-slate-900/40 hover:border-emerald-450 p-1 rounded transition-all"
+                  >
+                    <h4 className="text-white font-bold text-sm leading-snug hover:underline">{epic.title}</h4>
                     <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
                   </div>
 
@@ -800,6 +846,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                             <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
                               <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                               {c.title}
+                              {c.externalStatus && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                  {c.externalStatus}
+                                </span>
+                              )}
                             </span>
                             {c.promisedDate && (
                               <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
@@ -1020,10 +1071,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                     <tr key={epic.externalId} className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo (Epic Name) */}
                       <td className="px-6 py-5 font-bold text-xs text-white break-words">
-                        <div className="border-l-4 border-purple-500 pl-3 py-0.5 space-y-1.5">
-                          <span className="text-slate-100 text-sm font-semibold tracking-tight leading-snug block">{epic.title}</span>
+                        <div 
+                          onClick={() => onSelectDemand(epic.externalId)}
+                          className="border-l-4 border-purple-500 pl-3 py-1 space-y-1.5 cursor-pointer hover:bg-slate-900/40 hover:border-purple-400 p-1.5 rounded transition-all"
+                        >
+                          <span className="text-slate-100 text-sm font-semibold tracking-tight leading-snug block hover:underline">{epic.title}</span>
                           <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
-                          {isInProgress(epic.externalStatus) && (
+                          {epic.externalStatus && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2">
                               {epic.externalStatus}
                             </span>
@@ -1043,6 +1097,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                               <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
                                 <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                                 {c.title}
+                                {c.externalStatus && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                    {c.externalStatus}
+                                  </span>
+                                )}
                               </span>
                               {c.promisedDate && (
                                 <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
@@ -1134,6 +1193,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                               <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
                                 <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                                 {c.title}
+                                {c.externalStatus && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                    {c.externalStatus}
+                                  </span>
+                                )}
                               </span>
                               {c.promisedDate && (
                                 <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
@@ -1221,8 +1285,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               return (
                 <div key={epic.externalId} className="bg-slate-950/40 border border-slate-850 rounded-xl p-5 space-y-4">
                   {/* Eixo info */}
-                  <div className="border-l-4 border-purple-500 pl-3 py-0.5 space-y-1">
-                    <span className="text-slate-100 text-sm font-semibold block">{epic.title}</span>
+                  <div 
+                    onClick={() => onSelectDemand(epic.externalId)}
+                    className="border-l-4 border-purple-500 pl-3 py-0.5 space-y-1 cursor-pointer hover:bg-slate-900/40 hover:border-purple-400 p-1 rounded transition-all"
+                  >
+                    <span className="text-slate-100 text-sm font-semibold block hover:underline">{epic.title}</span>
                     <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
                   </div>
 
@@ -1239,6 +1306,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                           <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
                             <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                             {c.title}
+                            {c.externalStatus && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                {c.externalStatus}
+                              </span>
+                            )}
                           </span>
                           {c.promisedDate && (
                             <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded-full shrink-0">

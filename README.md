@@ -131,5 +131,13 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local e campos de 
 9. **Autonomia de Dados Locais:** Atribuição manual de pais, bloqueios e anotações persistentes no SQLite local (como a tabela `demands`), imune a perdas durante as sincronizações automáticas externas do Jira e Azure DevOps.
 10. **Resumo Inteligente e Relatórios com IA:** Integração com a API do Google Gemini para resumos automáticos em lote com suporte a caches locais na tabela `project_reports` para redução de custos (FinOps).
 11. **Suporte a Demandas Independentes:** Agrupamento automático de demandas de TI (Jira/Azure) ou Negócios que não possuem um Epic ou Eixo de parentesco associado sob uma seção específica de "Demandas Independentes" (ou "Demandas de Negócio Avulsas"), garantindo que nenhuma atividade relevante fique oculta no Report Executivo.
+12. **Melhorias UX no Report Executivo:**
+    - *Eixos/Epics Clicáveis:* Toda a área do nome do Epic/Eixo na primeira coluna do Report Executivo é interativa. O clique abre diretamente o modal centralizado de detalhes do item.
+    - *Badges de Status nas Demais Colunas:* As demandas na coluna "Demandas em Andamento" agora exibem badges informativos contendo o status atual vindo do Jira/Azure (ex: "Em andamento", "Entendimento"), facilitando o acompanhamento do progresso de ponta a ponta.
+13. **Correções de Hierarquia e Sincronização:**
+    - *Correção de Importação:* Resolução do bug em que o `parentId` não era gravado no banco na sincronização, impedindo o aninhamento correto das demandas filhas.
+    - *Herança de Projeto:* Implementação de propagação automática de projeto, de modo que demandas filhas recém-sincronizadas herdem automaticamente o projeto vinculado ao seu Epic pai.
+    - *Filtro de Legends:* Exclusão total de demandas do tipo `'Legend'` da visão do quadro estratégico para manter o foco em entregáveis.
+    - *Nesting de Oportunidades:* Ajuste das regras para que Oportunidades que tenham um Epic pai sejam aninhadas sob o Epic no quadro executivo, em vez de aparecerem como Epics órfãos.
 
 
