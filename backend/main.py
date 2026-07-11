@@ -842,6 +842,14 @@ def sync_demands(req: SyncRequest = Body(...)):
     has_jira_payload = bool(req.jiraUrl and req.jiraEmail and req.jiraToken)
     has_azure_payload = bool(req.azureOrg and req.azureProject and req.azureToken)
     
+    # Sempre limpa demandas do projeto TST do banco local para garantir que dados antigos sejam eliminados
+    try:
+        execute_query("DELETE FROM demands WHERE externalId LIKE 'TST-%'", db_name="ativo")
+        execute_query("DELETE FROM demands WHERE externalId LIKE 'TST-%'", db_name="historico")
+        print("[*] Banco de dados limpo de demandas do projeto Jira TST.")
+    except Exception as e:
+        print(f"Erro ao excluir demandas do projeto TST do banco: {e}")
+
     # Se houver credenciais reais em qualquer uma das APIs, limpa TODOS os dados mockados do banco local
     if has_jira_payload or has_azure_payload:
         try:
@@ -879,7 +887,7 @@ def sync_demands(req: SyncRequest = Body(...)):
                 "Accept": "application/json"
             }
             
-            jql = 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia", Legend, "Legend") AND (reporter = currentUser() OR assignee = currentUser())'
+            jql = 'project != "TST" AND issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia", Legend, "Legend") AND (reporter = currentUser() OR assignee = currentUser())'
             if not req.force_refresh:
                 last_sync_row = fetch_one("SELECT val FROM sync_metadata WHERE key = ?", ("last_sync_jira",), "ativo")
                 if last_sync_row and last_sync_row["val"]:
@@ -910,6 +918,9 @@ def sync_demands(req: SyncRequest = Body(...)):
                     if not issues:
                         break
                     for issue in issues:
+                        key = issue.get("key", "")
+                        if key.upper().startswith("TST-"):
+                            continue
                         parsed = parse_jira_issue(issue)
                         jira_fetched.append(parsed)
                     sync_source["jira"] = "real"

@@ -279,6 +279,9 @@ def init_db():
                 )
             """)
 
+            # Exclui qualquer demanda remanescente do projeto TST
+            conn.execute("DELETE FROM demands WHERE externalId LIKE 'TST-%'")
+
             conn.commit()
             print(f"Banco de dados SQLite {db_name} inicializado com sucesso.")
         except Exception as e:
