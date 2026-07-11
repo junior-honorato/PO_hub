@@ -182,15 +182,37 @@ def init_db():
                 conn.execute("ALTER TABLE projects ADD COLUMN strategic_notes TEXT")
 
             # Tabela Status Mappings (Mapeamento de Status para Categorias Unificadas)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS status_mappings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    origin TEXT CHECK(origin IN ('Jira', 'Azure', 'Negocio')),
-                    external_status TEXT NOT NULL,
-                    mapped_status TEXT NOT NULL CHECK(mapped_status IN ('Backlog', 'Desenvolvimento', 'Homologação', 'Entregue')),
-                    UNIQUE(origin, external_status)
-                )
-            """)
+            # Tabela Status Mappings (Mapeamento de Status para Categorias Unificadas)
+            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='status_mappings'")
+            table_def = cursor.fetchone()
+            if table_def and "Em Refinamento" not in table_def[0]:
+                print(f"[*] Migrando tabela status_mappings do banco {db_name} para incluir 'Em Refinamento'...")
+                conn.execute("ALTER TABLE status_mappings RENAME TO status_mappings_old")
+                conn.execute("""
+                    CREATE TABLE status_mappings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        origin TEXT CHECK(origin IN ('Jira', 'Azure', 'Negocio')),
+                        external_status TEXT NOT NULL,
+                        mapped_status TEXT NOT NULL CHECK(mapped_status IN ('Backlog', 'Desenvolvimento', 'Homologação', 'Entregue', 'Em Refinamento')),
+                        UNIQUE(origin, external_status)
+                    )
+                """)
+                conn.execute("""
+                    INSERT INTO status_mappings (id, origin, external_status, mapped_status)
+                    SELECT id, origin, external_status, mapped_status FROM status_mappings_old
+                """)
+                conn.execute("DROP TABLE status_mappings_old")
+                print(f"[*] Migração de status_mappings concluída no banco {db_name}.")
+            else:
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS status_mappings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        origin TEXT CHECK(origin IN ('Jira', 'Azure', 'Negocio')),
+                        external_status TEXT NOT NULL,
+                        mapped_status TEXT NOT NULL CHECK(mapped_status IN ('Backlog', 'Desenvolvimento', 'Homologação', 'Entregue', 'Em Refinamento')),
+                        UNIQUE(origin, external_status)
+                    )
+                """)
 
             # Seed default status mappings if table is empty
             cursor.execute("SELECT COUNT(*) FROM status_mappings")

@@ -807,7 +807,7 @@ def save_status_mapping(payload: StatusMappingCreate):
     try:
         if payload.origin not in ('Jira', 'Azure', 'Negocio'):
             raise HTTPException(status_code=400, detail="Origem inválida.")
-        if payload.mapped_status not in ('Backlog', 'Desenvolvimento', 'Homologação', 'Entregue'):
+        if payload.mapped_status not in ('Backlog', 'Desenvolvimento', 'Homologação', 'Entregue', 'Em Refinamento'):
             raise HTTPException(status_code=400, detail="Status mapeado inválido.")
         
         execute_query("""

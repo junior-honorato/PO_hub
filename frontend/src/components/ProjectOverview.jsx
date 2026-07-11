@@ -145,7 +145,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const azureBlockedCount = azureDemands.filter(isDemandBlocked).length;
   const businessBlockedCount = businessDemands.filter(isDemandBlocked).length;
 
-  const CATEGORIES = ['Backlog', 'Desenvolvimento', 'Homologação', 'Entregue'];
+  const CATEGORIES = ['Backlog', 'Em Refinamento', 'Desenvolvimento', 'Homologação', 'Entregue'];
 
   const renderColumnDemands = (columnDemands, emptyText) => {
     if (columnDemands.length === 0) {
@@ -161,6 +161,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-950/45 rounded-lg border border-slate-850/50 text-[9px] font-extrabold uppercase tracking-wider text-slate-400 select-none">
                 <span className={`w-1.5 h-1.5 rounded-full ${
                   category === 'Backlog' ? 'bg-slate-500' :
+                  category === 'Em Refinamento' ? 'bg-purple-400' :
                   category === 'Desenvolvimento' ? 'bg-amber-400' :
                   category === 'Homologação' ? 'bg-blue-400' :
                   'bg-emerald-400'
@@ -1504,6 +1505,7 @@ function DemandCard({ demand, onSelect }) {
           {demand.mappedStatus && (
             <span className={`inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold rounded ${
               demand.mappedStatus === 'Backlog' ? 'bg-slate-800 text-slate-400 border border-slate-700/60' :
+              demand.mappedStatus === 'Em Refinamento' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
               demand.mappedStatus === 'Desenvolvimento' ? 'bg-amber-500/10 text-amber-450 border border-amber-500/20' :
               demand.mappedStatus === 'Homologação' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
               'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'

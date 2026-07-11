@@ -111,6 +111,7 @@ export default function StatusMapperTab() {
               className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand-500 transition-colors"
             >
               <option value="Backlog">Backlog</option>
+              <option value="Em Refinamento">Em Refinamento</option>
               <option value="Desenvolvimento">Em Desenvolvimento</option>
               <option value="Homologação">Homologação</option>
               <option value="Entregue">Entregue</option>
@@ -159,12 +160,14 @@ export default function StatusMapperTab() {
                       <td className="px-4 py-2.5">
                         <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-bold text-[10px] select-none ${
                           m.mapped_status === 'Backlog' ? 'bg-slate-800 text-slate-400 border border-slate-700/60' :
+                          m.mapped_status === 'Em Refinamento' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/15' :
                           m.mapped_status === 'Desenvolvimento' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/15' :
                           m.mapped_status === 'Homologação' ? 'bg-blue-500/10 text-blue-450 border border-blue-500/15' :
                           'bg-emerald-500/10 text-emerald-400 border border-emerald-500/15'
                         }`}>
                           <span className={`w-1 h-1 rounded-full ${
                             m.mapped_status === 'Backlog' ? 'bg-slate-400' :
+                            m.mapped_status === 'Em Refinamento' ? 'bg-purple-450' :
                             m.mapped_status === 'Desenvolvimento' ? 'bg-amber-450' :
                             m.mapped_status === 'Homologação' ? 'bg-blue-400' :
                             'bg-emerald-450'
