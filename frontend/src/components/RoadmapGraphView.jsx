@@ -17,9 +17,17 @@ const nodeHeight = 85;
 
 // Custom Node Component
 const DemandNode = ({ data }) => {
-  const isJira = data.origin === 'Jira';
-  const borderColor = isJira ? 'border-sky-500' : 'border-emerald-500';
-  const badgeColor = isJira ? 'bg-sky-500/10 text-sky-400 border-sky-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+  const origin = data.origin;
+  let borderColor = 'border-emerald-500';
+  let badgeColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+
+  if (origin === 'Jira') {
+    borderColor = 'border-sky-500';
+    badgeColor = 'bg-sky-500/10 text-sky-400 border-sky-500/20';
+  } else if (origin === 'Negocio') {
+    borderColor = 'border-purple-500';
+    badgeColor = 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+  }
 
   return (
     <div className={`p-3 bg-slate-900 border ${borderColor} rounded-xl shadow-lg w-[200px] text-xs font-sans`}>
