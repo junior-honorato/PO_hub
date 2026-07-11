@@ -1576,9 +1576,13 @@ async def get_project_overview(project_id: int):
             GROUP BY d.externalId
             ORDER BY d.updatedAt DESC
         """
-        rows = fetch_all(query, (project_name,), "ativo")
+        rows_ativo = fetch_all(query, (project_name,), "ativo")
+        rows_historico = fetch_all(query, (project_name,), "historico")
+        rows = [dict(r) for r in rows_ativo] + [dict(r) for r in rows_historico]
         
-        deps = fetch_all("SELECT blocked_id, blocker_id FROM dependencies", db_name="ativo")
+        deps_ativo = fetch_all("SELECT blocked_id, blocker_id FROM dependencies", db_name="ativo")
+        deps_historico = fetch_all("SELECT blocked_id, blocker_id FROM dependencies", db_name="historico")
+        deps = [dict(d) for d in deps_ativo] + [dict(d) for d in deps_historico]
         blockers_map = {}
         blocked_by_map = {}
         for dep in deps:
