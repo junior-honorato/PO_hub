@@ -75,6 +75,7 @@ class SyncRequest(BaseModel):
     azureOrg: Optional[str] = None
     azureProject: Optional[str] = None
     azureToken: Optional[str] = None
+    force_refresh: Optional[bool] = False
 
 class ProjectSummaryRequest(BaseModel):
     project_name: str
@@ -853,6 +854,9 @@ def sync_demands(req: SyncRequest = Body(...)):
     azure_fetched = []
     sync_source = {"jira": "mock", "azure": "mock"}
     errors = []
+    
+    is_jira_incremental = False
+    is_azure_incremental = False
 
     # 1. Jira Sync
     if has_jira_payload:
@@ -873,11 +877,26 @@ def sync_demands(req: SyncRequest = Body(...)):
                 "Authorization": f"Basic {auth_b64}",
                 "Accept": "application/json"
             }
+            
+            jql = 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia", Legend, "Legend") AND (reporter = currentUser() OR assignee = currentUser())'
+            if not req.force_refresh:
+                last_sync_row = fetch_one("SELECT val FROM sync_metadata WHERE key = ?", ("last_sync_jira",), "ativo")
+                if last_sync_row and last_sync_row["val"]:
+                    try:
+                        last_dt = datetime.strptime(last_sync_row["val"], '%Y/%m/%d %H:%M').replace(tzinfo=timezone.utc)
+                        query_dt = last_dt - timedelta(minutes=5)
+                        jql_date_str = query_dt.strftime('%Y/%m/%d %H:%M')
+                        jql += f' AND updated >= "{jql_date_str}"'
+                        is_jira_incremental = True
+                        print(f"Jira Delta Sync ativo. Buscando atualizados desde: {jql_date_str}")
+                    except Exception as date_err:
+                        print(f"Erro ao analisar data de sincronização do Jira: {date_err}")
+            
             next_page_token = None
             max_results = 100
             while True:
                 params = {
-                    "jql": 'issuetype in (Epic, Opportunity, "Epic", "Oportunidade", Story, "Story", "História", "Historia", Legend, "Legend") AND (reporter = currentUser() OR assignee = currentUser())',
+                    "jql": jql,
                     "maxResults": max_results,
                     "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated"
                 }
@@ -930,14 +949,28 @@ def sync_demands(req: SyncRequest = Body(...)):
             }
             
             wiql_url = f"{azure_url}/_apis/wit/wiql?api-version=6.0"
+            wiql_str = (
+                "Select [System.Id] From WorkItems Where [System.State] <> 'Removed' "
+                "AND ("
+                "[System.CreatedBy] = @me "
+                "OR [System.AssignedTo] = @me"
+                ")"
+            )
+            if not req.force_refresh:
+                last_sync_row = fetch_one("SELECT val FROM sync_metadata WHERE key = ?", ("last_sync_azure",), "ativo")
+                if last_sync_row and last_sync_row["val"]:
+                    try:
+                        last_dt = datetime.strptime(last_sync_row["val"], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
+                        query_dt = last_dt - timedelta(minutes=5)
+                        wiql_date_str = query_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+                        wiql_str += f" AND [System.ChangedDate] >= '{wiql_date_str}'"
+                        is_azure_incremental = True
+                        print(f"Azure DevOps Delta Sync ativo. Buscando atualizados desde: {wiql_date_str}")
+                    except Exception as date_err:
+                        print(f"Erro ao analisar data de sincronização do Azure: {date_err}")
+            
             wiql_query = {
-                "query": (
-                    "Select [System.Id] From WorkItems Where [System.State] <> 'Removed' "
-                    "AND ("
-                    "[System.CreatedBy] = @me "
-                    "OR [System.AssignedTo] = @me"
-                    ")"
-                )
+                "query": wiql_str
             }
             
             wiql_response = requests.post(wiql_url, json=wiql_query, headers=headers, verify=VERIFY_SSL, timeout=12)
@@ -1003,11 +1036,33 @@ def sync_demands(req: SyncRequest = Body(...)):
         jira_count = process_sync_for_demands(jira_fetched, "Jira", jira_creds=jira_creds, azure_creds=azure_creds)
         azure_count = process_sync_for_demands(azure_fetched, "Azure", jira_creds=jira_creds, azure_creds=azure_creds)
         
+        # Persist successful sync timestamp metadata
+        now_dt = datetime.now(timezone.utc)
+        if has_jira_payload and not any("Jira" in err for err in errors):
+            jira_sync_timestamp = now_dt.strftime('%Y/%m/%d %H:%M')
+            execute_query(
+                "INSERT OR REPLACE INTO sync_metadata (key, val) VALUES (?, ?)",
+                ("last_sync_jira", jira_sync_timestamp),
+                "ativo"
+            )
+            
+        if has_azure_payload and not any("Azure" in err for err in errors):
+            azure_sync_timestamp = now_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+            execute_query(
+                "INSERT OR REPLACE INTO sync_metadata (key, val) VALUES (?, ?)",
+                ("last_sync_azure", azure_sync_timestamp),
+                "ativo"
+            )
+
         return {
             "success": len(errors) < 2,
             "message": "Sincronização processada com arquitetura de Dois Bancos e credenciais dinâmicas.",
             "sources": sync_source,
             "count": jira_count + azure_count,
+            "sync_types": {
+                "jira": "incremental" if is_jira_incremental else "full",
+                "azure": "incremental" if is_azure_incremental else "full"
+            },
             "errors": errors if errors else None
         }
     except Exception as db_err:

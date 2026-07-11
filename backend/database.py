@@ -249,6 +249,14 @@ def init_db():
                     defaults
                 )
 
+            # Tabela Sync Metadata (para controle de sincronização incremental / delta sync)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS sync_metadata (
+                    key TEXT PRIMARY KEY,
+                    val TEXT
+                )
+            """)
+
             conn.commit()
             print(f"Banco de dados SQLite {db_name} inicializado com sucesso.")
         except Exception as e:

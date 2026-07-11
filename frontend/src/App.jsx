@@ -41,7 +41,7 @@ export default function App() {
     }
   };
 
-  const handleSync = async () => {
+  const handleSync = async (e) => {
     const jiraUrl = localStorage.getItem('jira_url');
     const jiraEmail = localStorage.getItem('jira_email');
     const jiraToken = localStorage.getItem('jira_token');
@@ -57,6 +57,9 @@ export default function App() {
       return;
     }
 
+    const force = e && e.shiftKey === true;
+    console.log(force ? "Iniciando carga completa (force_refresh = true)..." : "Iniciando carga incremental...");
+
     setIsSyncing(true);
     try {
       const res = await fetch('/api/sync', {
@@ -70,7 +73,8 @@ export default function App() {
           jiraToken: jiraToken || null,
           azureOrg: azureOrg || null,
           azureProject: azureProject || null,
-          azureToken: azureToken || null
+          azureToken: azureToken || null,
+          force_refresh: force
         })
       });
       if (res.ok) {
@@ -81,9 +85,23 @@ export default function App() {
           ? 'Conectado a APIs Reais'
           : 'Sincronizado com dados Mockados';
 
+        let syncTypeDetail = '';
+        if (result.sync_types) {
+          const types = [];
+          if (result.sources.jira === 'real' && result.sync_types.jira) {
+            types.push(`Jira: ${result.sync_types.jira === 'incremental' ? 'Delta' : 'Completa'}`);
+          }
+          if (result.sources.azure === 'real' && result.sync_types.azure) {
+            types.push(`Azure: ${result.sync_types.azure === 'incremental' ? 'Delta' : 'Completa'}`);
+          }
+          if (types.length > 0) {
+            syncTypeDetail = ` (${types.join(', ')})`;
+          }
+        }
+
         const syncInfo = {
           time: new Date().toLocaleTimeString('pt-BR'),
-          source: syncSourceMsg
+          source: `${syncSourceMsg}${syncTypeDetail}`
         };
         
         setLastSyncStatus(syncInfo);
