@@ -1,12 +1,34 @@
 import sqlite3
 import os
 
-DATABASE_PATH_ATIVO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "database_ativo.db")
-DATABASE_PATH_HISTORICO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "database_historico.db")
+import json
+
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+
+def get_db_paths():
+    default_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = ""
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                db_path = cfg.get("db_path", "")
+        except Exception:
+            pass
+            
+    if db_path and os.path.isdir(db_path):
+        path_ativo = os.path.join(db_path, "database_ativo.db")
+        path_historico = os.path.join(db_path, "database_historico.db")
+    else:
+        path_ativo = os.path.join(default_dir, "database_ativo.db")
+        path_historico = os.path.join(default_dir, "database_historico.db")
+        
+    return path_ativo, path_historico
 
 def get_connection(db_name="ativo"):
     """Retorna uma conexão configurada com suporte a chaves estrangeiras e dicionários."""
-    path = DATABASE_PATH_HISTORICO if db_name == "historico" else DATABASE_PATH_ATIVO
+    path_ativo, path_historico = get_db_paths()
+    path = path_historico if db_name == "historico" else path_ativo
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")

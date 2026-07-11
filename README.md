@@ -141,7 +141,12 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local e campos de 
 14. **Mapeamento e Unificação de Status (Status Mapper):**
     - Cadastro flexível de regras locais de mapeamento de status por canal (Jira, Azure DevOps, Negócio) integrado ao banco de dados SQLite (`status_mappings`).
     - Nova aba "Mapeamento de Status" dentro das Configurações do painel que permite gerenciar (listar, adicionar e remover) as regras de tradução de status.
-    - O Board de Trilhas (Kanban) agrupa e organiza visualmente as demandas de cada coluna (Jira, Azure, Negócios) sob quatro subcategorias unificadas de status: *Backlog*, *Desenvolvimento*, *Homologação* e *Entregue*, facilitando a visualização integrada do progresso global.
+    - O Board de Trilhas (Kanban) agrupa e organiza visualmente as demandas de cada coluna (Jira, Azure, Negócios) sob subcategorias unificadas de status.
+15. **Sincronização Incremental (Delta Sync):** Otimização que reduz o tempo de sincronização para menos de 1 segundo em chamadas consecutivas, salvando banda e requisições de API ao buscar apenas itens alterados desde a última execução bem-sucedida. Pressione a tecla **Shift** ao clicar em "Sincronizar APIs" para forçar uma recarga completa.
+16. **Filtro de Refinamento no Kanban:** Inclusão da etapa *Em Refinamento* às categorias de status unificadas, dividindo o progresso operacional em 5 colunas no Kanban: *Backlog*, *Em Refinamento*, *Desenvolvimento*, *Homologação* e *Entregue*.
+17. **Status Editável para Demandas de Negócio:** Menu interativo no modal de detalhes que permite alterar localmente o status de demandas de origem `Negocio` (opções: *Backlog*, *Em Progresso*, *Homologação*, e *Concluído*).
+18. **Alocação de Banco de Dados em Nuvem (OneDrive / Rede):** Aba "Banco de Dados" nas Configurações do painel que possibilita definir o caminho absoluto de uma pasta física local (como a pasta do OneDrive empresarial integrada ao Windows ou unidade de rede mapeada). O backend gerencia a cópia, migração e chaveamento dinâmico dos bancos de forma transparente.
+
 
 
 

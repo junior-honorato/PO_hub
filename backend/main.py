@@ -1,4 +1,5 @@
 import os
+import json
 import base64
 import urllib3
 from datetime import datetime, timedelta, timezone
@@ -1795,6 +1796,88 @@ async def delete_project(project_id: int):
     except Exception as e:
         print(f"Erro ao deletar projeto: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao deletar projeto.")
+
+class DbPathRequest(BaseModel):
+    db_path: str
+
+@app.get("/api/settings/db-path")
+async def get_db_path():
+    try:
+        from database import CONFIG_PATH
+        default_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        cfg_path = ""
+        if os.path.exists(CONFIG_PATH):
+            try:
+                with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    cfg_path = cfg.get("db_path", "")
+            except Exception:
+                pass
+                
+        return {
+            "current_path": cfg_path,
+            "default_path": default_dir
+        }
+    except Exception as e:
+        print(f"Erro ao obter caminho do banco: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao obter caminho do banco.")
+
+@app.post("/api/settings/db-path")
+async def update_db_path(req: DbPathRequest):
+    try:
+        import shutil
+        from database import CONFIG_PATH, get_db_paths, init_db
+        path_str = req.db_path.strip()
+        
+        if path_str:
+            if not os.path.exists(path_str):
+                raise HTTPException(status_code=400, detail="O caminho especificado não existe no servidor.")
+            if not os.path.isdir(path_str):
+                raise HTTPException(status_code=400, detail="O caminho especificado não é uma pasta válida.")
+                
+        # 1. Pegar caminhos atuais
+        old_ativo, old_historico = get_db_paths()
+        
+        # 2. Calcular novo destino
+        default_dir = os.path.dirname(os.path.abspath(__file__))
+        if path_str:
+            new_ativo = os.path.join(path_str, "database_ativo.db")
+            new_historico = os.path.join(path_str, "database_historico.db")
+        else:
+            new_ativo = os.path.join(default_dir, "database_ativo.db")
+            new_historico = os.path.join(default_dir, "database_historico.db")
+            
+        # 3. Se os novos arquivos não existirem, copia os antigos para o novo local
+        if old_ativo != new_ativo and os.path.exists(old_ativo) and not os.path.exists(new_ativo):
+            try:
+                shutil.copy2(old_ativo, new_ativo)
+                print(f"Banco ativo copiado de {old_ativo} para {new_ativo}")
+            except Exception as copy_err:
+                print(f"Erro ao copiar banco ativo: {copy_err}")
+                
+        if old_historico != new_historico and os.path.exists(old_historico) and not os.path.exists(new_historico):
+            try:
+                shutil.copy2(old_historico, new_historico)
+                print(f"Banco historico copiado de {old_historico} para {new_historico}")
+            except Exception as copy_err:
+                print(f"Erro ao copiar banco histórico: {copy_err}")
+                
+        # 4. Gravar config.json permanentemente
+        new_config = {"db_path": path_str}
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(new_config, f, indent=4, ensure_ascii=False)
+            
+        # 5. Executar init_db para garantir tabelas prontas se for nova pasta vazia
+        init_db()
+        
+        return {"success": True, "db_path": path_str}
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao atualizar caminho do banco: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 # Monta o diretório static na raiz `/` (DEVE vir após as rotas da API)
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
