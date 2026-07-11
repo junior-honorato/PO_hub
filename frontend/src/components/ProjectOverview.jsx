@@ -601,11 +601,12 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                   // Collect impediments
                   const impedimentsList = [];
-                  // Check Epic itself
-                  if (epic.blocker_notes && epic.blocker_notes.trim()) {
-                    impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
-                  } else if (isDemandBlocked(epic)) {
-                    impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+                  if (shouldShowInExecutiveReport(epic)) {
+                    if (epic.blocker_notes && epic.blocker_notes.trim()) {
+                      impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
+                    } else if (isDemandBlocked(epic)) {
+                      impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+                    }
                   }
                   // Check Children
                   visibleChildren.forEach(c => {
@@ -834,10 +835,12 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               });
 
               const impedimentsList = [];
-              if (epic.blocker_notes && epic.blocker_notes.trim()) {
-                impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
-              } else if (isDemandBlocked(epic)) {
-                impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+              if (shouldShowInExecutiveReport(epic)) {
+                if (epic.blocker_notes && epic.blocker_notes.trim()) {
+                  impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
+                } else if (isDemandBlocked(epic)) {
+                  impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+                }
               }
               visibleChildren.forEach(c => {
                 if (c.blocker_notes && c.blocker_notes.trim()) {
