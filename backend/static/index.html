@@ -3584,9 +3584,10 @@
           isTopLevelEpic = !parentIsEpic;
         } else if (isParentOfSomeone) {
           // Non-Epic, non-Opportunity parents (like Legend or others)
-          // are top-level if they don't have a parent that is also in the project
+          // are top-level if they don't have a parent that is also in the project (excluding Legend parents)
           const parentId = d.parentId || d.localParentId;
-          const hasParentInProject = parentId && demandsMap[parentId] !== undefined;
+          const parentDemand = parentId ? demandsMap[parentId] : null;
+          const hasParentInProject = parentDemand && parentDemand.itemType?.toLowerCase() !== 'legend';
           isTopLevelEpic = !hasParentInProject;
         }
 
