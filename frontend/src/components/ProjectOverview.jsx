@@ -198,12 +198,16 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
     if (d.itemType?.toLowerCase() === 'legend') return false;
 
     const hasBlockerReport = !!(d.blocker_notes && d.blocker_notes.trim() !== '');
+    const isBlocked = (d.externalStatus && d.externalStatus.toLowerCase() === 'blocked') || (d.blockers && d.blockers.length > 0);
     const mapped = d.mappedStatus || 'Backlog';
+
+    // Novo: Se tiver bloqueador cadastrado no sistema, sempre exibe independente do status
+    if (isBlocked) return true;
 
     // Se tiver impedimento preenchido, sempre aparece
     if (hasBlockerReport) return true;
 
-    // Jamais deve aparecer demandas que são "Backlog", "Em Refinamento" e "Entregue" (se não tiverem impedimento)
+    // Jamais deve aparecer demandas que são "Backlog", "Em Refinamento" e "Entregue" (se não tiverem impedimento ou bloqueio)
     if (mapped === 'Backlog' || mapped === 'Em Refinamento' || mapped === 'Entregue') {
       return false;
     }
@@ -605,7 +609,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                     if (epic.blocker_notes && epic.blocker_notes.trim()) {
                       impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
                     } else if (isDemandBlocked(epic)) {
-                      impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+                      let bList = epic.blockers;
+                      if (typeof bList === 'string') {
+                        try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                      }
+                      const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+                      const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+                      impedimentsList.push({ id: epic.externalId, text: bMsg });
                     }
                   }
                   // Check Children
@@ -617,8 +627,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       if (typeof bList === 'string') {
                         try { bList = JSON.parse(bList); } catch(e) { bList = []; }
                       }
-                      const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
-                      impedimentsList.push({ id: c.externalId, text: `Impedida${bStr}` });
+                      const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+                      const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+                      impedimentsList.push({ id: c.externalId, text: bMsg });
                     }
                   });
 
@@ -839,7 +850,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                 if (epic.blocker_notes && epic.blocker_notes.trim()) {
                   impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
                 } else if (isDemandBlocked(epic)) {
-                  impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+                  let bList = epic.blockers;
+                  if (typeof bList === 'string') {
+                    try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                  }
+                  const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+                  const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+                  impedimentsList.push({ id: epic.externalId, text: bMsg });
                 }
               }
               visibleChildren.forEach(c => {
@@ -850,8 +867,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   if (typeof bList === 'string') {
                     try { bList = JSON.parse(bList); } catch(e) { bList = []; }
                   }
-                  const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
-                  impedimentsList.push({ id: c.externalId, text: `Impedida${bStr}` });
+                  const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+                  const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+                  impedimentsList.push({ id: c.externalId, text: bMsg });
                 }
               });
 
