@@ -195,9 +195,11 @@
                 <span className="text-[10px] text-slate-500 block">
                   Última Sync: {lastSyncStatus.time}
                 </span>
-                <span className="text-[10px] text-indigo-400 font-semibold mt-0.5 block">
-                  {lastSyncStatus.source}
-                </span>
+                {lastSyncStatus.source && (
+                  <span className="text-[10px] text-indigo-400 font-semibold mt-0.5 block">
+                    {lastSyncStatus.source}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -518,7 +520,7 @@
                   onClick={handleOpenManualModal}
                   className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-brand-600/20 whitespace-nowrap"
                 >
-                  <Icon name="plus" className="w-3.5 h-3.5" /> + Nova Demanda de Negócio
+                  <Icon name="plus" className="w-3.5 h-3.5" /> Nova Demanda de Negócio
                 </button>
                 <button
                   onClick={handleOpenSyncByIdModal}
@@ -5262,10 +5264,10 @@
             
             const syncSourceMsg = (result.sources.jira === 'real' || result.sources.azure === 'real')
               ? 'Conectado a APIs Reais'
-              : 'Sincronizado com dados Mockados';
+              : '';
 
             let syncTypeDetail = '';
-            if (result.sync_types) {
+            if (result.sync_types && syncSourceMsg) {
               const types = [];
               if (result.sources.jira === 'real' && result.sync_types.jira) {
                 types.push(`Jira: ${result.sync_types.jira === 'incremental' ? 'Delta' : 'Completa'}`);
@@ -5279,8 +5281,8 @@
             }
 
             const syncInfo = {
-              time: new Date().toLocaleTimeString('pt-BR'),
-              source: `${syncSourceMsg}${syncTypeDetail}`
+              time: new Date().toLocaleString('pt-BR'),
+              source: syncSourceMsg ? `${syncSourceMsg}${syncTypeDetail}` : ''
             };
             
             setLastSyncStatus(syncInfo);

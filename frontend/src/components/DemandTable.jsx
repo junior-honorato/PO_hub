@@ -265,7 +265,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
               onClick={handleOpenManualModal}
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-brand-600/20 whitespace-nowrap"
             >
-              <Plus className="w-3.5 h-3.5" /> + Nova Demanda de Negócio
+              <Plus className="w-3.5 h-3.5" /> Nova Demanda de Negócio
             </button>
             <button
               onClick={handleOpenSyncByIdModal}

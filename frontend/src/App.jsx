@@ -82,10 +82,10 @@ export default function App() {
         
         const syncSourceMsg = (result.sources.jira === 'real' || result.sources.azure === 'real')
           ? 'Conectado a APIs Reais'
-          : 'Sincronizado com dados Mockados';
+          : '';
 
         let syncTypeDetail = '';
-        if (result.sync_types) {
+        if (result.sync_types && syncSourceMsg) {
           const types = [];
           if (result.sources.jira === 'real' && result.sync_types.jira) {
             types.push(`Jira: ${result.sync_types.jira === 'incremental' ? 'Delta' : 'Completa'}`);
@@ -99,8 +99,8 @@ export default function App() {
         }
 
         const syncInfo = {
-          time: new Date().toLocaleTimeString('pt-BR'),
-          source: `${syncSourceMsg}${syncTypeDetail}`
+          time: new Date().toLocaleString('pt-BR'),
+          source: syncSourceMsg ? `${syncSourceMsg}${syncTypeDetail}` : ''
         };
         
         setLastSyncStatus(syncInfo);

@@ -87,9 +87,11 @@ export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, la
             <span className="text-[10px] text-slate-500 block">
               Última Sync: {lastSyncStatus.time}
             </span>
-            <span className="text-[10px] text-indigo-400 font-semibold mt-0.5 block">
-              {lastSyncStatus.source}
-            </span>
+            {lastSyncStatus.source && (
+              <span className="text-[10px] text-indigo-400 font-semibold mt-0.5 block">
+                {lastSyncStatus.source}
+              </span>
+            )}
           </div>
         )}
       </div>
