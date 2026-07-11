@@ -78,6 +78,15 @@ class SyncRequest(BaseModel):
     azureToken: Optional[str] = None
     force_refresh: Optional[bool] = False
 
+class SyncByIdRequest(BaseModel):
+    externalId: str
+    jiraUrl: Optional[str] = None
+    jiraEmail: Optional[str] = None
+    jiraToken: Optional[str] = None
+    azureOrg: Optional[str] = None
+    azureProject: Optional[str] = None
+    azureToken: Optional[str] = None
+
 class ProjectSummaryRequest(BaseModel):
     project_name: str
     demand_ids: list[str]
@@ -1080,6 +1089,173 @@ def sync_demands(req: SyncRequest = Body(...)):
     except Exception as db_err:
         print(f"Erro ao persistir sincronização no banco: {db_err}")
         raise HTTPException(status_code=500, detail="Erro interno ao gravar demandas sincronizadas.")
+
+@app.post("/api/sync/by-id")
+def sync_demand_by_id(req: SyncByIdRequest):
+    import re
+    ext_id = req.externalId.strip()
+    
+    # Check if Azure (numeric) or Jira (alphanumeric with hyphen)
+    is_azure = False
+    azure_id = None
+    db_id = None
+    
+    if ext_id.isdigit():
+        is_azure = True
+        azure_id = int(ext_id)
+        db_id = f"AZ-{ext_id}"
+    elif re.match(r'^az-(\d+)$', ext_id, re.IGNORECASE):
+        is_azure = True
+        azure_id = int(re.match(r'^az-(\d+)$', ext_id, re.IGNORECASE).group(1))
+        db_id = f"AZ-{azure_id}"
+    elif '-' in ext_id and any(c.isalpha() for c in ext_id.split('-')[0]):
+        is_azure = False
+        db_id = ext_id.upper()
+    else:
+        raise HTTPException(status_code=400, detail="Formato de ID inválido. Use letras e hífen para Jira (ex: SGRVDI-2262) ou apenas números para Azure (ex: 2329).")
+
+    if not is_azure:
+        # Jira
+        jira_url = req.jiraUrl or os.getenv("JIRA_API_URL")
+        jira_email = req.jiraEmail or os.getenv("JIRA_USER_EMAIL")
+        jira_token = req.jiraToken or os.getenv("JIRA_PAT")
+        
+        has_creds = bool(jira_url and jira_email and jira_token)
+        
+        if not has_creds:
+            # Try to get from mock
+            mock_item = next((item for item in MOCK_JIRA_DEMANDS if item["externalId"].upper() == db_id), None)
+            if mock_item:
+                save_demand(mock_item, "ativo")
+                return {"success": True, "message": f"Demanda {db_id} importada com sucesso!"}
+            else:
+                raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+                
+        try:
+            jira_url_base = jira_url.rstrip('/')
+            if ".atlassian.net/jira" in jira_url_base.lower():
+                jira_url_base = jira_url_base.lower().replace("/jira", "")
+            
+            detail_url = f"{jira_url_base}/rest/api/3/issue/{db_id}"
+            auth_str = f"{jira_email}:{jira_token}"
+            auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+            headers = {
+                "Authorization": f"Basic {auth_b64}",
+                "Accept": "application/json"
+            }
+            params = {
+                "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated"
+            }
+            
+            res = requests.get(detail_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
+            if res.status_code == 404:
+                raise HTTPException(status_code=404, detail="Demanda não encontrada. Verifique o ID e tente novamente.")
+            elif res.status_code != 200:
+                print(f"Jira HTTP error: {res.status_code} - {res.text}")
+                raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+                
+            issue_data = res.json()
+            demand = parse_jira_issue(issue_data)
+            if not demand:
+                raise HTTPException(status_code=404, detail="Demanda não encontrada. Verifique o ID e tente novamente.")
+                
+            status = demand.get("externalStatus")
+            is_final = status in FINAL_STATUSES or is_final_status(status)
+            
+            db_active = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (db_id,), "ativo")
+            db_history = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (db_id,), "historico")
+            
+            if not is_final:
+                if db_history:
+                    migrate_to_active(db_id)
+                save_demand(demand, "ativo")
+            else:
+                if db_active:
+                    save_demand(demand, "ativo")
+                    migrate_to_history(db_id)
+                else:
+                    save_demand(demand, "historico")
+                    
+            return {"success": True, "message": f"Demanda {db_id} importada com sucesso!"}
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            print(f"Erro ao conectar ao Jira: {e}")
+            raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+    else:
+        # Azure DevOps
+        azure_org = req.azureOrg
+        azure_project = req.azureProject
+        azure_token = req.azureToken
+        
+        azure_url_raw = os.getenv("AZURE_API_URL")
+        if azure_org and azure_project:
+            azure_url = f"https://dev.azure.com/{azure_org}/{azure_project}".rstrip('/')
+        elif azure_url_raw:
+            azure_url = azure_url_raw.rstrip('/')
+        else:
+            azure_url = None
+            
+        azure_token = azure_token or os.getenv("AZURE_PAT")
+        has_creds = bool(azure_url and azure_token)
+        
+        if not has_creds:
+            # Try to get from mock
+            mock_id = f"AZURE-{azure_id}"
+            mock_item = next((item for item in MOCK_AZURE_DEMANDS if item["externalId"].upper() == mock_id), None)
+            if mock_item:
+                # Map to proper db_id
+                mock_item_copy = dict(mock_item)
+                mock_item_copy["externalId"] = db_id
+                save_demand(mock_item_copy, "ativo")
+                return {"success": True, "message": f"Demanda {db_id} importada com sucesso!"}
+            else:
+                raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+                
+        try:
+            auth_str = f":{azure_token}"
+            auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
+            headers = {
+                "Authorization": f"Basic {auth_b64}",
+                "Content-Type": "application/json"
+            }
+            
+            detail_url = f"{azure_url}/_apis/wit/workitems/{azure_id}?$expand=all&api-version=6.0"
+            res = requests.get(detail_url, headers=headers, verify=VERIFY_SSL, timeout=12)
+            if res.status_code == 404:
+                raise HTTPException(status_code=404, detail="Demanda não encontrada. Verifique o ID e tente novamente.")
+            elif res.status_code != 200:
+                print(f"Azure HTTP error: {res.status_code} - {res.text}")
+                raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+                
+            item_data = res.json()
+            demand = parse_azure_item(item_data, azure_url, headers)
+            if not demand:
+                raise HTTPException(status_code=404, detail="Demanda não encontrada. Verifique o ID e tente novamente.")
+                
+            status = demand.get("externalStatus")
+            is_final = status in FINAL_STATUSES or is_final_status(status)
+            
+            db_active = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (db_id,), "ativo")
+            db_history = fetch_one("SELECT 1 FROM demands WHERE externalId = ?", (db_id,), "historico")
+            
+            if not is_final:
+                if db_history:
+                    migrate_to_active(db_id)
+                save_demand(demand, "ativo")
+            else:
+                if db_active:
+                    save_demand(demand, "ativo")
+                    migrate_to_history(db_id)
+                else:
+                    save_demand(demand, "historico")
+                    
+            return {"success": True, "message": f"Demanda {db_id} importada com sucesso!"}
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            print(f"Erro ao conectar ao Azure DevOps: {e}")
+            raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
 
 @app.get("/api/demands")
 def list_demands():

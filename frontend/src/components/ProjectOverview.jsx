@@ -196,23 +196,24 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const shouldShowInExecutiveReport = (d) => {
     if (!d) return false;
     if (d.itemType?.toLowerCase() === 'legend') return false;
-    
-    // Regra: Demandas concluídas JAMAIS aparecem nos Reports
-    const isCompleted = d.mappedStatus === 'Entregue' || ['concluído', 'concluido', 'done', 'closed', 'fechado'].includes(d.externalStatus?.trim().toLowerCase());
-    if (isCompleted) return false;
 
-    const hasStatusReport = !!(d.current_status_notes && d.current_status_notes.trim() !== '');
     const hasBlockerReport = !!(d.blocker_notes && d.blocker_notes.trim() !== '');
-    const isActiveStatus = isInProgress(d.externalStatus);
-    
-    // Condição A (Curadoria do PO): blocker_notes preenchido, independentemente do status
+    const mapped = d.mappedStatus || 'Backlog';
+
+    // Se tiver impedimento preenchido, sempre aparece
     if (hasBlockerReport) return true;
-    
-    // Regra de Exclusão: status diferente de "Active" E current_status_notes vazio -> ocultar
-    if (!isActiveStatus && !hasStatusReport) return false;
-    
-    // Caso contrário (é Active ou tem status report), exibir
-    return true;
+
+    // Jamais deve aparecer demandas que são "Backlog", "Em Refinamento" e "Entregue" (se não tiverem impedimento)
+    if (mapped === 'Backlog' || mapped === 'Em Refinamento' || mapped === 'Entregue') {
+      return false;
+    }
+
+    // Entende como status "ATIVO" as CATEGORIAS UNIFICADAS: "Desenvolvimento" e "Homologação"
+    if (mapped === 'Desenvolvimento' || mapped === 'Homologação') {
+      return true;
+    }
+
+    return false;
   };
 
   const formatPromisedDate = (dateStr) => {

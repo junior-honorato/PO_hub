@@ -1,11 +1,86 @@
 import React, { useState } from 'react';
-import { Search, X, Inbox, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Search, X, Inbox, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react';
 
 export default function DemandTable({ demands, onSelectDemand, onRefreshDemands }) {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [newDemandTitle, setNewDemandTitle] = useState('');
   const [newDemandProject, setNewDemandProject] = useState('');
   const [projects, setProjects] = useState([]);
+
+  const [isSyncByIdModalOpen, setIsSyncByIdModalOpen] = useState(false);
+  const [syncIdInput, setSyncIdInput] = useState('');
+  const [syncByIdLoading, setSyncByIdLoading] = useState(false);
+  const [syncByIdFeedback, setSyncByIdFeedback] = useState({ type: null, message: '' });
+
+  const handleOpenSyncByIdModal = () => {
+    setSyncIdInput('');
+    setSyncByIdFeedback({ type: null, message: '' });
+    setIsSyncByIdModalOpen(true);
+  };
+
+  const handleSyncById = async (e) => {
+    e.preventDefault();
+    if (!syncIdInput.trim()) return;
+
+    setSyncByIdLoading(true);
+    setSyncByIdFeedback({ type: null, message: '' });
+
+    const jiraUrl = localStorage.getItem('jira_url');
+    const jiraEmail = localStorage.getItem('jira_email');
+    const jiraToken = localStorage.getItem('jira_token');
+    const azureOrg = localStorage.getItem('azure_org');
+    const azureProject = localStorage.getItem('azure_project');
+    const azureToken = localStorage.getItem('azure_token');
+
+    try {
+      const res = await fetch('/api/sync/by-id', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          externalId: syncIdInput.trim(),
+          jiraUrl: jiraUrl || null,
+          jiraEmail: jiraEmail || null,
+          jiraToken: jiraToken || null,
+          azureOrg: azureOrg || null,
+          azureProject: azureProject || null,
+          azureToken: azureToken || null
+        })
+      });
+
+      if (res.ok) {
+        setSyncByIdFeedback({
+          type: 'success',
+          message: `Demanda ${syncIdInput.trim()} importada com sucesso!`
+        });
+        if (onRefreshDemands) {
+          await onRefreshDemands();
+        }
+        setTimeout(() => {
+          setIsSyncByIdModalOpen(false);
+        }, 1500);
+      } else if (res.status === 404) {
+        setSyncByIdFeedback({
+          type: 'warning',
+          message: "Demanda não encontrada. Verifique o ID e tente novamente."
+        });
+      } else {
+        setSyncByIdFeedback({
+          type: 'error',
+          message: "Não foi possível conectar ao serviço. Tente novamente em instantes."
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setSyncByIdFeedback({
+        type: 'error',
+        message: "Não foi possível conectar ao serviço. Tente novamente em instantes."
+      });
+    } finally {
+      setSyncByIdLoading(false);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -191,6 +266,12 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-brand-600/20 whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" /> + Nova Demanda de Negócio
+            </button>
+            <button
+              onClick={handleOpenSyncByIdModal}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-750 active:scale-95 text-slate-200 hover:text-white text-xs font-bold rounded-xl transition-all border border-slate-700 whitespace-nowrap"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Adicionar Manualmente Demanda Jira/Azure
             </button>
           </div>
           
@@ -526,6 +607,68 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                   className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold"
                 >
                   Criar Demanda
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Sincronização por ID */}
+      {isSyncByIdModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsSyncByIdModalOpen(false)} />
+          <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 text-left">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">Adicionar por ID</h3>
+              <button 
+                onClick={() => setIsSyncByIdModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSyncById} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs text-slate-400 font-semibold">ID do Jira ou do Azure DevOps</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: SGRVDI-2262 (Jira) ou 2329 (Azure)"
+                  value={syncIdInput}
+                  onChange={e => setSyncIdInput(e.target.value)}
+                  disabled={syncByIdLoading}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-brand-500 disabled:opacity-55"
+                />
+              </div>
+
+              {syncByIdFeedback.type && (
+                <div className={`p-3.5 rounded-xl text-xs font-semibold leading-relaxed border ${
+                  syncByIdFeedback.type === 'success' ? 'bg-emerald-500/10 text-emerald-450 border-emerald-500/25' :
+                  syncByIdFeedback.type === 'warning' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                  'bg-rose-500/10 text-rose-450 border-rose-500/25'
+                }`}>
+                  {syncByIdFeedback.message}
+                </div>
+              )}
+              
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSyncByIdModalOpen(false)}
+                  disabled={syncByIdLoading}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={syncByIdLoading || !syncIdInput.trim()}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
+                >
+                  {syncByIdLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  Sincronizar
                 </button>
               </div>
             </form>
