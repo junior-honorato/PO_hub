@@ -5,7 +5,6 @@ import SettingsModal from './components/SettingsModal';
 import DemandTable from './components/DemandTable';
 import DemandDrawer from './components/DemandDrawer';
 import ManagerSyncView from './components/ManagerSyncView';
-import RoadmapGraphView from './components/RoadmapGraphView';
 import HistoryView from './components/HistoryView';
 import PortfolioView from './components/PortfolioView';
 import ProjectOverview from './components/ProjectOverview';
@@ -210,8 +209,6 @@ export default function App() {
           <PortfolioView onSelectProject={setSelectedProjectId} />
         ) : activeTab === 'one-on-one' ? (
           <ManagerSyncView demands={demands} onSelectDemand={handleSelectDemand} />
-        ) : activeTab === 'roadmap' ? (
-          <RoadmapGraphView demands={demands} onSelectDemand={handleSelectDemand} />
         ) : activeTab === 'history' ? (
           <HistoryView onSelectDemand={handleSelectDemand} />
         ) : (

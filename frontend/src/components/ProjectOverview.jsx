@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X } from 'lucide-react';
+import RoadmapGraphView from './RoadmapGraphView';
 
 export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const [data, setData] = useState(null);
@@ -444,6 +445,16 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
             }`}
           >
             Report Executivo Negócios
+          </button>
+          <button
+            onClick={() => setActiveTab('roadmap')}
+            className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${
+              activeTab === 'roadmap'
+                ? 'border-brand-500 text-white'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Mapa do Roadmap
           </button>
         </div>
       )}
@@ -1468,6 +1479,11 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               );
             })()}
           </div>
+        </div>
+      ) : activeTab === 'roadmap' ? (
+        <div className="bg-slate-900/20 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md">
+          <h3 className="text-base font-bold text-slate-100 mb-4">Mapa de Dependências e Roadmap</h3>
+          <RoadmapGraphView demands={data.demands} onSelectDemand={onSelectDemand} />
         </div>
       ) : null}
     </div>
