@@ -24,7 +24,13 @@ export default function App() {
     loadDemands();
     const savedSync = localStorage.getItem('po-hub-last-sync');
     if (savedSync) {
-      setLastSyncStatus(JSON.parse(savedSync));
+      try {
+        const parsed = JSON.parse(savedSync);
+        if (parsed.source === 'Sincronizado com dados Mockados') {
+          parsed.source = '';
+        }
+        setLastSyncStatus(parsed);
+      } catch (e) {}
     }
   }, []);
 
