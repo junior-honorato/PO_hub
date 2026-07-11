@@ -608,7 +608,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   if (shouldShowInExecutiveReport(epic)) {
                     if (epic.blocker_notes && epic.blocker_notes.trim()) {
                       impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
-                    } else if (isDemandBlocked(epic)) {
+                    }
+                    if (isDemandBlocked(epic)) {
                       let bList = epic.blockers;
                       if (typeof bList === 'string') {
                         try { bList = JSON.parse(bList); } catch(e) { bList = []; }
@@ -622,7 +623,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   visibleChildren.forEach(c => {
                     if (c.blocker_notes && c.blocker_notes.trim()) {
                       impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
-                    } else if (isDemandBlocked(c)) {
+                    }
+                    if (isDemandBlocked(c)) {
                       let bList = c.blockers;
                       if (typeof bList === 'string') {
                         try { bList = JSON.parse(bList); } catch(e) { bList = []; }
@@ -849,7 +851,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               if (shouldShowInExecutiveReport(epic)) {
                 if (epic.blocker_notes && epic.blocker_notes.trim()) {
                   impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
-                } else if (isDemandBlocked(epic)) {
+                }
+                if (isDemandBlocked(epic)) {
                   let bList = epic.blockers;
                   if (typeof bList === 'string') {
                     try { bList = JSON.parse(bList); } catch(e) { bList = []; }
@@ -862,7 +865,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               visibleChildren.forEach(c => {
                 if (c.blocker_notes && c.blocker_notes.trim()) {
                   impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
-                } else if (isDemandBlocked(c)) {
+                }
+                if (isDemandBlocked(c)) {
                   let bList = c.blockers;
                   if (typeof bList === 'string') {
                     try { bList = JSON.parse(bList); } catch(e) { bList = []; }
