@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X, Download } from 'lucide-react';
 import RoadmapGraphView from './RoadmapGraphView';
 
 export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
@@ -107,6 +107,223 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
     } finally {
       setSaving(false);
     }
+  };
+  
+  const exportToPPTX = () => {
+    if (!window.PptxGenJS) {
+      alert("A biblioteca PowerPoint ainda não foi carregada. Aguarde um instante.");
+      return;
+    }
+    const pptx = new window.PptxGenJS();
+    pptx.layout = 'LAYOUT_16x9';
+
+    // Definir Master Slide com estilo Premium Dark
+    pptx.defineSlideMaster({
+      title: "MASTER_SLIDE",
+      background: { fill: "0B0F19" },
+      slideNumber: { x: 12.8, y: 7.1, color: "64748B", fontSize: 9 },
+      objects: [
+        { rect: { x: 0, y: 0, w: 13.3, h: 0.8, fill: { color: "0F172A" } } },
+        { line: { x: 0, y: 0.8, w: 13.3, h: 0, line: { color: "334155", width: 1 } } }
+      ]
+    });
+
+    const slide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
+
+    // Titulo do Slide
+    const reportTitle = activeTab === 'report_tech' ? "REPORT EXECUTIVO - TECNOLOGIA" : "REPORT EXECUTIVO - NEGÓCIOS";
+    slide.addText(reportTitle, { x: 0.5, y: 0.15, w: 9, h: 0.5, fontSize: 18, color: "34D399", bold: true, fontFace: "Calibri" });
+    
+    // Data & Sponsor
+    const todayStr = new Date().toLocaleDateString('pt-BR');
+    const headerInfo = project.sponsor ? `Data: ${todayStr} | Sponsor: ${project.sponsor}` : `Data: ${todayStr}`;
+    slide.addText(headerInfo, { x: 8.5, y: 0.25, w: 4.3, h: 0.4, fontSize: 9.5, color: "94A3B8", align: "right", fontFace: "Calibri" });
+
+    // Tabela rows
+    const rows = [];
+    
+    // Header
+    rows.push([
+      { text: "Eixo (Epic)", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
+      { text: activeTab === 'report_tech' ? "Demandas em Desenvolvimento / Homologação" : "Demandas de Negócio em Progresso", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
+      { text: "Situação Atual", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
+      { text: "Impedimentos / Pontos de Atenção", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } }
+    ]);
+
+    const addTableRow = (col1, col2, col3, col4, index) => {
+      const bgColor = index % 2 === 0 ? "0B0F19" : "131A2A";
+      const cellOpts = (text) => ({
+        text: text || "-",
+        options: {
+          fill: { color: bgColor },
+          color: "E2E8F0",
+          fontSize: 8.5,
+          fontFace: "Calibri",
+          valign: "top",
+          border: { type: "solid", color: "1E293B", pt: 0.5 },
+          margin: [4, 4, 4, 4]
+        }
+      });
+      rows.push([
+        cellOpts(col1),
+        cellOpts(col2),
+        cellOpts(col3),
+        cellOpts(col4)
+      ]);
+    };
+
+    let rowIndex = 0;
+
+    if (activeTab === 'report_tech') {
+      techEpics.forEach(epic => {
+        const children = epicMap[epic.externalId] || [];
+        const visibleChildren = children.filter(shouldShowInExecutiveReport);
+        
+        const statusNotesList = [];
+        if (epic.current_status_notes && epic.current_status_notes.trim()) {
+          statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
+        }
+        visibleChildren.forEach(c => {
+          if (c.current_status_notes && c.current_status_notes.trim()) {
+            statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
+          }
+        });
+
+        const impedimentsList = [];
+        if (shouldShowInExecutiveReport(epic)) {
+          if (epic.blocker_notes && epic.blocker_notes.trim()) {
+            impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
+          }
+          if (isDemandBlocked(epic)) {
+            let bList = epic.blockers;
+            if (typeof bList === 'string') {
+              try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+            }
+            const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+            const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+            impedimentsList.push({ id: epic.externalId, text: bMsg });
+          }
+        }
+        visibleChildren.forEach(c => {
+          if (c.blocker_notes && c.blocker_notes.trim()) {
+            impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
+          }
+          if (isDemandBlocked(c)) {
+            let bList = c.blockers;
+            if (typeof bList === 'string') {
+              try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+            }
+            const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+            const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+            impedimentsList.push({ id: c.externalId, text: bMsg });
+          }
+        });
+
+        if (visibleChildren.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0 && !shouldShowInExecutiveReport(epic)) {
+          return;
+        }
+
+        const col1 = `[${epic.externalId}]\n${epic.title}`;
+        const col2 = visibleChildren.map(c => `• [${c.externalId}] ${c.title} (${c.mappedStatus || 'Backlog'})`).join('\n');
+        const col3 = statusNotesList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
+        const col4 = impedimentsList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
+
+        addTableRow(col1, col2, col3, col4, rowIndex++);
+      });
+    } else {
+      // report_biz
+      techEpics.forEach(epic => {
+        const children = bizEpicMap[epic.externalId] || [];
+        if (children.length === 0) return;
+
+        const statusNotesList = [];
+        if (epic.current_status_notes && epic.current_status_notes.trim()) {
+          statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
+        }
+        children.forEach(c => {
+          if (c.current_status_notes && c.current_status_notes.trim()) {
+            statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
+          }
+        });
+
+        const impedimentsList = [];
+        if (epic.blocker_notes && epic.blocker_notes.trim()) {
+          impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
+        }
+        if (isDemandBlocked(epic)) {
+          let bList = epic.blockers;
+          if (typeof bList === 'string') {
+            try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+          }
+          const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+          const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+          impedimentsList.push({ id: epic.externalId, text: bMsg });
+        }
+        children.forEach(c => {
+          if (c.blocker_notes && c.blocker_notes.trim()) {
+            impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
+          }
+          if (isDemandBlocked(c)) {
+            let bList = c.blockers;
+            if (typeof bList === 'string') {
+              try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+            }
+            const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+            const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+            impedimentsList.push({ id: c.externalId, text: bMsg });
+          }
+        });
+
+        const col1 = `[${epic.externalId}]\n${epic.title}`;
+        const col2 = children.map(c => `• [${c.externalId}] ${c.title} (${c.externalStatus || 'Não Iniciada'})`).join('\n');
+        const col3 = statusNotesList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
+        const col4 = impedimentsList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
+
+        addTableRow(col1, col2, col3, col4, rowIndex++);
+      });
+
+      if (standaloneBizDemands.length > 0) {
+        const impedimentsList = [];
+        standaloneBizDemands.forEach(c => {
+          if (c.blocker_notes && c.blocker_notes.trim()) {
+            impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
+          }
+          if (isDemandBlocked(c)) {
+            let bList = c.blockers;
+            if (typeof bList === 'string') {
+              try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+            }
+            const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+            const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+            impedimentsList.push({ id: c.externalId, text: bMsg });
+          }
+        });
+
+        const col1 = "Sem Eixo Associado";
+        const col2 = standaloneBizDemands.map(c => `• [${c.externalId}] ${c.title} (${c.externalStatus || 'Não Iniciada'})`).join('\n');
+        const col3 = standaloneBizDemands.filter(c => c.current_status_notes?.trim()).map(c => `• [${c.externalId}]: ${c.current_status_notes.trim()}`).join('\n') || "-";
+        const col4 = impedimentsList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
+
+        addTableRow(col1, col2, col3, col4, rowIndex++);
+      }
+    }
+
+    slide.addTable(rows, {
+      x: 0.5,
+      y: 1.1,
+      w: 12.3,
+      colW: [2.5, 3.8, 3.0, 3.0],
+      autoPage: true,
+      autoPageHeader: { 
+        text: reportTitle, 
+        options: { fontSize: 18, color: "34D399", bold: true, fontFace: "Calibri", x: 0.5, y: 0.15 } 
+      },
+      autoPageLineWeight: 0.5
+    });
+
+    const cleanProjName = project.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const fileName = activeTab === 'report_tech' ? `Report_Executivo_Tecnologia_${cleanProjName}.pptx` : `Report_Executivo_Negocios_${cleanProjName}.pptx`;
+    pptx.writeFile({ fileName: fileName });
   };
 
   if (loading) {
@@ -331,12 +548,20 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
           <div className="flex items-center gap-2">
             {(activeTab === 'report_tech' || activeTab === 'report_biz') && (
-              <button
-                onClick={() => setIsPresentationMode(true)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95 select-none"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" /> Modo Apresentação
-              </button>
+              <>
+                <button
+                  onClick={() => setIsPresentationMode(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95 select-none"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" /> Modo Apresentação
+                </button>
+                <button
+                  onClick={exportToPPTX}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-purple-900/20 active:scale-95 select-none"
+                >
+                  <Download className="w-3.5 h-3.5" /> Exportar PPTX
+                </button>
+              </>
             )}
 
             <button
@@ -352,13 +577,21 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
       {/* Floating Close Presentation Mode Button */}
       {isPresentationMode && (
-        <button
-          onClick={() => setIsPresentationMode(false)}
-          className="fixed top-6 right-6 z-50 px-4 py-2.5 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all opacity-30 hover:opacity-100 flex items-center gap-1.5 select-none"
-          title="Pressione ESC para sair"
-        >
-          <X className="w-4 h-4" /> Sair da Apresentação
-        </button>
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2">
+          <button
+            onClick={exportToPPTX}
+            className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shadow-2xl transition-all flex items-center gap-1.5 select-none"
+          >
+            <Download className="w-3.5 h-3.5" /> Exportar PPTX
+          </button>
+          <button
+            onClick={() => setIsPresentationMode(false)}
+            className="px-4 py-2.5 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all opacity-30 hover:opacity-100 flex items-center gap-1.5 select-none"
+            title="Pressione ESC para sair"
+          >
+            <X className="w-4 h-4" /> Sair da Apresentação
+          </button>
+        </div>
       )}
 
       {/* Header Executivo Card (Hidden in Presentation Mode) */}
