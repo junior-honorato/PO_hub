@@ -137,42 +137,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
       ]
     });
 
-    const slide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
-
-    // Tabela rows
-    const rows = [];
-    
-    // Header
-    rows.push([
-      { text: "Eixo (Epic)", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
-      { text: activeTab === 'report_tech' ? "Demandas em Desenvolvimento / Homologação" : "Demandas de Negócio em Progresso", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
-      { text: "Situação Atual", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
-      { text: "Impedimentos / Pontos de Atenção", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } }
-    ]);
-
-    const addTableRow = (col1, col2, col3, col4, index) => {
-      const bgColor = index % 2 === 0 ? "0B0F19" : "131A2A";
-      const cellOpts = (text) => ({
-        text: text || "-",
-        options: {
-          fill: { color: bgColor },
-          color: "E2E8F0",
-          fontSize: 8.5,
-          fontFace: "Calibri",
-          valign: "top",
-          border: { type: "solid", color: "1E293B", pt: 0.5 },
-          margin: [4, 4, 4, 4]
-        }
-      });
-      rows.push([
-        cellOpts(col1),
-        cellOpts(col2),
-        cellOpts(col3),
-        cellOpts(col4)
-      ]);
-    };
-
-    let rowIndex = 0;
+    const dataRows = [];
 
     if (activeTab === 'report_tech') {
       techEpics.forEach(epic => {
@@ -228,7 +193,14 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         const col3 = statusNotesList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
         const col4 = impedimentsList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
 
-        addTableRow(col1, col2, col3, col4, rowIndex++);
+        const maxLines = Math.max(
+          col1.split('\n').length,
+          col2.split('\n').length,
+          col3.split('\n').length,
+          col4.split('\n').length
+        );
+
+        dataRows.push({ col1, col2, col3, col4, maxLines });
       });
     } else {
       // report_biz
@@ -279,7 +251,14 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         const col3 = statusNotesList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
         const col4 = impedimentsList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
 
-        addTableRow(col1, col2, col3, col4, rowIndex++);
+        const maxLines = Math.max(
+          col1.split('\n').length,
+          col2.split('\n').length,
+          col3.split('\n').length,
+          col4.split('\n').length
+        );
+
+        dataRows.push({ col1, col2, col3, col4, maxLines });
       });
 
       if (standaloneBizDemands.length > 0) {
@@ -304,21 +283,80 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         const col3 = standaloneBizDemands.filter(c => c.current_status_notes?.trim()).map(c => `• [${c.externalId}]: ${c.current_status_notes.trim()}`).join('\n') || "-";
         const col4 = impedimentsList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
 
-        addTableRow(col1, col2, col3, col4, rowIndex++);
+        const maxLines = Math.max(
+          col1.split('\n').length,
+          col2.split('\n').length,
+          col3.split('\n').length,
+          col4.split('\n').length
+        );
+
+        dataRows.push({ col1, col2, col3, col4, maxLines });
       }
     }
 
-    slide.addTable(rows, {
-      x: 0.5,
-      y: 1.1,
-      w: 12.3,
-      colW: [2.5, 3.8, 3.0, 3.0],
-      autoPage: true,
-      autoPageRepeatHeader: true,
-      autoPageHeaderRows: 1,
-      newSlideStartY: 1.1,
-      autoPageLineWeight: 0.5
+    // Configuração de Paginação Manual para manter as linhas inteiras
+    const headerRow = [
+      { text: "Eixo (Epic)", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
+      { text: activeTab === 'report_tech' ? "Demandas em Desenvolvimento / Homologação" : "Demandas de Negócio em Progresso", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
+      { text: "Situação Atual", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
+      { text: "Impedimentos / Pontos de Atenção", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } }
+    ];
+
+    let currentSlide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
+    let currentSlideRows = [headerRow];
+    let currentLinesCount = 0;
+    const MAX_LINES_PER_SLIDE = 26; // Limite conservador para garantir que a linha inteira cabe sem quebra de página
+
+    dataRows.forEach((row, index) => {
+      const rowLines = Math.max(row.maxLines, 2); // Assume pelo menos 2 linhas de altura por questão de padding
+      
+      // Se adicionar esta linha estoura o limite do slide, salva a tabela atual e cria um novo slide
+      if (currentLinesCount + rowLines > MAX_LINES_PER_SLIDE && currentSlideRows.length > 1) {
+        currentSlide.addTable(currentSlideRows, {
+          x: 0.5,
+          y: 1.1,
+          w: 12.3,
+          colW: [2.5, 3.8, 3.0, 3.0]
+        });
+
+        currentSlide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
+        currentSlideRows = [headerRow];
+        currentLinesCount = 0;
+      }
+
+      const bgColor = index % 2 === 0 ? "0B0F19" : "131A2A";
+      const cellOpts = (text) => ({
+        text: text || "-",
+        options: {
+          fill: { color: bgColor },
+          color: "E2E8F0",
+          fontSize: 8.5,
+          fontFace: "Calibri",
+          valign: "top",
+          border: { type: "solid", color: "1E293B", pt: 0.5 },
+          margin: [4, 4, 4, 4]
+        }
+      });
+
+      currentSlideRows.push([
+        cellOpts(row.col1),
+        cellOpts(row.col2),
+        cellOpts(row.col3),
+        cellOpts(row.col4)
+      ]);
+
+      currentLinesCount += rowLines;
     });
+
+    // Adiciona a última tabela acumulada ao slide final
+    if (currentSlideRows.length > 1) {
+      currentSlide.addTable(currentSlideRows, {
+        x: 0.5,
+        y: 1.1,
+        w: 12.3,
+        colW: [2.5, 3.8, 3.0, 3.0]
+      });
+    }
 
     const cleanProjName = project.name.replace(/[^a-zA-Z0-9]/g, '_');
     const fileName = activeTab === 'report_tech' ? `Report_Executivo_Tecnologia_${cleanProjName}.pptx` : `Report_Executivo_Negocios_${cleanProjName}.pptx`;
