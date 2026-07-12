@@ -3712,6 +3712,13 @@
         const pptx = new window.PptxGenJS();
         pptx.layout = 'LAYOUT_16x9';
 
+        // Titulo do Slide
+        const reportTitle = activeTab === 'report_tech' ? "REPORT EXECUTIVO - TECNOLOGIA" : "REPORT EXECUTIVO - NEGÓCIOS";
+        
+        // Data & Sponsor
+        const todayStr = new Date().toLocaleDateString('pt-BR');
+        const headerInfo = project.sponsor ? `Data: ${todayStr} | Sponsor: ${project.sponsor}` : `Data: ${todayStr}`;
+
         // Definir Master Slide com estilo Premium Dark
         pptx.defineSlideMaster({
           title: "MASTER_SLIDE",
@@ -3719,20 +3726,13 @@
           slideNumber: { x: 12.8, y: 7.1, color: "64748B", fontSize: 9 },
           objects: [
             { rect: { x: 0, y: 0, w: 13.3, h: 0.8, fill: { color: "0F172A" } } },
-            { line: { x: 0, y: 0.8, w: 13.3, h: 0, line: { color: "334155", width: 1 } } }
+            { rect: { x: 0, y: 0.8, w: 13.3, h: 0.02, fill: { color: "334155" } } },
+            { text: { text: reportTitle, options: { x: 0.5, y: 0.15, w: 9, h: 0.5, fontSize: 18, color: "34D399", bold: true, fontFace: "Calibri" } } },
+            { text: { text: headerInfo, options: { x: 8.5, y: 0.25, w: 4.3, h: 0.4, fontSize: 9.5, color: "94A3B8", align: "right", fontFace: "Calibri" } } }
           ]
         });
 
         const slide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
-
-        // Titulo do Slide
-        const reportTitle = activeTab === 'report_tech' ? "REPORT EXECUTIVO - TECNOLOGIA" : "REPORT EXECUTIVO - NEGÓCIOS";
-        slide.addText(reportTitle, { x: 0.5, y: 0.15, w: 9, h: 0.5, fontSize: 18, color: "34D399", bold: true, fontFace: "Calibri" });
-        
-        // Data & Sponsor
-        const todayStr = new Date().toLocaleDateString('pt-BR');
-        const headerInfo = project.sponsor ? `Data: ${todayStr} | Sponsor: ${project.sponsor}` : `Data: ${todayStr}`;
-        slide.addText(headerInfo, { x: 8.5, y: 0.25, w: 4.3, h: 0.4, fontSize: 9.5, color: "94A3B8", align: "right", fontFace: "Calibri" });
 
         // Tabela rows
         const rows = [];
@@ -3909,10 +3909,9 @@
           w: 12.3,
           colW: [2.5, 3.8, 3.0, 3.0],
           autoPage: true,
-          autoPageHeader: { 
-            text: reportTitle, 
-            options: { fontSize: 18, color: "34D399", bold: true, fontFace: "Calibri", x: 0.5, y: 0.15 } 
-          },
+          autoPageRepeatHeader: true,
+          autoPageHeaderRows: 1,
+          newSlideStartY: 1.1,
           autoPageLineWeight: 0.5
         });
 
