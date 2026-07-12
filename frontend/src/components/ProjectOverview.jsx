@@ -124,18 +124,60 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
     const todayStr = new Date().toLocaleDateString('pt-BR');
     const headerInfo = project.sponsor ? `Data: ${todayStr} | Sponsor: ${project.sponsor}` : `Data: ${todayStr}`;
 
-    // Definir Master Slide com estilo Premium Dark
+    // Definir Master Slide com estilo Premium Dark (apenas fundo e numeração de página)
     pptx.defineSlideMaster({
       title: "MASTER_SLIDE",
       background: { fill: "0B0F19" },
-      slideNumber: { x: 12.8, y: 7.1, color: "64748B", fontSize: 9 },
-      objects: [
-        { rect: { x: 0, y: 0, w: 13.33, h: 0.8, fill: { color: "0F172A" } } },
-        { rect: { x: 0, y: 0.8, w: 13.33, h: 0.02, fill: { color: "334155" } } },
-        { text: { text: reportTitle, options: { x: 0.5, y: 0.15, w: 7.0, h: 0.5, fontSize: 18, color: "34D399", bold: true, fontFace: "Calibri" } } },
-        { text: { text: headerInfo, options: { x: 7.8, y: 0.20, w: 5.0, h: 0.4, fontSize: 9.5, color: "94A3B8", align: "right", fontFace: "Calibri" } } }
-      ]
+      slideNumber: { x: 12.8, y: 7.1, color: "64748B", fontSize: 9 }
     });
+
+    const addHeaderToSlide = (slide) => {
+      const rectShape = pptx.ShapeType?.rect || pptx.shapes?.RECTANGLE || 'rect';
+      
+      // 1. Retângulo de fundo escuro do cabeçalho
+      slide.addShape(rectShape, {
+        x: 0,
+        y: 0,
+        w: 13.33,
+        h: 0.8,
+        fill: { color: "0F172A" },
+        line: { type: "none" }
+      });
+
+      // 2. Linha divisória
+      slide.addShape(rectShape, {
+        x: 0,
+        y: 0.8,
+        w: 13.33,
+        h: 0.02,
+        fill: { color: "334155" },
+        line: { type: "none" }
+      });
+
+      // 3. Título editável
+      slide.addText(reportTitle, {
+        x: 0.5,
+        y: 0.15,
+        w: 7.0,
+        h: 0.5,
+        fontSize: 18,
+        color: "34D399",
+        bold: true,
+        fontFace: "Calibri"
+      });
+
+      // 4. Data e Sponsor editável
+      slide.addText(headerInfo, {
+        x: 7.8,
+        y: 0.20,
+        w: 5.0,
+        h: 0.4,
+        fontSize: 9.5,
+        color: "94A3B8",
+        align: "right",
+        fontFace: "Calibri"
+      });
+    };
 
     const dataRows = [];
 
@@ -303,6 +345,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
     ];
 
     let currentSlide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
+    addHeaderToSlide(currentSlide);
     let currentSlideRows = [headerRow];
     let currentLinesCount = 0;
     const MAX_LINES_PER_SLIDE = 26; // Limite conservador para garantir que a linha inteira cabe sem quebra de página
@@ -320,6 +363,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         });
 
         currentSlide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
+        addHeaderToSlide(currentSlide);
         currentSlideRows = [headerRow];
         currentLinesCount = 0;
       }
