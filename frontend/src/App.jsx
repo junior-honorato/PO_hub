@@ -128,7 +128,7 @@ export default function App() {
   const recentDemands = demands.slice(0, 5);
 
   return (
-    <div className="flex h-full overflow-hidden bg-slate-950">
+    <div className="flex h-full overflow-hidden bg-sicoob-bg text-sicoob-text">
       {/* Mobile Sidebar Overlay */}
       <div className={`fixed inset-0 z-40 lg:hidden transition-all duration-300 ${isSidebarOpen ? 'visible' : 'invisible'}`}>
         {/* Backdrop */}
@@ -141,7 +141,7 @@ export default function App() {
           <div className="absolute top-4 right-4 z-30">
             <button 
               onClick={() => setIsSidebarOpen(false)}
-              className="p-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+              className="p-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
             >
               <X className="w-4 h-4" />
             </button>
@@ -182,24 +182,24 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Mobile Header */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950">
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white shadow-sm">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white active:scale-95 transition-all"
+              className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:text-sicoob-text hover:bg-slate-100 active:scale-95 transition-all"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="bg-gradient-to-tr from-brand-600 to-indigo-400 p-1.5 rounded-lg text-white">
+              <div className="bg-sicoob-primary p-1.5 rounded-lg text-white shadow-sm">
                 <LayoutDashboard className="w-4 h-4" />
               </div>
-              <span className="font-bold text-sm tracking-tight text-white">PO Hub</span>
+              <span className="font-bold text-sm tracking-tight text-sicoob-text">PO Hub</span>
             </div>
           </div>
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white active:scale-95 transition-all"
+            className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:text-sicoob-text hover:bg-slate-100 active:scale-95 transition-all"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -220,8 +220,8 @@ export default function App() {
         ) : (
           <div className="flex-1 overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">Demandas Sincronizadas</h2>
-              <p className="text-sm text-slate-400">Consolidado geral de itens de backlog com tags e filtros rápidos</p>
+              <h2 className="text-2xl font-bold text-sicoob-text tracking-tight">Demandas Sincronizadas</h2>
+              <p className="text-sm text-slate-500">Consolidado geral de itens de backlog com tags e filtros rápidos</p>
             </div>
             <DemandTable demands={demands} onSelectDemand={handleSelectDemand} onRefreshDemands={loadDemands} />
           </div>

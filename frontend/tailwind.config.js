@@ -17,6 +17,12 @@ export default {
           600: '#4f46e5',
           700: '#4338ca',
           900: '#312e81',
+        },
+        sicoob: {
+          primary: '#00AE9D',
+          secondary: '#007A71',
+          bg: '#F8F9FA',
+          text: '#333333',
         }
       }
     },

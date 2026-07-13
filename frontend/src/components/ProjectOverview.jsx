@@ -110,96 +110,88 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   };
   
   const exportToPPTX = () => {
-    if (!window.PptxGenJS) {
-      alert("A biblioteca PowerPoint ainda não foi carregada. Aguarde um instante.");
-      return;
-    }
-    const pptx = new window.PptxGenJS();
-    pptx.layout = 'LAYOUT_16x9';
+      if (!window.PptxGenJS) {
+        alert("A biblioteca PowerPoint ainda não foi carregada. Aguarde um instante.");
+        return;
+      }
+      const pptx = new window.PptxGenJS();
+      pptx.layout = 'LAYOUT_16x9';
 
-    // Titulo do Slide
-    const reportTitle = activeTab === 'report_tech' ? "REPORT EXECUTIVO - TECNOLOGIA" : "REPORT EXECUTIVO - NEGÓCIOS";
-    
-    // Data & Sponsor
-    const todayStr = new Date().toLocaleDateString('pt-BR');
-    const headerInfo = project.sponsor ? `Data: ${todayStr} | Sponsor: ${project.sponsor}` : `Data: ${todayStr}`;
+      // Titulo do Slide
+      const reportTitle = activeTab === 'report_tech' ? "REPORT EXECUTIVO - TECNOLOGIA" : "REPORT EXECUTIVO - NEGÓCIOS";
 
-    // Definir Master Slide com estilo Premium Dark (apenas fundo e numeração de página)
-    pptx.defineSlideMaster({
-      title: "MASTER_SLIDE",
-      background: { fill: "0B0F19" },
-      slideNumber: { x: 12.8, y: 7.1, color: "64748B", fontSize: 9 }
-    });
+      // Data & Sponsor
+      const todayStr = new Date().toLocaleDateString('pt-BR');
+      const headerInfo = project.sponsor ? `Data: ${todayStr} | Sponsor: ${project.sponsor}` : `Data: ${todayStr}`;
 
-    const addHeaderToSlide = (slide) => {
-      const rectShape = pptx.ShapeType?.rect || pptx.shapes?.RECTANGLE || 'rect';
-      
-      // 1. Retângulo de fundo escuro do cabeçalho
-      slide.addShape(rectShape, {
-        x: 0,
-        y: 0,
-        w: 13.33,
-        h: 0.8,
-        fill: { color: "0F172A" },
-        line: { type: "none" }
+      // Definir Master Slide com estilo Premium Sicoob Light
+      pptx.defineSlideMaster({
+        title: "MASTER_SLIDE",
+        background: { fill: "F8F9FA" },
+        slideNumber: { x: 12.8, y: 7.1, color: "007A71", fontSize: 9 }
       });
 
-      // 2. Linha divisória
-      slide.addShape(rectShape, {
-        x: 0,
-        y: 0.8,
-        w: 13.33,
-        h: 0.02,
-        fill: { color: "334155" },
-        line: { type: "none" }
-      });
+      const addHeaderToSlide = (slide) => {
+        const rectShape = pptx.ShapeType?.rect || pptx.shapes?.RECTANGLE || 'rect';
 
-      // 3. Título editável
-      slide.addText(reportTitle, {
-        x: 0.5,
-        y: 0.15,
-        w: 7.0,
-        h: 0.5,
-        fontSize: 18,
-        color: "34D399",
-        bold: true,
-        fontFace: "Calibri"
-      });
-
-      // 4. Data e Sponsor editável
-      slide.addText(headerInfo, {
-        x: 7.8,
-        y: 0.20,
-        w: 5.0,
-        h: 0.4,
-        fontSize: 9.5,
-        color: "94A3B8",
-        align: "right",
-        fontFace: "Calibri"
-      });
-    };
-
-    const dataRows = [];
-
-    if (activeTab === 'report_tech') {
-      techEpics.forEach(epic => {
-        const children = epicMap[epic.externalId] || [];
-        const visibleChildren = children.filter(shouldShowInExecutiveReport);
-        
-        const statusNotesList = [];
-        if (epic.current_status_notes && epic.current_status_notes.trim()) {
-          statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
-        }
-        visibleChildren.forEach(c => {
-          if (c.current_status_notes && c.current_status_notes.trim()) {
-            statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
-          }
+        // 1. Retângulo de fundo escuro do cabeçalho
+        slide.addShape(rectShape, {
+          x: 0,
+          y: 0,
+          w: 13.33,
+          h: 0.8,
+          fill: { color: "00AE9D" },
+          line: { type: "none" }
         });
 
-        const impedimentsList = [];
-        if (shouldShowInExecutiveReport(epic)) {
-          if (epic.blocker_notes && epic.blocker_notes.trim()) {
-            impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
+        // 2. Linha divisória
+        slide.addShape(rectShape, {
+          x: 0,
+          y: 0.8,
+          w: 13.33,
+          h: 0.02,
+          fill: { color: "007A71" },
+          line: { type: "none" }
+        });
+
+        // 3. Título editável
+        slide.addText(reportTitle, {
+          x: 0.5,
+          y: 0.15,
+          w: 7.0,
+          h: 0.5,
+          fontSize: 18,
+          color: "FFFFFF",
+          bold: true,
+          fontFace: "Calibri"
+        });
+
+        // 4. Data e Sponsor editável
+        slide.addText(headerInfo, {
+          x: 7.8,
+          y: 0.20,
+          w: 5.0,
+          h: 0.4,
+          fontSize: 9.5,
+          color: "FFFFFF",
+          align: "right",
+          fontFace: "Calibri"
+        });
+      };
+
+      const dataRows = [];
+
+      if (activeTab === 'report_tech') {
+        techEpics.forEach(epic => {
+          const children = epicMap[epic.externalId] || [];
+          const visibleChildren = children.filter(shouldShowInExecutiveReport);
+
+          const notes = [];
+          if (epic.current_status_notes?.trim()) {
+            notes.push(`Status [${epic.externalId}]: ${epic.current_status_notes.trim()}`);
+          }
+          if (epic.blocker_notes?.trim()) {
+            notes.push(`Impedimento [${epic.externalId}]: ${epic.blocker_notes.trim()}`);
           }
           if (isDemandBlocked(epic)) {
             let bList = epic.blockers;
@@ -207,210 +199,232 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               try { bList = JSON.parse(bList); } catch(e) { bList = []; }
             }
             const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-            const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
-            impedimentsList.push({ id: epic.externalId, text: bMsg });
+            const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+            notes.push(`Impedimento [${epic.externalId}]: ${bMsg}`);
           }
-        }
-        visibleChildren.forEach(c => {
-          if (c.blocker_notes && c.blocker_notes.trim()) {
-            impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
-          }
-          if (isDemandBlocked(c)) {
-            let bList = c.blockers;
-            if (typeof bList === 'string') {
-              try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+
+          visibleChildren.forEach(c => {
+            if (c.current_status_notes?.trim()) {
+              notes.push(`Status [${c.externalId}]: ${c.current_status_notes.trim()}`);
             }
-            const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-            const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
-            impedimentsList.push({ id: c.externalId, text: bMsg });
-          }
-        });
-
-        if (visibleChildren.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0 && !shouldShowInExecutiveReport(epic)) {
-          return;
-        }
-
-        const col1 = `[${epic.externalId}]\n${epic.title}`;
-        const col2 = visibleChildren.map(c => `• [${c.externalId}] ${c.title} (${c.mappedStatus || 'Backlog'})`).join('\n');
-        const col3 = statusNotesList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
-        const col4 = impedimentsList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
-
-        const maxLines = Math.max(
-          col1.split('\n').length,
-          col2.split('\n').length,
-          col3.split('\n').length,
-          col4.split('\n').length
-        );
-
-        dataRows.push({ col1, col2, col3, col4, maxLines });
-      });
-    } else {
-      // report_biz
-      techEpics.forEach(epic => {
-        const children = bizEpicMap[epic.externalId] || [];
-        if (children.length === 0) return;
-
-        const statusNotesList = [];
-        if (epic.current_status_notes && epic.current_status_notes.trim()) {
-          statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
-        }
-        children.forEach(c => {
-          if (c.current_status_notes && c.current_status_notes.trim()) {
-            statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
-          }
-        });
-
-        const impedimentsList = [];
-        if (epic.blocker_notes && epic.blocker_notes.trim()) {
-          impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
-        }
-        if (isDemandBlocked(epic)) {
-          let bList = epic.blockers;
-          if (typeof bList === 'string') {
-            try { bList = JSON.parse(bList); } catch(e) { bList = []; }
-          }
-          const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-          const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
-          impedimentsList.push({ id: epic.externalId, text: bMsg });
-        }
-        children.forEach(c => {
-          if (c.blocker_notes && c.blocker_notes.trim()) {
-            impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
-          }
-          if (isDemandBlocked(c)) {
-            let bList = c.blockers;
-            if (typeof bList === 'string') {
-              try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+            if (c.blocker_notes?.trim()) {
+              notes.push(`Impedimento [${c.externalId}]: ${c.blocker_notes.trim()}`);
             }
-            const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-            const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
-            impedimentsList.push({ id: c.externalId, text: bMsg });
-          }
-        });
-
-        const col1 = `[${epic.externalId}]\n${epic.title}`;
-        const col2 = children.map(c => `• [${c.externalId}] ${c.title} (${c.externalStatus || 'Não Iniciada'})`).join('\n');
-        const col3 = statusNotesList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
-        const col4 = impedimentsList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
-
-        const maxLines = Math.max(
-          col1.split('\n').length,
-          col2.split('\n').length,
-          col3.split('\n').length,
-          col4.split('\n').length
-        );
-
-        dataRows.push({ col1, col2, col3, col4, maxLines });
-      });
-
-      if (standaloneBizDemands.length > 0) {
-        const impedimentsList = [];
-        standaloneBizDemands.forEach(c => {
-          if (c.blocker_notes && c.blocker_notes.trim()) {
-            impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
-          }
-          if (isDemandBlocked(c)) {
-            let bList = c.blockers;
-            if (typeof bList === 'string') {
-              try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+            if (isDemandBlocked(c)) {
+              let bList = c.blockers;
+              if (typeof bList === 'string') {
+                try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+              }
+              const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+              const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+              notes.push(`Impedimento [${c.externalId}]: ${bMsg}`);
             }
-            const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-            const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
-            impedimentsList.push({ id: c.externalId, text: bMsg });
+          });
+
+          if (visibleChildren.length === 0 && notes.length === 0 && !shouldShowInExecutiveReport(epic)) {
+            return;
           }
+
+          const col1 = `[${epic.externalId}] ${epic.title}`;
+          const col2 = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
+          const col3 = notes.map(n => `• ${n}`).join('\n') || "-";
+
+          const maxLines = Math.max(
+            col1.split('\n').length,
+            col2.split('\n').length,
+            col3.split('\n').length
+          );
+
+          dataRows.push({ col1, col2, col3, maxLines });
         });
 
-        const col1 = "Sem Eixo Associado";
-        const col2 = standaloneBizDemands.map(c => `• [${c.externalId}] ${c.title} (${c.externalStatus || 'Não Iniciada'})`).join('\n');
-        const col3 = standaloneBizDemands.filter(c => c.current_status_notes?.trim()).map(c => `• [${c.externalId}]: ${c.current_status_notes.trim()}`).join('\n') || "-";
-        const col4 = impedimentsList.map(item => `• [${item.id}]: ${item.text}`).join('\n');
+        // Standalone demands
+        const visibleStandalone = standaloneDemands.filter(shouldShowInExecutiveReport);
+        if (visibleStandalone.length > 0) {
+          const notes = [];
+          visibleStandalone.forEach(c => {
+            if (c.current_status_notes?.trim()) {
+              notes.push(`Status [${c.externalId}]: ${c.current_status_notes.trim()}`);
+            }
+            if (c.blocker_notes?.trim()) {
+              notes.push(`Impedimento [${c.externalId}]: ${c.blocker_notes.trim()}`);
+            }
+            if (isDemandBlocked(c)) {
+              let bList = c.blockers;
+              if (typeof bList === 'string') {
+                try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+              }
+              const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+              const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+              notes.push(`Impedimento [${c.externalId}]: ${bMsg}`);
+            }
+          });
 
-        const maxLines = Math.max(
-          col1.split('\n').length,
-          col2.split('\n').length,
-          col3.split('\n').length,
-          col4.split('\n').length
-        );
+          const col1 = "Demandas Independentes\n[Sem Eixo Associado]";
+          const col2 = "-";
+          const col3 = notes.map(n => `• ${n}`).join('\n') || "-";
 
-        dataRows.push({ col1, col2, col3, col4, maxLines });
+          const maxLines = Math.max(
+            col1.split('\n').length,
+            col2.split('\n').length,
+            col3.split('\n').length
+          );
+
+          dataRows.push({ col1, col2, col3, maxLines });
+        }
+      } else {
+        // report_biz
+        techEpics.forEach(epic => {
+          const children = bizEpicMap[epic.externalId] || [];
+
+          const notes = [];
+          if (epic.current_status_notes?.trim()) {
+            notes.push(`Status [${epic.externalId}]: ${epic.current_status_notes.trim()}`);
+          }
+          if (epic.blocker_notes?.trim()) {
+            notes.push(`Impedimento [${epic.externalId}]: ${epic.blocker_notes.trim()}`);
+          }
+          if (isDemandBlocked(epic)) {
+            notes.push(`Impedimento [${epic.externalId}]: Travada`);
+          }
+          children.forEach(c => {
+            if (c.current_status_notes?.trim()) {
+              notes.push(`Status [${c.externalId}]: ${c.current_status_notes.trim()}`);
+            }
+            if (c.blocker_notes?.trim()) {
+              notes.push(`Impedimento [${c.externalId}]: ${c.blocker_notes.trim()}`);
+            }
+            if (isDemandBlocked(c)) {
+              let bList = c.blockers;
+              if (typeof bList === 'string') {
+                try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+              }
+              const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+              notes.push(`Impedimento [${c.externalId}]: Impedida${bStr}`);
+            }
+          });
+
+          if (children.length === 0 && notes.length === 0) return;
+
+          const col1 = `[${epic.externalId}] ${epic.title}`;
+          const col2 = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
+          const col3 = notes.map(n => `• ${n}`).join('\n') || "-";
+
+          const maxLines = Math.max(
+            col1.split('\n').length,
+            col2.split('\n').length,
+            col3.split('\n').length
+          );
+
+          dataRows.push({ col1, col2, col3, maxLines });
+        });
+
+        if (standaloneBizDemands.length > 0) {
+          const notes = [];
+          standaloneBizDemands.forEach(c => {
+            if (c.current_status_notes?.trim()) {
+              notes.push(`Status [${c.externalId}]: ${c.current_status_notes.trim()}`);
+            }
+            if (c.blocker_notes?.trim()) {
+              notes.push(`Impedimento [${c.externalId}]: ${c.blocker_notes.trim()}`);
+            }
+            if (isDemandBlocked(c)) {
+              let bList = c.blockers;
+              if (typeof bList === 'string') {
+                try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+              }
+              const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+              notes.push(`Impedimento [${c.externalId}]: Impedida${bStr}`);
+            }
+          });
+
+          const col1 = "Demandas de Negócio Avulsas\n[Sem Eixo Associado]";
+          const col2 = "-";
+          const col3 = notes.map(n => `• ${n}`).join('\n') || "-";
+
+          const maxLines = Math.max(
+            col1.split('\n').length,
+            col2.split('\n').length,
+            col3.split('\n').length
+          );
+
+          dataRows.push({ col1, col2, col3, maxLines });
+        }
       }
-    }
 
-    // Configuração de Paginação Manual para manter as linhas inteiras
-    const headerRow = [
-      { text: "Eixo (Epic)", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
-      { text: activeTab === 'report_tech' ? "Demandas em Desenvolvimento / Homologação" : "Demandas de Negócio em Progresso", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
-      { text: "Situação Atual", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } },
-      { text: "Impedimentos / Pontos de Atenção", options: { fill: { color: "1E293B" }, color: "34D399", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "334155", pt: 1 } } }
-    ];
+      // Configuração de Paginação Manual para manter as linhas inteiras
+      const headerRow = [
+        { text: "EIXO / EPIC", options: { fill: { color: "00AE9D" }, color: "FFFFFF", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "E2E8F0", pt: 1 } } },
+        { text: "SITUAÇÃO", options: { fill: { color: "00AE9D" }, color: "FFFFFF", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "E2E8F0", pt: 1 } } },
+        { text: "OBSERVAÇÕES", options: { fill: { color: "00AE9D" }, color: "FFFFFF", bold: true, fontSize: 10, fontFace: "Calibri", border: { type: "solid", color: "E2E8F0", pt: 1 } } }
+      ];
 
-    let currentSlide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
-    addHeaderToSlide(currentSlide);
-    let currentSlideRows = [headerRow];
-    let currentLinesCount = 0;
-    const MAX_LINES_PER_SLIDE = 26; // Limite conservador para garantir que a linha inteira cabe sem quebra de página
+      let currentSlide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
+      addHeaderToSlide(currentSlide);
+      let currentSlideRows = [headerRow];
+      let currentLinesCount = 0;
+      const MAX_LINES_PER_SLIDE = 26; // Limite conservador para garantir que a linha inteira cabe sem quebra de página
 
-    dataRows.forEach((row, index) => {
-      const rowLines = Math.max(row.maxLines, 2); // Assume pelo menos 2 linhas de altura por questão de padding
-      
-      // Se adicionar esta linha estoura o limite do slide, salva a tabela atual e cria um novo slide
-      if (currentLinesCount + rowLines > MAX_LINES_PER_SLIDE && currentSlideRows.length > 1) {
+      dataRows.forEach((row, index) => {
+        const rowLines = Math.max(row.maxLines, 2); // Assume pelo menos 2 linhas de altura por questão de padding
+
+        // Se adicionar esta linha estoura o limite do slide, salva a tabela atual e cria um novo slide
+        if (currentLinesCount + rowLines > MAX_LINES_PER_SLIDE && currentSlideRows.length > 1) {
+          currentSlide.addTable(currentSlideRows, {
+            x: 0.5,
+            y: 1.1,
+            w: 12.3,
+            colW: [4.3, 2.5, 5.5]
+          });
+
+          currentSlide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
+          addHeaderToSlide(currentSlide);
+          currentSlideRows = [headerRow];
+          currentLinesCount = 0;
+        }
+
+        const bgColor = index % 2 === 0 ? "FFFFFF" : "F8F9FA";
+        const cellOpts = (text) => ({
+          text: text || "-",
+          options: {
+            fill: { color: bgColor },
+            color: "333333",
+            fontSize: 8.5,
+            fontFace: "Calibri",
+            valign: "top",
+            border: { type: "solid", color: "E2E8F0", pt: 0.5 },
+            margin: [4, 4, 4, 4]
+          }
+        });
+
+        currentSlideRows.push([
+          cellOpts(row.col1),
+          cellOpts(row.col2),
+          cellOpts(row.col3)
+        ]);
+
+        currentLinesCount += rowLines;
+      });
+
+      // Adiciona a última tabela acumulada ao slide final
+      if (currentSlideRows.length > 1) {
         currentSlide.addTable(currentSlideRows, {
           x: 0.5,
           y: 1.1,
           w: 12.3,
-          colW: [2.5, 3.8, 3.0, 3.0]
+          colW: [4.3, 2.5, 5.5]
         });
-
-        currentSlide = pptx.addSlide({ masterName: "MASTER_SLIDE" });
-        addHeaderToSlide(currentSlide);
-        currentSlideRows = [headerRow];
-        currentLinesCount = 0;
       }
 
-      const bgColor = index % 2 === 0 ? "0B0F19" : "131A2A";
-      const cellOpts = (text) => ({
-        text: text || "-",
-        options: {
-          fill: { color: bgColor },
-          color: "E2E8F0",
-          fontSize: 8.5,
-          fontFace: "Calibri",
-          valign: "top",
-          border: { type: "solid", color: "1E293B", pt: 0.5 },
-          margin: [4, 4, 4, 4]
-        }
-      });
-
-      currentSlideRows.push([
-        cellOpts(row.col1),
-        cellOpts(row.col2),
-        cellOpts(row.col3),
-        cellOpts(row.col4)
-      ]);
-
-      currentLinesCount += rowLines;
-    });
-
-    // Adiciona a última tabela acumulada ao slide final
-    if (currentSlideRows.length > 1) {
-      currentSlide.addTable(currentSlideRows, {
-        x: 0.5,
-        y: 1.1,
-        w: 12.3,
-        colW: [2.5, 3.8, 3.0, 3.0]
-      });
-    }
-
-    const cleanProjName = project.name.replace(/[^a-zA-Z0-9]/g, '_');
-    const fileName = activeTab === 'report_tech' ? `Report_Executivo_Tecnologia_${cleanProjName}.pptx` : `Report_Executivo_Negocios_${cleanProjName}.pptx`;
-    pptx.writeFile({ fileName: fileName });
+      const cleanProjName = project.name.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = activeTab === 'report_tech' ? `Report_Executivo_Tecnologia_${cleanProjName}.pptx` : `Report_Executivo_Negocios_${cleanProjName}.pptx`;
+      pptx.writeFile({ fileName: fileName });
   };
 
   if (loading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 text-slate-500 gap-2">
-        <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
+        <RefreshCw className="w-8 h-8 animate-spin text-sicoob-primary" />
         <span>Carregando visão geral do projeto...</span>
       </div>
     );
@@ -422,7 +436,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         <p className="text-sm text-red-400 font-medium">{error}</p>
         <button
           onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300 hover:text-white"
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:text-white"
         >
           <ArrowLeft className="w-4 h-4" /> Voltar ao Portfólio
         </button>
@@ -457,7 +471,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
           if (catDemands.length === 0) return null;
           return (
             <div key={category} className="space-y-2">
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-950/45 rounded-lg border border-slate-850/50 text-[9px] font-extrabold uppercase tracking-wider text-slate-400 select-none">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-white/45 rounded-lg border border-slate-200/50 text-[9px] font-extrabold uppercase tracking-wider text-slate-500 select-none">
                 <span className={`w-1.5 h-1.5 rounded-full ${
                   category === 'Backlog' ? 'bg-slate-500' :
                   category === 'Em Refinamento' ? 'bg-purple-400' :
@@ -609,7 +623,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const epicMap = techEpicMap;
 
   return (
-    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
+    <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-white w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
       {isPresentationMode && (
         <style dangerouslySetInnerHTML={{ __html: `
           aside { display: none !important; }
@@ -622,7 +636,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold select-none w-fit"
+            className="flex items-center gap-2 text-slate-600 hover:text-sicoob-text hover:bg-slate-50 transition-colors bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold select-none w-fit"
           >
             <ArrowLeft className="w-4 h-4" /> Voltar ao Portfólio
           </button>
@@ -632,13 +646,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               <>
                 <button
                   onClick={() => setIsPresentationMode(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95 select-none"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-sicoob-primary hover:bg-sicoob-secondary text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 select-none"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" /> Modo Apresentação
                 </button>
                 <button
                   onClick={exportToPPTX}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-500 hover:to-indigo-400 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-purple-900/20 active:scale-95 select-none"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-sicoob-primary hover:bg-sicoob-secondary text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 select-none"
                 >
                   <Download className="w-3.5 h-3.5" /> Exportar PPTX
                 </button>
@@ -647,7 +661,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
             <button
               onClick={fetchOverview}
-              className="p-2.5 bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white rounded-xl transition-all"
+              className="p-2.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-sicoob-text hover:bg-slate-50 rounded-xl transition-all"
               title="Atualizar dados"
             >
               <RefreshCw className="w-4 h-4" />
@@ -661,13 +675,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         <div className="fixed top-6 right-6 z-50 flex items-center gap-2">
           <button
             onClick={exportToPPTX}
-            className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shadow-2xl transition-all flex items-center gap-1.5 select-none"
+            className="px-4 py-2.5 bg-sicoob-primary hover:bg-sicoob-secondary text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 select-none"
           >
             <Download className="w-3.5 h-3.5" /> Exportar PPTX
           </button>
           <button
             onClick={() => setIsPresentationMode(false)}
-            className="px-4 py-2.5 bg-slate-900/80 hover:bg-slate-900 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-bold shadow-2xl backdrop-blur-md transition-all opacity-30 hover:opacity-100 flex items-center gap-1.5 select-none"
+            className="px-4 py-2.5 bg-white border border-slate-200 text-slate-600 hover:text-sicoob-text rounded-xl text-xs font-bold shadow-sm transition-all opacity-70 hover:opacity-100 flex items-center gap-1.5 select-none"
             title="Pressione ESC para sair"
           >
             <X className="w-4 h-4" /> Sair da Apresentação
@@ -677,15 +691,15 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
       {/* Header Executivo Card (Hidden in Presentation Mode) */}
       {!isPresentationMode && (
-        <div className="bg-slate-900/20 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md space-y-6">
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 backdrop-blur-md space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold text-white tracking-tight">{project.name}</h2>
+                <h2 className="text-2xl font-bold text-sicoob-text tracking-tight">{project.name}</h2>
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                  project.health_status === 'Verde' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                  project.health_status === 'Amarelo' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                  'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                  project.health_status === 'Verde' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                  project.health_status === 'Amarelo' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                  'bg-rose-50 text-rose-700 border border-rose-100'
                 }`}>
                   <span className={`w-2 h-2 rounded-full ${
                     project.health_status === 'Verde' ? 'bg-emerald-500' :
@@ -697,40 +711,40 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               </div>
               <p className="text-xs text-slate-500">
                 Consolidado estratégico de entregáveis e saúde semanal
-                <span className="text-[10px] text-slate-400 ml-2 italic">
+                <span className="text-[10px] text-slate-500 ml-2 italic">
                   (Farol automático baseado em blockers e prazos)
                 </span>
               </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-4 text-xs">
-              <div className="bg-slate-950/40 border border-slate-800/50 rounded-xl px-4 py-2 flex items-center gap-2">
+              <div className="bg-white/40 border border-slate-200/50 rounded-xl px-4 py-2 flex items-center gap-2">
                 <Target className="w-4 h-4 text-brand-400" />
                 <div>
                   <span className="text-[10px] text-slate-500 block">Patrocinador / Sponsor</span>
-                  <span className="font-bold text-slate-200">{project.sponsor || 'Não definido'}</span>
+                  <span className="font-bold text-sicoob-text">{project.sponsor || 'Não definido'}</span>
                 </div>
               </div>
 
-              <div className="bg-slate-950/40 border border-slate-800/50 rounded-xl px-4 py-2 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-indigo-400" />
+              <div className="bg-white/40 border border-slate-200/50 rounded-xl px-4 py-2 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-sicoob-primary" />
                 <div>
                   <span className="text-[10px] text-slate-500 block">Previsão de Lançamento</span>
-                  <span className="font-bold text-slate-200">{project.target_go_live || 'Sem previsão'}</span>
+                  <span className="font-bold text-sicoob-text">{project.target_go_live || 'Sem previsão'}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="space-y-2 pt-2 border-t border-slate-800/40">
-            <div className="flex justify-between text-xs font-semibold text-slate-400">
+          <div className="space-y-2 pt-2 border-t border-slate-250">
+            <div className="flex justify-between text-xs font-semibold text-slate-500">
               <span>Progresso Realizado</span>
               <span className="text-brand-400">{project.progress}%</span>
             </div>
-            <div className="w-full bg-slate-950 rounded-full h-3 border border-slate-800/60 overflow-hidden">
+            <div className="w-full bg-white rounded-full h-3 border border-slate-200 overflow-hidden">
               <div
-                className="bg-gradient-to-r from-brand-600 to-indigo-500 h-full rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-sicoob-primary to-sicoob-primary h-full rounded-full transition-all duration-500"
                 style={{ width: `${project.progress}%` }}
               />
             </div>
@@ -740,13 +754,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
       {/* Tabs Navigation (Hidden in Presentation Mode) */}
       {!isPresentationMode && (
-        <div className="flex border-b border-slate-800 select-none">
+        <div className="flex border-b border-slate-200 select-none">
           <button
             onClick={() => setActiveTab('operational')}
             className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${
               activeTab === 'operational'
-                ? 'border-brand-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-sicoob-primary text-sicoob-primary'
+                : 'border-transparent text-slate-500 hover:text-sicoob-text'
             }`}
           >
             Gestão Operacional
@@ -755,8 +769,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
             onClick={() => setActiveTab('report_tech')}
             className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${
               activeTab === 'report_tech'
-                ? 'border-brand-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-sicoob-primary text-sicoob-primary'
+                : 'border-transparent text-slate-500 hover:text-sicoob-text'
             }`}
           >
             Report Executivo Tecnologia
@@ -765,8 +779,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
             onClick={() => setActiveTab('report_biz')}
             className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${
               activeTab === 'report_biz'
-                ? 'border-brand-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-sicoob-primary text-sicoob-primary'
+                : 'border-transparent text-slate-500 hover:text-sicoob-text'
             }`}
           >
             Report Executivo Negócios
@@ -775,8 +789,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
             onClick={() => setActiveTab('roadmap')}
             className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${
               activeTab === 'roadmap'
-                ? 'border-brand-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'border-sicoob-primary text-sicoob-primary'
+                : 'border-transparent text-slate-500 hover:text-sicoob-text'
             }`}
           >
             Mapa do Roadmap
@@ -791,15 +805,15 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
           {/* Kanban Board of Tracks */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-indigo-400" /> Board de Trilhas (Entregáveis Vinculados)
+            <h3 className="text-sm font-bold text-sicoob-text flex items-center gap-2">
+              <Activity className="w-4 h-4 text-sicoob-primary" /> Board de Trilhas (Entregáveis Vinculados)
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Jira */}
-              <div className="bg-slate-900/10 border border-slate-800/80 rounded-2xl p-4 flex flex-col min-h-[380px] space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-                  <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+              <div className="bg-white/10 border border-slate-200 rounded-2xl p-4 flex flex-col min-h-[380px] space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <span className="text-xs font-bold text-slate-600 flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
                     TI - Jira
                   </span>
@@ -812,7 +826,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   {renderColumnDemands(jiraDemands, "Sem entregas no Jira")}
                 </div>
 
-                <div className="border-t border-slate-800/60 pt-3 flex items-center justify-between text-xs text-slate-400 mt-auto">
+                <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-xs text-slate-500 mt-auto">
                   <span>Impedimentos Ativos:</span>
                   <span className={`font-bold ${jiraBlockedCount > 0 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}`}>
                     {jiraBlockedCount}
@@ -821,9 +835,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               </div>
 
               {/* Azure */}
-              <div className="bg-slate-900/10 border border-slate-800/80 rounded-2xl p-4 flex flex-col min-h-[380px] space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-                  <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+              <div className="bg-white/10 border border-slate-200 rounded-2xl p-4 flex flex-col min-h-[380px] space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <span className="text-xs font-bold text-slate-600 flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
                     TI - Azure DevOps
                   </span>
@@ -836,7 +850,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   {renderColumnDemands(azureDemands, "Sem entregas no Azure")}
                 </div>
 
-                <div className="border-t border-slate-800/60 pt-3 flex items-center justify-between text-xs text-slate-400 mt-auto">
+                <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-xs text-slate-500 mt-auto">
                   <span>Impedimentos Ativos:</span>
                   <span className={`font-bold ${azureBlockedCount > 0 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}`}>
                     {azureBlockedCount}
@@ -845,9 +859,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               </div>
 
               {/* Negócios */}
-              <div className="bg-slate-900/10 border border-slate-800/80 rounded-2xl p-4 flex flex-col min-h-[380px] space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800/60 pb-3">
-                  <span className="text-xs font-bold text-slate-300 flex items-center gap-2">
+              <div className="bg-white/10 border border-slate-200 rounded-2xl p-4 flex flex-col min-h-[380px] space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <span className="text-xs font-bold text-slate-600 flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-purple-400" />
                     Negócios / GTM
                   </span>
@@ -860,7 +874,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   {renderColumnDemands(businessDemands, "Sem demandas de Negócio")}
                 </div>
 
-                <div className="border-t border-slate-800/60 pt-3 flex items-center justify-between text-xs text-slate-400 mt-auto">
+                <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-xs text-slate-500 mt-auto">
                   <span>Impedimentos Ativos:</span>
                   <span className={`font-bold ${businessBlockedCount > 0 ? 'text-rose-400 font-extrabold text-sm' : 'text-slate-500'}`}>
                     {businessBlockedCount}
@@ -872,35 +886,35 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         </div>
       ) : (activeTab === 'report_tech' || (isPresentationMode && activeTab === 'report_tech')) ? (
         /* Report Executivo Slide view */
-        <div className={`bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-850 rounded-2xl p-8 shadow-2xl w-full ${isPresentationMode ? 'animate-in zoom-in-95 duration-300' : ''}`}>
+        <div className={`bg-white border border-slate-200 rounded-2xl p-8 shadow-sm w-full ${isPresentationMode ? 'animate-in zoom-in-95 duration-300' : ''}`}>
           {/* Slide Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800/80 pb-5 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5 mb-6">
             <div>
-              <span className="text-[10px] text-emerald-450 font-extrabold uppercase tracking-widest bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg">
+              <span className="text-[10px] text-sicoob-primary font-extrabold uppercase tracking-widest bg-sicoob-primary/10 border border-sicoob-primary/20 px-2.5 py-1 rounded-lg">
                 PO STATUS REPORT
               </span>
-              <h2 className="text-2xl font-bold text-white tracking-tight mt-3">
+              <h2 className="text-2xl font-bold text-sicoob-text tracking-tight mt-3">
                 Status Report Semanal
               </h2>
             </div>
-            <div className="text-left sm:text-right text-xs text-slate-400 space-y-1">
-              <div>Data: <strong className="text-slate-200">{new Date().toLocaleDateString('pt-BR')}</strong></div>
-              {project.sponsor && <div>Sponsor: <strong className="text-slate-200">{project.sponsor}</strong></div>}
+            <div className="text-left sm:text-right text-xs text-slate-500 space-y-1">
+              <div>Data: <strong className="text-sicoob-text">{new Date().toLocaleDateString('pt-BR')}</strong></div>
+              {project.sponsor && <div>Sponsor: <strong className="text-sicoob-text">{project.sponsor}</strong></div>}
             </div>
           </div>
 
           {/* Desktop view (lg and up): fluid fixed table with no horizontal scroll */}
-          <div className="hidden lg:block w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
+          <div className="hidden lg:block w-full overflow-x-auto rounded-xl border border-slate-200/85 bg-white/40">
             <table className="w-full min-w-full table-fixed border-collapse text-left">
               <thead>
-                <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold select-none">
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-extrabold select-none">
                   <th className="px-6 py-4 w-[20%]">EIXO / EPIC</th>
                   <th className="px-6 py-4 w-[25%]">DEMANDAS EM ANDAMENTO</th>
                   <th className="px-6 py-4 w-[27.5%]">SITUAÇÃO ATUAL</th>
                   <th className="px-6 py-4 w-[27.5%]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-850">
+              <tbody className="divide-y divide-slate-200">
                 {/* Epics / Eixos rows */}
                 {epics.map(epic => {
                   const children = epicMap[epic.externalId] || [];
@@ -957,15 +971,15 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   return (
                     <tr key={epic.externalId} className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo (Epic Name) */}
-                      <td className="px-6 py-5 font-bold text-xs text-white break-words">
+                      <td className="px-6 py-5 font-bold text-xs text-sicoob-text break-words">
                         <div 
                           onClick={() => onSelectDemand(epic.externalId)}
-                          className="border-l-4 border-emerald-500 pl-3 py-1 space-y-1.5 cursor-pointer hover:bg-slate-900/40 hover:border-emerald-400 p-1.5 rounded transition-all"
+                          className="border-l-4 border-emerald-500 pl-3 py-1 space-y-1.5 cursor-pointer hover:bg-white hover:border-emerald-400 p-1.5 rounded transition-all"
                         >
-                          <span className="text-slate-100 text-sm font-semibold tracking-tight leading-snug block hover:underline">{epic.title}</span>
+                          <span className="text-sicoob-text text-sm font-semibold tracking-tight leading-snug block hover:underline">{epic.title}</span>
                           <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
                           {epic.externalStatus && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2">
                               {epic.externalStatus}
                             </span>
                           )}
@@ -973,26 +987,26 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 2: Demandas em Andamento */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words">
                         {visibleChildren.length > 0 ? (
                           <div className="space-y-1.5">
                             {visibleChildren.map(c => (
                               <div
                                 key={c.externalId}
                                 onClick={() => onSelectDemand(c.externalId)}
-                                className="flex items-start justify-between gap-2.5 bg-slate-900/30 border border-slate-800/40 hover:border-emerald-500/30 hover:bg-slate-900/80 p-2 rounded-lg cursor-pointer transition-all"
+                                className="flex items-start justify-between gap-2.5 bg-white border border-slate-200 shadow-xs border border-slate-250 hover:border-emerald-500/30 hover:bg-white/80 p-2 rounded-lg cursor-pointer transition-all"
                               >
-                                <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                                <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                                   <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                                   {c.title}
                                   {c.externalStatus && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
                                       {c.externalStatus}
                                     </span>
                                   )}
                                 </span>
                                 {c.promisedDate && (
-                                  <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                  <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-full shrink-0">
                                     {formatPromisedDate(c.promisedDate)}
                                   </span>
                                 )}
@@ -1005,9 +1019,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 3: Situação Atual */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words whitespace-pre-wrap">
                         {statusNotesList.length > 0 ? (
-                          <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
+                          <ul className="list-disc pl-4 space-y-1.5 text-slate-600 text-xs">
                             {statusNotesList.map((item, idx) => (
                               <li key={idx} className="leading-relaxed">
                                 <strong className="text-emerald-400 mr-1">[{item.id}]:</strong>
@@ -1021,13 +1035,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 4: Impedimentos */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words whitespace-pre-wrap">
                         {impedimentsList.length > 0 ? (
-                          <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
+                          <ul className="list-disc pl-4 space-y-1.5 text-slate-600 text-xs">
                             {impedimentsList.map((item, idx) => (
                               <li key={idx} className="leading-relaxed">
                                 <strong className="text-rose-450 mr-1">[{item.id}]:</strong>
-                                <span className="text-slate-300">{item.text}</span>
+                                <span className="text-slate-600">{item.text}</span>
                               </li>
                             ))}
                           </ul>
@@ -1068,28 +1082,28 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   return (
                     <tr className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo */}
-                      <td className="px-6 py-5 font-bold text-xs text-white break-words">
-                        <div className="border-l-4 border-slate-600 pl-3 py-0.5 space-y-1">
-                          <span className="text-slate-300 text-sm font-semibold block leading-snug">Demandas Independentes</span>
+                      <td className="px-6 py-5 font-bold text-xs text-sicoob-text break-words">
+                        <div className="border-l-4 border-sicoob-primary pl-3 py-0.5 space-y-1">
+                          <span className="text-sicoob-text text-sm font-semibold block leading-snug">Demandas Independentes</span>
                           <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Sem Epic/Eixo Vinculado</span>
                         </div>
                       </td>
 
                       {/* Cell 2: Demandas em Andamento */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words">
                         {visibleStandalone.length > 0 ? (
                           <div className="space-y-1.5">
                             {visibleStandalone.map(d => (
                               <div
                                 key={d.externalId}
                                 onClick={() => onSelectDemand(d.externalId)}
-                                className="flex items-start justify-between gap-2.5 bg-slate-900/30 border border-slate-800/40 hover:border-slate-700/85 hover:bg-slate-900/80 p-2 rounded-lg cursor-pointer transition-all"
+                                className="flex items-start justify-between gap-2.5 bg-white border border-slate-200 shadow-xs border border-slate-250 hover:border-slate-300/85 hover:bg-white/80 p-2 rounded-lg cursor-pointer transition-all"
                               >
-                                <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                                <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                                   <span className="text-slate-500 font-bold mr-1">[{d.externalId}]</span>
                                   {d.title}
                                   {d.externalStatus && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
                                       {d.externalStatus}
                                     </span>
                                   )}
@@ -1108,9 +1122,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 3: Situação Atual */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words whitespace-pre-wrap">
                         {statusNotesList.length > 0 ? (
-                          <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
+                          <ul className="list-disc pl-4 space-y-1.5 text-slate-600 text-xs">
                             {statusNotesList.map((item, idx) => (
                               <li key={idx} className="leading-relaxed">
                                 <strong className="text-emerald-400 mr-1">[{item.id}]:</strong>
@@ -1124,13 +1138,13 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 4: Impedimentos */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words whitespace-pre-wrap">
                         {impedimentsList.length > 0 ? (
-                          <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
+                          <ul className="list-disc pl-4 space-y-1.5 text-slate-600 text-xs">
                             {impedimentsList.map((item, idx) => (
                               <li key={idx} className="leading-relaxed">
                                 <strong className="text-rose-455 mr-1">[{item.id}]:</strong>
-                                <span className="text-slate-300">{item.text}</span>
+                                <span className="text-slate-600">{item.text}</span>
                               </li>
                             ))}
                           </ul>
@@ -1196,32 +1210,32 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               }
 
               return (
-                <div key={epic.externalId} className="bg-slate-900/30 border border-slate-800/80 rounded-xl p-5 space-y-4">
+                <div key={epic.externalId} className="bg-white border border-slate-200 shadow-xs border border-slate-200 rounded-xl p-5 space-y-4">
                   {/* Header Eixo */}
                   <div 
                     onClick={() => onSelectDemand(epic.externalId)}
-                    className="border-l-4 border-emerald-500 pl-3 cursor-pointer hover:bg-slate-900/40 hover:border-emerald-450 p-1 rounded transition-all"
+                    className="border-l-4 border-emerald-500 pl-3 cursor-pointer hover:bg-white hover:border-emerald-450 p-1 rounded transition-all"
                   >
-                    <h4 className="text-white font-bold text-sm leading-snug hover:underline">{epic.title}</h4>
+                    <h4 className="text-sicoob-text font-bold text-sm leading-snug hover:underline">{epic.title}</h4>
                     <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
                   </div>
 
                   {/* Demandas em Andamento */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Demandas em Andamento</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Demandas em Andamento</span>
                     {visibleChildren.length > 0 ? (
                       <div className="space-y-1.5">
                         {visibleChildren.map(c => (
                           <div
                             key={c.externalId}
                             onClick={() => onSelectDemand(c.externalId)}
-                            className="flex items-start justify-between gap-2.5 bg-slate-950/40 border border-slate-850 p-2.5 rounded-lg cursor-pointer hover:border-emerald-500/30 transition-all"
+                            className="flex items-start justify-between gap-2.5 bg-white/40 border border-slate-200 p-2.5 rounded-lg cursor-pointer hover:border-emerald-500/30 transition-all"
                           >
-                            <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                            <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                               <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                               {c.title}
                               {c.externalStatus && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
                                   {c.externalStatus}
                                 </span>
                               )}
@@ -1241,7 +1255,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                   {/* Situação Atual */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Situação Atual</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Situação Atual</span>
                     {statusNotesList.length > 0 ? (
                       <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
                         {statusNotesList.map((item, idx) => (
@@ -1258,7 +1272,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                   {/* Impedimentos */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
                     {impedimentsList.length > 0 ? (
                       <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
                         {impedimentsList.map((item, idx) => (
@@ -1303,25 +1317,25 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               }
 
               return (
-                <div className="bg-slate-900/30 border border-slate-800/80 rounded-xl p-5 space-y-4">
+                <div className="bg-white border border-slate-200 shadow-xs border border-slate-200 rounded-xl p-5 space-y-4">
                   {/* Header */}
-                  <div className="border-l-4 border-slate-600 pl-3">
-                    <h4 className="text-white font-bold text-sm leading-snug">Demandas Independentes</h4>
+                  <div className="border-l-4 border-sicoob-primary pl-3">
+                    <h4 className="text-sicoob-text font-bold text-sm leading-snug">Demandas Independentes</h4>
                     <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Sem Epic/Eixo Vinculado</span>
                   </div>
 
                   {/* Demandas em Andamento */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Demandas em Andamento</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Demandas em Andamento</span>
                     {visibleStandalone.length > 0 ? (
                       <div className="space-y-1.5">
                         {visibleStandalone.map(d => (
                           <div
                             key={d.externalId}
                             onClick={() => onSelectDemand(d.externalId)}
-                            className="flex items-start justify-between gap-2.5 bg-slate-950/40 border border-slate-850 p-2.5 rounded-lg cursor-pointer hover:border-slate-700/85 transition-all"
+                            className="flex items-start justify-between gap-2.5 bg-white/40 border border-slate-200 p-2.5 rounded-lg cursor-pointer hover:border-slate-300/85 transition-all"
                           >
-                            <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                            <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                               <span className="text-slate-500 font-bold mr-1">[{d.externalId}]</span>
                               {d.title}
                             </span>
@@ -1340,7 +1354,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                   {/* Situação Atual */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Situação Atual</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Situação Atual</span>
                     {statusNotesList.length > 0 ? (
                       <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
                         {statusNotesList.map((item, idx) => (
@@ -1357,7 +1371,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                   {/* Impedimentos */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
                     {impedimentsList.length > 0 ? (
                       <ul className="list-disc pl-4 space-y-1 text-slate-350 text-xs">
                         {impedimentsList.map((item, idx) => (
@@ -1376,35 +1390,35 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         </div>
       ) : (activeTab === 'report_biz' || (isPresentationMode && activeTab === 'report_biz')) ? (
         /* Report Executivo Negócios Slide view */
-        <div className={`bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-850 rounded-2xl p-8 shadow-2xl w-full ${isPresentationMode ? 'animate-in zoom-in-95 duration-300' : ''}`}>
+        <div className={`bg-white border border-slate-200 rounded-2xl p-8 shadow-sm w-full ${isPresentationMode ? 'animate-in zoom-in-95 duration-300' : ''}`}>
           {/* Slide Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800/80 pb-5 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5 mb-6">
             <div>
-              <span className="text-[10px] text-purple-400 font-extrabold uppercase tracking-widest bg-purple-500/10 border border-purple-500/25 px-2.5 py-1 rounded-lg">
+              <span className="text-[10px] text-sicoob-primary font-extrabold uppercase tracking-widest bg-sicoob-primary/10 border border-sicoob-primary/20 px-2.5 py-1 rounded-lg">
                 PO STATUS REPORT - NEGÓCIOS
               </span>
-              <h2 className="text-2xl font-bold text-white tracking-tight mt-3">
+              <h2 className="text-2xl font-bold text-sicoob-text tracking-tight mt-3">
                 Status Report Semanal (Negócios / GTM)
               </h2>
             </div>
-            <div className="text-left sm:text-right text-xs text-slate-400 space-y-1">
-              <div>Data: <strong className="text-slate-200">{new Date().toLocaleDateString('pt-BR')}</strong></div>
-              {project.sponsor && <div>Sponsor: <strong className="text-slate-200">{project.sponsor}</strong></div>}
+            <div className="text-left sm:text-right text-xs text-slate-500 space-y-1">
+              <div>Data: <strong className="text-sicoob-text">{new Date().toLocaleDateString('pt-BR')}</strong></div>
+              {project.sponsor && <div>Sponsor: <strong className="text-sicoob-text">{project.sponsor}</strong></div>}
             </div>
           </div>
 
           {/* Desktop view (lg and up): fluid fixed table with no horizontal scroll */}
-          <div className="hidden lg:block w-full overflow-x-auto rounded-xl border border-slate-800/85 bg-slate-950/40">
+          <div className="hidden lg:block w-full overflow-x-auto rounded-xl border border-slate-200/85 bg-white/40">
             <table className="w-full min-w-full table-fixed border-collapse text-left">
               <thead>
-                <tr className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-extrabold select-none">
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-extrabold select-none">
                   <th className="px-6 py-4 w-[20%]">EIXO / EPIC</th>
                   <th className="px-6 py-4 w-[25%]">DEMANDAS EM ANDAMENTO</th>
                   <th className="px-6 py-4 w-[27.5%]">SITUAÇÃO ATUAL</th>
                   <th className="px-6 py-4 w-[27.5%]">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-850">
+              <tbody className="divide-y divide-slate-200">
                 {/* Epics / Eixos rows */}
                 {techEpics.map(epic => {
                   const children = bizEpicMap[epic.externalId] || [];
@@ -1444,15 +1458,15 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   return (
                     <tr key={epic.externalId} className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo (Epic Name) */}
-                      <td className="px-6 py-5 font-bold text-xs text-white break-words">
+                      <td className="px-6 py-5 font-bold text-xs text-sicoob-text break-words">
                         <div 
                           onClick={() => onSelectDemand(epic.externalId)}
-                          className="border-l-4 border-purple-500 pl-3 py-1 space-y-1.5 cursor-pointer hover:bg-slate-900/40 hover:border-purple-400 p-1.5 rounded transition-all"
+                          className="border-l-4 border-sicoob-primary pl-3 py-1 space-y-1.5 cursor-pointer hover:bg-slate-50 hover:border-sicoob-secondary p-1.5 rounded transition-all"
                         >
-                          <span className="text-slate-100 text-sm font-semibold tracking-tight leading-snug block hover:underline">{epic.title}</span>
+                          <span className="text-sicoob-text text-sm font-semibold tracking-tight leading-snug block hover:underline">{epic.title}</span>
                           <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
                           {epic.externalStatus && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2">
                               {epic.externalStatus}
                             </span>
                           )}
@@ -1460,25 +1474,25 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 2: Demandas em Andamento */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words">
                         <div className="space-y-1.5">
                           {children.map(c => (
                             <div
                               key={c.externalId}
                               onClick={() => onSelectDemand(c.externalId)}
-                              className="flex items-start justify-between gap-2.5 bg-slate-900/30 border border-slate-800/40 hover:border-purple-500/30 hover:bg-slate-900/80 p-2 rounded-lg cursor-pointer transition-all"
+                              className="flex items-start justify-between gap-2.5 bg-white border border-slate-200 shadow-xs border border-slate-250 hover:border-purple-500/30 hover:bg-white/80 p-2 rounded-lg cursor-pointer transition-all"
                             >
-                              <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                              <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                                 <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                                 {c.title}
                                 {c.externalStatus && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
                                     {c.externalStatus}
                                   </span>
                                 )}
                               </span>
                               {c.promisedDate && (
-                                <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-full shrink-0">
                                   {formatPromisedDate(c.promisedDate)}
                                 </span>
                               )}
@@ -1488,9 +1502,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 3: Situação Atual */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words whitespace-pre-wrap">
                         {statusNotesList.length > 0 ? (
-                          <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
+                          <ul className="list-disc pl-4 space-y-1.5 text-slate-600 text-xs">
                             {statusNotesList.map((item, idx) => (
                               <li key={idx} className="leading-relaxed">
                                 <strong className="text-emerald-400 mr-1">[{item.id}]:</strong>
@@ -1504,7 +1518,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 4: Impedimentos */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words whitespace-pre-wrap">
                         {impedimentsList.length > 0 ? (
                           <ul className="list-disc pl-4 space-y-1.5 text-slate-355 text-xs">
                             {impedimentsList.map((item, idx) => (
@@ -1548,33 +1562,33 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   return (
                     <tr className="align-top animate-in fade-in duration-300">
                       {/* Cell 1: Eixo */}
-                      <td className="px-6 py-5 font-bold text-xs text-white break-words">
-                        <div className="border-l-4 border-purple-500 pl-3 py-0.5 space-y-1.5">
-                          <span className="text-slate-100 text-sm font-semibold tracking-tight leading-snug block">Demandas de Negócio Avulsas</span>
+                      <td className="px-6 py-5 font-bold text-xs text-sicoob-text break-words">
+                        <div className="border-l-4 border-sicoob-primary pl-3 py-0.5 space-y-1.5">
+                          <span className="text-sicoob-text text-sm font-semibold tracking-tight leading-snug block">Demandas de Negócio Avulsas</span>
                           <span className="text-[10px] text-slate-500 font-bold font-mono">[SEM EIXO VINCULADO]</span>
                         </div>
                       </td>
 
                       {/* Cell 2: Demandas em Andamento */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words">
                         <div className="space-y-1.5">
                           {standaloneBizDemands.map(c => (
                             <div
                               key={c.externalId}
                               onClick={() => onSelectDemand(c.externalId)}
-                              className="flex items-start justify-between gap-2.5 bg-slate-900/30 border border-slate-800/40 hover:border-purple-500/30 hover:bg-slate-900/80 p-2 rounded-lg cursor-pointer transition-all"
+                              className="flex items-start justify-between gap-2.5 bg-white border border-slate-200 shadow-xs border border-slate-250 hover:border-purple-500/30 hover:bg-white/80 p-2 rounded-lg cursor-pointer transition-all"
                             >
-                              <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                              <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                                 <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                                 {c.title}
                                 {c.externalStatus && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
                                     {c.externalStatus}
                                   </span>
                                 )}
                               </span>
                               {c.promisedDate && (
-                                <span className="text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">
+                                <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-100 px-1.5 py-0.5 rounded-full shrink-0">
                                   {formatPromisedDate(c.promisedDate)}
                                 </span>
                               )}
@@ -1584,9 +1598,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 3: Situação Atual */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words whitespace-pre-wrap">
                         {statusNotesList.length > 0 ? (
-                          <ul className="list-disc pl-4 space-y-1.5 text-slate-300 text-xs">
+                          <ul className="list-disc pl-4 space-y-1.5 text-slate-600 text-xs">
                             {statusNotesList.map((item, idx) => (
                               <li key={idx} className="leading-relaxed">
                                 <strong className="text-emerald-400 mr-1">[{item.id}]:</strong>
@@ -1600,7 +1614,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       </td>
 
                       {/* Cell 4: Impedimentos */}
-                      <td className="px-6 py-5 border-l border-slate-850 break-words whitespace-pre-wrap">
+                      <td className="px-6 py-5 border-l border-slate-200 break-words whitespace-pre-wrap">
                         {impedimentsList.length > 0 ? (
                           <ul className="list-disc pl-4 space-y-1.5 text-slate-355 text-xs">
                             {impedimentsList.map((item, idx) => (
@@ -1657,31 +1671,31 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               });
 
               return (
-                <div key={epic.externalId} className="bg-slate-950/40 border border-slate-850 rounded-xl p-5 space-y-4">
+                <div key={epic.externalId} className="bg-white/40 border border-slate-200 rounded-xl p-5 space-y-4">
                   {/* Eixo info */}
                   <div 
                     onClick={() => onSelectDemand(epic.externalId)}
-                    className="border-l-4 border-purple-500 pl-3 py-0.5 space-y-1 cursor-pointer hover:bg-slate-900/40 hover:border-purple-400 p-1 rounded transition-all"
+                    className="border-l-4 border-sicoob-primary pl-3 py-0.5 space-y-1 cursor-pointer hover:bg-slate-50 hover:border-sicoob-secondary p-1 rounded transition-all"
                   >
-                    <span className="text-slate-100 text-sm font-semibold block hover:underline">{epic.title}</span>
+                    <span className="text-sicoob-text text-sm font-semibold block hover:underline">{epic.title}</span>
                     <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
                   </div>
 
                   {/* Demandas em andamento */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Demandas de Negócio</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Demandas de Negócio</span>
                     <div className="space-y-1.5">
                       {children.map(c => (
                         <div
                           key={c.externalId}
                           onClick={() => onSelectDemand(c.externalId)}
-                          className="flex items-start justify-between gap-2.5 bg-slate-900/30 border border-slate-800/40 p-2 rounded-lg cursor-pointer"
+                          className="flex items-start justify-between gap-2.5 bg-white border border-slate-200 shadow-xs border border-slate-250 p-2 rounded-lg cursor-pointer"
                         >
-                          <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                          <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                             <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                             {c.title}
                             {c.externalStatus && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 ml-2 select-none">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
                                 {c.externalStatus}
                               </span>
                             )}
@@ -1698,9 +1712,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                   {/* Situação Atual */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Situação Atual</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Situação Atual</span>
                     {statusNotesList.length > 0 ? (
-                      <ul className="list-disc pl-4 space-y-1 text-slate-300 text-xs">
+                      <ul className="list-disc pl-4 space-y-1 text-slate-600 text-xs">
                         {statusNotesList.map((item, idx) => (
                           <li key={idx} className="leading-relaxed">
                             <strong className="text-emerald-400 mr-1 font-mono">[{item.id}]:</strong>
@@ -1715,7 +1729,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                   {/* Impedimentos */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
                     {impedimentsList.length > 0 ? (
                       <ul className="list-disc pl-4 space-y-1 text-slate-355 text-xs">
                         {impedimentsList.map((item, idx) => (
@@ -1757,24 +1771,24 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               });
 
               return (
-                <div className="bg-slate-950/40 border border-slate-850 rounded-xl p-5 space-y-4">
+                <div className="bg-white/40 border border-slate-200 rounded-xl p-5 space-y-4">
                   {/* Standalone Epic info */}
                   <div className="border-l-4 border-purple-500 pl-3 py-0.5 space-y-1">
-                    <span className="text-slate-100 text-sm font-semibold block">Demandas de Negócio Avulsas</span>
+                    <span className="text-sicoob-text text-sm font-semibold block">Demandas de Negócio Avulsas</span>
                     <span className="text-[10px] text-slate-500 font-bold font-mono">[SEM EIXO VINCULADO]</span>
                   </div>
 
                   {/* Demandas em andamento */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Demandas de Negócio</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Demandas de Negócio</span>
                     <div className="space-y-1.5">
                       {standaloneBizDemands.map(c => (
                         <div
                           key={c.externalId}
                           onClick={() => onSelectDemand(c.externalId)}
-                          className="flex items-start justify-between gap-2.5 bg-slate-900/30 border border-slate-800/40 p-2 rounded-lg cursor-pointer"
+                          className="flex items-start justify-between gap-2.5 bg-white border border-slate-200 shadow-xs border border-slate-250 p-2 rounded-lg cursor-pointer"
                         >
-                          <span className="text-xs text-slate-200 font-medium hover:underline flex-1 leading-relaxed">
+                          <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                             <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                             {c.title}
                           </span>
@@ -1790,9 +1804,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                   {/* Situação Atual */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Situação Atual</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Situação Atual</span>
                     {statusNotesList.length > 0 ? (
-                      <ul className="list-disc pl-4 space-y-1 text-slate-300 text-xs">
+                      <ul className="list-disc pl-4 space-y-1 text-slate-600 text-xs">
                         {statusNotesList.map((item, idx) => (
                           <li key={idx} className="leading-relaxed">
                             <strong className="text-emerald-400 mr-1 font-mono">[{item.id}]:</strong>
@@ -1807,7 +1821,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
                   {/* Impedimentos */}
                   <div className="space-y-1.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Impedimentos / Pontos de Atenção</span>
                     {impedimentsList.length > 0 ? (
                       <ul className="list-disc pl-4 space-y-1 text-slate-355 text-xs">
                         {impedimentsList.map((item, idx) => (
@@ -1827,8 +1841,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
           </div>
         </div>
       ) : activeTab === 'roadmap' ? (
-        <div className="bg-slate-900/20 border border-slate-800/80 rounded-2xl p-6 backdrop-blur-md h-[750px] flex flex-col">
-          <h3 className="text-base font-bold text-slate-100 mb-4 shrink-0">Mapa de Dependências e Roadmap</h3>
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 backdrop-blur-md h-[750px] flex flex-col">
+          <h3 className="text-base font-bold text-sicoob-text mb-4 shrink-0">Mapa de Dependências e Roadmap</h3>
           <RoadmapGraphView demands={data.demands} onSelectDemand={onSelectDemand} />
         </div>
       ) : null}
@@ -1844,21 +1858,21 @@ function DemandCard({ demand, onSelect }) {
   return (
     <div
       onClick={() => onSelect(demand.externalId)}
-      className={`bg-slate-950/40 hover:bg-slate-950/80 border p-4 rounded-xl cursor-pointer transition-all space-y-3 ${
+      className={`bg-white/40 hover:bg-white/80 border p-4 rounded-xl cursor-pointer transition-all space-y-3 ${
         isBlocked ? 'border-rose-500/50 bg-rose-500/[0.03]' :
-        isStale ? 'border-amber-500/30 bg-amber-500/[0.02]' : 'border-slate-850 hover:border-slate-700'
+        isStale ? 'border-amber-500/30 bg-amber-500/[0.02]' : 'border-slate-200 hover:border-slate-300'
       }`}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-slate-400 flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5 flex-wrap">
           {demand.externalId}
           {isBlocked && (
-            <span className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded">
+            <span className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold bg-rose-50 text-rose-700 border border-rose-100 rounded">
               Bloqueado
             </span>
           )}
           {isStale && !isBlocked && (
-            <span className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">
+            <span className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold bg-amber-50 text-amber-700 border border-amber-100 rounded">
               Desatualizado
             </span>
           )}
@@ -1866,33 +1880,33 @@ function DemandCard({ demand, onSelect }) {
         <div className="flex items-center gap-1.5">
           {demand.mappedStatus && (
             <span className={`inline-flex items-center px-1.5 py-0.5 text-[8px] font-bold rounded ${
-              demand.mappedStatus === 'Backlog' ? 'bg-slate-800 text-slate-400 border border-slate-700/60' :
-              demand.mappedStatus === 'Em Refinamento' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
+              demand.mappedStatus === 'Backlog' ? 'bg-slate-100 text-slate-500 border border-slate-300/60' :
+              demand.mappedStatus === 'Em Refinamento' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
               demand.mappedStatus === 'Desenvolvimento' ? 'bg-amber-500/10 text-amber-450 border border-amber-500/20' :
               demand.mappedStatus === 'Homologação' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-              'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+              'bg-emerald-50 text-emerald-700 border border-emerald-100'
             }`}>
               {demand.mappedStatus}
             </span>
           )}
           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
-            demand.externalStatus === 'Concluído' || demand.externalStatus === 'Concluido' || demand.externalStatus === 'Done' || demand.externalStatus === 'Closed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+            demand.externalStatus === 'Concluído' || demand.externalStatus === 'Concluido' || demand.externalStatus === 'Done' || demand.externalStatus === 'Closed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
             demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Active' || demand.externalStatus === 'Em andamento' ? 'bg-amber-500/10 text-amber-400 border border-emerald-500/20' :
-            isBlocked || demand.externalStatus === 'Blocked' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-            'bg-slate-800 text-slate-400 border border-slate-700'
+            isBlocked || demand.externalStatus === 'Blocked' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+            'bg-slate-100 text-slate-500 border border-slate-300'
           }`}>
             {demand.externalStatus}
           </span>
         </div>
       </div>
       
-      <h4 className="text-sm font-semibold text-slate-200 line-clamp-2 leading-snug group-hover:text-white transition-colors">
+      <h4 className="text-sm font-semibold text-sicoob-text line-clamp-2 leading-snug group-hover:text-white transition-colors">
         {demand.title}
       </h4>
       
-      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-900/60">
-        <span>Tipo: <strong className="text-slate-400">{demand.itemType}</strong></span>
-        <span>Canal: <strong className="text-slate-400">{demand.origin}</strong></span>
+      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-200/60">
+        <span>Tipo: <strong className="text-slate-500">{demand.itemType}</strong></span>
+        <span>Canal: <strong className="text-slate-500">{demand.origin}</strong></span>
       </div>
     </div>
   );
@@ -1901,7 +1915,7 @@ function DemandCard({ demand, onSelect }) {
 // Subcomponente Placeholder para Colunas Vazias
 function EmptyColumnPlaceholder({ text }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center py-10 text-center border border-dashed border-slate-800 rounded-xl text-slate-600 space-y-2 w-full">
+    <div className="h-full flex flex-col items-center justify-center py-10 text-center border border-dashed border-slate-200 rounded-xl text-slate-600 space-y-2 w-full">
       <CheckCircle2 className="w-8 h-8 opacity-45" />
       <span className="text-xs font-medium">{text}</span>
     </div>

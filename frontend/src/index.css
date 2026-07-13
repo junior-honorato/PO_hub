@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply h-full bg-slate-950 text-slate-100 antialiased overflow-hidden font-sans;
+    @apply h-full bg-sicoob-bg text-sicoob-text antialiased overflow-hidden font-sans;
   }
 }
 
@@ -14,14 +14,14 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #F8F9FA;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #cbd5e1;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #94a3b8;
 }
 
 /* Animations and Transitions */

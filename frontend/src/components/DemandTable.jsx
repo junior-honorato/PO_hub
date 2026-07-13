@@ -245,12 +245,12 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
   return (
     <div className="space-y-4">
       {/* Barra de Filtros */}
-      <div className="flex flex-col gap-4 bg-slate-900/20 p-4 border border-slate-800/60 rounded-2xl backdrop-blur-sm">
+      <div className="flex flex-col gap-4 bg-white p-4 border border-slate-200 rounded-2xl shadow-sm">
         {/* Linha Principal: Pesquisa e Controles Básicos */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 w-full lg:w-auto">
             <div className="flex-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                 <Search className="w-4 h-4" />
               </div>
               <input
@@ -258,18 +258,18 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                 placeholder="Buscar por título ou ID..."
                 value={search}
                 onChange={handleSearchChange}
-                className="w-full bg-slate-950 border border-slate-800/80 rounded-xl py-2.5 pl-10 pr-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 transition-colors"
+                className="w-full bg-white border border-slate-350 rounded-xl py-2.5 pl-10 pr-4 text-sm text-sicoob-text placeholder-slate-400 focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
               />
             </div>
             <button
               onClick={handleOpenManualModal}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-lg shadow-brand-600/20 whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-sicoob-primary hover:bg-sicoob-secondary active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm whitespace-nowrap"
             >
               <Plus className="w-3.5 h-3.5" /> Nova Demanda de Negócio
             </button>
             <button
               onClick={handleOpenSyncByIdModal}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-750 active:scale-95 text-slate-200 hover:text-white text-xs font-bold rounded-xl transition-all border border-slate-700 whitespace-nowrap"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-slate-50 active:scale-95 text-slate-600 hover:text-sicoob-text text-xs font-bold rounded-xl transition-all border border-slate-200 shadow-sm whitespace-nowrap"
             >
               <RefreshCw className="w-3.5 h-3.5" /> Adicionar Manualmente Demanda Jira/Azure
             </button>
@@ -280,7 +280,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
             <select
               value={originFilter}
               onChange={handleOriginFilterChange}
-              className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+              className="bg-white border border-slate-300 rounded-xl py-2 px-3 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary"
             >
               <option value="All">Origem</option>
               <option value="Jira">Jira Only</option>
@@ -292,7 +292,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
             <select
               value={itemTypeFilter}
               onChange={(e) => { setItemTypeFilter(e.target.value); setCurrentPage(1); }}
-              className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+              className="bg-white border border-slate-300 rounded-xl py-2 px-3 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary"
             >
               <option value="All">Tipo de Item</option>
               {allTypes.map(type => (
@@ -304,7 +304,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
             <select
               value={selectedTag}
               onChange={handleTagFilterChange}
-              className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+              className="bg-white border border-slate-300 rounded-xl py-2 px-3 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary"
             >
               <option value="">Tags</option>
               {allTags.map(tag => (
@@ -316,7 +316,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
             <select
               value={sortBy}
               onChange={handleSortByChange}
-              className="bg-slate-950 border border-slate-800/80 rounded-xl py-2 px-3 text-xs text-slate-300 focus:outline-none focus:border-brand-500"
+              className="bg-white border border-slate-300 rounded-xl py-2 px-3 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary"
             >
               <option value="updated-desc">Última Sync (Recente)</option>
               <option value="updated-asc">Última Sync (Antigo)</option>
@@ -332,7 +332,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
             {(search || originFilter !== 'All' || itemTypeFilter !== 'All' || selectedTag || selectedStatus.length > 0 || sortBy !== 'updated-desc') && (
               <button
                 onClick={handleClearFilters}
-                className="p-2 text-slate-400 hover:text-white bg-slate-900 rounded-xl transition-colors"
+                className="p-2 text-slate-500 hover:text-sicoob-text bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                 title="Limpar filtros"
               >
                 <X className="w-4 h-4" />
@@ -342,8 +342,8 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
         </div>
 
         {/* Linha Secundária: Filtro de Status (Pills) */}
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-800/40 pt-3">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mr-1">Status:</span>
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+          <span className="text-[10px] font-bold text-slate-550 uppercase tracking-wider mr-1">Status:</span>
           <div className="flex flex-wrap gap-1.5">
             {allStatuses.map(status => {
               const isActive = selectedStatus.includes(status);
@@ -361,8 +361,8 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                   }}
                   className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
                     isActive
-                      ? 'bg-brand-500/20 text-brand-400 border-brand-500/40 hover:bg-brand-500/30'
-                      : 'bg-slate-900/40 text-slate-400 border-slate-800/80 hover:text-slate-300 hover:bg-slate-800/40'
+                      ? 'bg-sicoob-primary/10 text-sicoob-secondary border-sicoob-primary/30 hover:bg-sicoob-primary/20'
+                      : 'bg-white text-slate-600 border-slate-200 hover:text-slate-800 hover:bg-slate-50'
                   }`}
                 >
                   {status}
@@ -374,13 +374,13 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
       </div>
 
       {/* Tabela */}
-      <div className="bg-slate-900/20 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-800/80 bg-slate-900/30 text-xs font-semibold text-slate-400 uppercase tracking-wider select-none">
+              <tr className="border-b border-slate-200 bg-slate-50/50 text-xs font-semibold text-slate-500 uppercase tracking-wider select-none">
                 <th 
-                  className="px-6 py-4 cursor-pointer hover:bg-slate-800/40 transition-colors group"
+                  className="px-6 py-4 cursor-pointer hover:bg-slate-100/50 transition-colors group"
                   onClick={() => handleSort('id')}
                 >
                   <div className="flex items-center">
@@ -389,7 +389,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-4 cursor-pointer hover:bg-slate-800/40 transition-colors group"
+                  className="px-6 py-4 cursor-pointer hover:bg-slate-100/50 transition-colors group"
                   onClick={() => handleSort('title')}
                 >
                   <div className="flex items-center">
@@ -398,7 +398,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-4 cursor-pointer hover:bg-slate-800/40 transition-colors group"
+                  className="px-6 py-4 cursor-pointer hover:bg-slate-100/50 transition-colors group"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center">
@@ -411,68 +411,68 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                 <th className="px-6 py-4 text-right">Ação</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-sm text-slate-300">
+            <tbody className="divide-y divide-slate-200 text-sm text-slate-655">
               {paginatedDemands.length > 0 ? (
                 paginatedDemands.map(demand => (
                   <tr
                     key={demand.externalId}
                     onClick={() => onSelectDemand(demand.externalId)}
-                    className="hover:bg-slate-900/30 cursor-pointer transition-colors group"
+                    className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2.5">
                         <span className={`w-2.5 h-2.5 rounded-full ${
-                          demand.origin === 'Jira' ? 'bg-sky-400' :
-                          demand.origin === 'Azure' ? 'bg-emerald-400' :
-                          'bg-purple-400'
+                          demand.origin === 'Jira' ? 'bg-sky-500' :
+                          demand.origin === 'Azure' ? 'bg-emerald-500' :
+                          'bg-purple-500'
                         }`} />
                         <div>
-                          <span className="font-semibold text-white block">{demand.externalId}</span>
+                          <span className="font-bold text-sicoob-text block">{demand.externalId}</span>
                           <span className="text-xs text-slate-500 block">{demand.origin}</span>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 max-w-md">
-                      <p className="truncate font-medium text-slate-200 group-hover:text-white transition-colors">
+                      <p className="truncate font-semibold text-sicoob-text group-hover:text-sicoob-primary transition-colors">
                         {demand.title}
                       </p>
                       {demand.project && (
-                        <span className="inline-flex items-center text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded mt-1">
+                        <span className="inline-flex items-center text-[10px] font-bold bg-sicoob-primary/10 text-sicoob-secondary border border-sicoob-primary/20 px-2 py-0.5 rounded mt-1">
                           Projeto: {demand.project}
                         </span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
                         demand.externalStatus === 'Concluído' || demand.externalStatus === 'Concluido' || demand.externalStatus === 'Done' || demand.externalStatus === 'Closed'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                           : demand.externalStatus === 'Em Progresso' || demand.externalStatus === 'Desenvolvimento' || demand.externalStatus === 'Doing' || demand.externalStatus === 'Resolved' || demand.externalStatus === 'Active' || demand.externalStatus === 'Em andamento'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                          ? 'bg-amber-50 text-amber-700 border-amber-100'
+                          : 'bg-slate-50 text-slate-600 border-slate-200'
                       }`}>
                         {demand.externalStatus}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-xs font-semibold bg-slate-900/60 text-slate-300 border border-slate-800/80 px-2.5 py-1 rounded-lg">
+                      <span className="text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-lg">
                         {demand.itemType || 'Outro'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
                         {demand.tags.length > 0 ? (
-                          demand.tags.map(tag => (
-                            <span key={tag} className="text-[10px] font-semibold bg-brand-500/10 text-brand-400 border border-brand-500/20 px-2 py-0.5 rounded-md">
+                           demand.tags.map(tag => (
+                            <span key={tag} className="text-[10px] font-bold bg-sicoob-primary/10 text-sicoob-secondary border border-sicoob-primary/20 px-2 py-0.5 rounded-md">
                               {tag}
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs text-slate-600">-</span>
+                          <span className="text-xs text-slate-400">-</span>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap">
-                      <button className="text-slate-400 group-hover:text-brand-400 group-hover:translate-x-1 transition-all p-1">
+                      <button className="text-slate-400 group-hover:text-sicoob-primary group-hover:translate-x-1 transition-all p-1">
                         <ArrowRight className="w-5 h-5" />
                       </button>
                     </td>
@@ -480,8 +480,8 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center py-12 text-slate-500">
-                    <Inbox className="w-12 h-12 mx-auto text-slate-700 mb-3" />
+                  <td colSpan="6" className="text-center py-12 text-slate-550">
+                    <Inbox className="w-12 h-12 mx-auto text-slate-300 mb-3" />
                     Nenhuma demanda encontrada para os critérios selecionados.
                   </td>
                 </tr>
@@ -492,11 +492,11 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
 
         {/* Paginação */}
         {sortedDemands.length > 0 && (
-          <div className="px-6 py-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 select-none bg-slate-900/10">
+          <div className="px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-550 select-none bg-slate-50/50">
             <div>
-              Exibindo <span className="font-semibold text-slate-200">{Math.min(startIndex + 1, sortedDemands.length)}</span> a{' '}
-              <span className="font-semibold text-slate-200">{Math.min(endIndex, sortedDemands.length)}</span> de{' '}
-              <span className="font-semibold text-slate-200">{sortedDemands.length}</span> demandas
+              Exibindo <span className="font-semibold text-sicoob-text">{Math.min(startIndex + 1, sortedDemands.length)}</span> a{' '}
+              <span className="font-semibold text-sicoob-text">{Math.min(endIndex, sortedDemands.length)}</span> de{' '}
+              <span className="font-semibold text-sicoob-text">{sortedDemands.length}</span> demandas
             </div>
             
             <div className="flex items-center gap-2">
@@ -504,7 +504,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                 type="button"
                 disabled={activePage === 1}
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                className="p-1.5 rounded-lg border border-slate-800/80 bg-slate-950 text-slate-400 hover:text-white hover:border-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-all"
+                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-550 hover:text-sicoob-text hover:border-slate-350 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-xs"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -516,7 +516,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                   
                   if (!isNear && !isFirstOrLast) {
                     if (page === 2 || page === totalPages - 1) {
-                      return <span key={`ell-${page}`} className="px-1.5 text-slate-600">...</span>;
+                      return <span key={`ell-${page}`} className="px-1.5 text-slate-400">...</span>;
                     }
                     return null;
                   }
@@ -527,10 +527,10 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                       key={page}
                       type="button"
                       onClick={() => setCurrentPage(page)}
-                      className={`min-w-8 h-8 px-2.5 rounded-lg text-xs font-semibold border transition-all ${
+                      className={`min-w-8 h-8 px-2.5 rounded-lg text-xs font-bold border transition-all ${
                         isCurrent
-                          ? 'bg-brand-500/20 text-brand-400 border-brand-500/40'
-                          : 'bg-slate-950/40 text-slate-400 border-slate-800/80 hover:text-slate-300 hover:bg-slate-800/40'
+                          ? 'bg-sicoob-primary text-white border-sicoob-primary'
+                          : 'bg-white text-slate-600 border-slate-200 hover:text-sicoob-text hover:bg-slate-50'
                       }`}
                     >
                       {page}
@@ -543,7 +543,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                 type="button"
                 disabled={activePage === totalPages}
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                className="p-1.5 rounded-lg border border-slate-800/80 bg-slate-950 text-slate-400 hover:text-white hover:border-slate-700 disabled:opacity-40 disabled:pointer-events-none transition-all"
+                className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-550 hover:text-sicoob-text hover:border-slate-355 disabled:opacity-40 disabled:pointer-events-none transition-all shadow-xs"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -555,13 +555,13 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
       {/* Modal Criar Demanda Manual */}
       {isManualModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsManualModalOpen(false)} />
-          <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 text-left">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setIsManualModalOpen(false)} />
+          <div className="relative bg-white border border-slate-250 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 text-left">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Nova Demanda de Negócio</h3>
+              <h3 className="text-lg font-bold text-sicoob-text">Nova Demanda de Negócio</h3>
               <button 
                 onClick={() => setIsManualModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -569,23 +569,23 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
             
             <form onSubmit={handleCreateManualDemand} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-400 font-semibold">Título da Demanda</label>
+                <label className="text-xs text-slate-500 font-bold uppercase">Título da Demanda</label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: Criar Nova Regra de Repasse"
                   value={newDemandTitle}
                   onChange={e => setNewDemandTitle(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-brand-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary"
                 />
               </div>
               
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-400 font-semibold">Projeto Vinculado</label>
+                <label className="text-xs text-slate-500 font-bold uppercase">Projeto Vinculado</label>
                 <select
                   value={newDemandProject}
                   onChange={e => setNewDemandProject(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-brand-500"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary"
                 >
                   <option value="">Nenhum (Sem vínculo)</option>
                   {projects.map(p => (
@@ -598,13 +598,13 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                 <button
                   type="button"
                   onClick={() => setIsManualModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
+                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold border border-slate-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold"
+                  className="px-4 py-2 bg-sicoob-primary hover:bg-sicoob-secondary text-white rounded-xl text-xs font-semibold"
                 >
                   Criar Demanda
                 </button>
@@ -617,13 +617,13 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
       {/* Modal Sincronização por ID */}
       {isSyncByIdModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsSyncByIdModalOpen(false)} />
-          <div className="relative bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 text-left">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setIsSyncByIdModalOpen(false)} />
+          <div className="relative bg-white border border-slate-250 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4 text-left">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white">Adicionar por ID</h3>
+              <h3 className="text-lg font-bold text-sicoob-text">Adicionar por ID</h3>
               <button 
                 onClick={() => setIsSyncByIdModalOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -631,7 +631,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
             
             <form onSubmit={handleSyncById} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-400 font-semibold">ID do Jira ou do Azure DevOps</label>
+                <label className="text-xs text-slate-500 font-bold uppercase">ID do Jira ou do Azure DevOps</label>
                 <input
                   type="text"
                   required
@@ -639,15 +639,15 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                   value={syncIdInput}
                   onChange={e => setSyncIdInput(e.target.value)}
                   disabled={syncByIdLoading}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-brand-500 disabled:opacity-55"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-sm text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary disabled:opacity-55"
                 />
               </div>
 
               {syncByIdFeedback.type && (
                 <div className={`p-3.5 rounded-xl text-xs font-semibold leading-relaxed border ${
-                  syncByIdFeedback.type === 'success' ? 'bg-emerald-500/10 text-emerald-450 border-emerald-500/25' :
-                  syncByIdFeedback.type === 'warning' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
-                  'bg-rose-500/10 text-rose-450 border-rose-500/25'
+                  syncByIdFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                  syncByIdFeedback.type === 'warning' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                  'bg-rose-50 text-rose-700 border-rose-100'
                 }`}>
                   {syncByIdFeedback.message}
                 </div>
@@ -658,14 +658,14 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
                   type="button"
                   onClick={() => setIsSyncByIdModalOpen(false)}
                   disabled={syncByIdLoading}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold disabled:opacity-50"
+                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold disabled:opacity-50 border border-slate-200"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={syncByIdLoading || !syncIdInput.trim()}
-                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
+                  className="px-4 py-2 bg-sicoob-primary hover:bg-sicoob-secondary text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60"
                 >
                   {syncByIdLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
                   Sincronizar
