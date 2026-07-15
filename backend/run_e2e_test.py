@@ -1,6 +1,7 @@
 import time
 import os
 import sqlite3
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -59,7 +60,11 @@ def run_test():
     driver = webdriver.Chrome(service=service, options=options)
     
     try:
-        url = "http://127.0.0.1:8080"
+        backend_dir = os.path.dirname(os.path.abspath(__file__))
+        env_path = os.path.join(backend_dir, ".env")
+        load_dotenv(dotenv_path=env_path)
+        port = int(os.getenv("PORT", 8080))
+        url = f"http://127.0.0.1:{port}"
         print(f"[E2E] Acessando {url}...")
         driver.get(url)
         

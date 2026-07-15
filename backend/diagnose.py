@@ -1,7 +1,16 @@
 import time
+import os
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+
+# Carrega variáveis de ambiente
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(backend_dir, ".env")
+load_dotenv(dotenv_path=env_path)
+
+port = int(os.getenv("PORT", 8080))
 
 options = webdriver.ChromeOptions()
 options.add_argument("--headless=new")
@@ -13,8 +22,9 @@ service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=options)
 
 try:
-    print("[Diag] Acessando http://127.0.0.1:8080...")
-    driver.get("http://127.0.0.1:8080")
+    url = f"http://127.0.0.1:{port}"
+    print(f"[Diag] Acessando {url}...")
+    driver.get(url)
     time.sleep(3)
     
     print("[Diag] Logs do Console do Navegador:")

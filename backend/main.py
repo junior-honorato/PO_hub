@@ -2075,8 +2075,34 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
-    # Carrega a porta do .env (com fallback para 8080)
+    import socket
+    # Carrega a porta e o host do .env (com fallback para 8080 e 0.0.0.0)
+    host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", 8080))
-    print(f"[*] Iniciando PO Hub na porta {port} (lida do .env)...")
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    
+    # Tenta obter o IP da rede local para exibir ao usuário
+    local_ip = None
+    try:
+        # Cria uma conexão UDP temporária para obter o IP de rede ativa
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        try:
+            local_ip = socket.gethostbyname(socket.gethostname())
+        except Exception:
+            pass
+
+    print("===================================================", flush=True)
+    print("                  PO HUB INICIADO                  ", flush=True)
+    print("===================================================", flush=True)
+    print(f"[*] Servidor rodando localmente: http://localhost:{port}", flush=True)
+    if (host == "0.0.0.0" or host == "") and local_ip and local_ip != "127.0.0.1":
+        print(f"[*] Disponível na rede interna:  http://{local_ip}:{port}", flush=True)
+    elif host != "0.0.0.0" and host != "127.0.0.1" and host != "localhost":
+        print(f"[*] Disponível na rede interna:  http://{host}:{port}", flush=True)
+    print("===================================================", flush=True)
+    
+    uvicorn.run("main:app", host=host, port=port, reload=True)
 
