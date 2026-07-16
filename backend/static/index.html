@@ -3603,6 +3603,17 @@
 
     // Componente ProjectOverview (Visão Geral de Detalhe)
     function ProjectOverview({ projectId, onBack, onSelectDemand }) {
+      const cleanTitle = (title, extId) => {
+        let clean = title || '';
+        clean = clean.replace(/^\[[A-Za-z0-9_-]+\]\s*/i, '');
+        if (extId) {
+          const escapedId = extId.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const regex = new RegExp(`^${escapedId}[:\\s-]*`, 'i');
+          clean = clean.replace(regex, '');
+        }
+        return clean.trim();
+      };
+
       const [data, setData] = useState(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
@@ -3718,7 +3729,8 @@
               pptx.layout = 'LAYOUT_16x9';
 
               // Titulo do Slide
-              const reportTitle = activeTab === 'report_tech' ? "REPORT EXECUTIVO - TECNOLOGIA" : "REPORT EXECUTIVO - NEGÓCIOS";
+              const baseTitle = activeTab === 'report_tech' ? "REPORT EXECUTIVO - TECNOLOGIA" : "REPORT EXECUTIVO - NEGÓCIOS";
+              const reportTitle = project.name ? `${baseTitle} - ${project.name.toUpperCase()}` : baseTitle;
 
               // Data & Sponsor
               const todayStr = new Date().toLocaleDateString('pt-BR');
@@ -3825,7 +3837,7 @@
                     return;
                   }
 
-                  const col1 = `[${epic.externalId}] ${epic.title}`;
+                  const col1 = cleanTitle(epic.title, epic.externalId);
                   const col2 = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
                   const col3 = notes.map(n => `• ${n}`).join('\n') || "-";
 
@@ -3906,7 +3918,7 @@
 
                   if (children.length === 0 && notes.length === 0) return;
 
-                  const col1 = `[${epic.externalId}] ${epic.title}`;
+                  const col1 = cleanTitle(epic.title, epic.externalId);
                   const col2 = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
                   const col3 = notes.map(n => `• ${n}`).join('\n') || "-";
 
@@ -4019,6 +4031,288 @@
               const cleanProjName = project.name.replace(/[^a-zA-Z0-9]/g, '_');
               const fileName = activeTab === 'report_tech' ? `Report_Executivo_Tecnologia_${cleanProjName}.pptx` : `Report_Executivo_Negocios_${cleanProjName}.pptx`;
               pptx.writeFile({ fileName: fileName });
+      };
+
+      const exportToExcel = () => {
+        const baseTitle = activeTab === 'report_tech' ? "REPORT EXECUTIVO - TECNOLOGIA" : "REPORT EXECUTIVO - NEGÓCIOS";
+        const reportTitle = project.name ? `${baseTitle} - ${project.name.toUpperCase()}` : baseTitle;
+
+        const todayStr = new Date().toLocaleDateString('pt-BR');
+        const headerInfo = project.sponsor ? `Data: ${todayStr} | Sponsor: ${project.sponsor}` : `Data: ${todayStr}`;
+
+        const rowsHtmlArray = [];
+
+        const addGroupToRows = (epicName, epicStatus, childrenList, statusNotesText, impedimentsText, index) => {
+          const N = childrenList.length || 1;
+          const isZebra = index % 2 === 1 ? 'class="zebra"' : '';
+          const escapeHtml = (text) => {
+            if (!text) return '';
+            return text
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+          };
+
+          // Row 1
+          let row1 = `<tr ${isZebra}>`;
+          row1 += `<td rowspan="${N}" style="vertical-align: middle; text-align: center;">${escapeHtml(epicName)}</td>`;
+          row1 += `<td rowspan="${N}" style="vertical-align: middle; text-align: center;">${escapeHtml(epicStatus)}</td>`;
+
+          if (childrenList.length > 0) {
+            row1 += `<td>${escapeHtml(`[${childrenList[0].externalId}] ${childrenList[0].title}`)}</td>`;
+            row1 += `<td>${escapeHtml(childrenList[0].externalStatus || '-')}</td>`;
+          } else {
+            row1 += `<td>Nenhuma demanda ativa vinculada.</td>`;
+            row1 += `<td>-</td>`;
+          }
+
+          row1 += `<td rowspan="${N}">${escapeHtml(statusNotesText).replace(/\n/g, '<br>')}</td>`;
+          row1 += `<td rowspan="${N}">${escapeHtml(impedimentsText).replace(/\n/g, '<br>')}</td>`;
+          row1 += `</tr>`;
+          rowsHtmlArray.push(row1);
+
+          // Rows 2 to N
+          for (let i = 1; i < childrenList.length; i++) {
+            let rowI = `<tr ${isZebra}>`;
+            rowI += `<td>${escapeHtml(`[${childrenList[i].externalId}] ${childrenList[i].title}`)}</td>`;
+            rowI += `<td>${escapeHtml(childrenList[i].externalStatus || '-')}</td>`;
+            rowI += `</tr>`;
+            rowsHtmlArray.push(rowI);
+          }
+        };
+
+        if (activeTab === 'report_tech') {
+          techEpics.forEach((epic, index) => {
+            const children = epicMap[epic.externalId] || [];
+            const visibleChildren = children.filter(shouldShowInExecutiveReport);
+
+            const statusNotesList = [];
+            if (epic.current_status_notes?.trim()) {
+              statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
+            }
+            visibleChildren.forEach(c => {
+              if (c.current_status_notes?.trim()) {
+                statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
+              }
+            });
+
+            const impedimentsList = [];
+            if (shouldShowInExecutiveReport(epic)) {
+              if (epic.blocker_notes?.trim()) {
+                impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
+              }
+              if (isDemandBlocked(epic)) {
+                let bList = epic.blockers;
+                if (typeof bList === 'string') {
+                  try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                }
+                const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+                const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+                impedimentsList.push({ id: epic.externalId, text: bMsg });
+              }
+            }
+            visibleChildren.forEach(c => {
+              if (c.blocker_notes?.trim()) {
+                impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
+              }
+              if (isDemandBlocked(c)) {
+                let bList = c.blockers;
+                if (typeof bList === 'string') {
+                  try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                }
+                const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
+                const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+                impedimentsList.push({ id: c.externalId, text: bMsg });
+              }
+            });
+
+            if (visibleChildren.length === 0 && statusNotesList.length === 0 && impedimentsList.length === 0 && !shouldShowInExecutiveReport(epic)) {
+              return;
+            }
+
+            const colEpic = cleanTitle(epic.title, epic.externalId);
+            const colEpicStatus = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
+            
+            const colStatus = statusNotesList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
+            const colImpediments = impedimentsList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
+
+            addGroupToRows(colEpic, colEpicStatus, visibleChildren, colStatus, colImpediments, index);
+          });
+
+          // Standalone demands
+          const visibleStandalone = standaloneDemands.filter(shouldShowInExecutiveReport);
+          if (visibleStandalone.length > 0) {
+            const statusNotesList = [];
+            const impedimentsList = [];
+
+            visibleStandalone.forEach(d => {
+              if (d.current_status_notes?.trim()) {
+                statusNotesList.push({ id: d.externalId, text: d.current_status_notes.trim() });
+              }
+              if (d.blocker_notes?.trim()) {
+                impedimentsList.push({ id: d.externalId, text: d.blocker_notes.trim() });
+              } else if (isDemandBlocked(d)) {
+                let bList = d.blockers;
+                if (typeof bList === 'string') {
+                  try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                }
+                const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+                impedimentsList.push({ id: d.externalId, text: `Impedida${bStr}` });
+              }
+            });
+
+            const colEpic = "Demandas Independentes\n[Sem Eixo Associado]";
+            const colEpicStatus = "-";
+            const colStatus = statusNotesList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
+            const colImpediments = impedimentsList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
+
+            addGroupToRows(colEpic, colEpicStatus, visibleStandalone, colStatus, colImpediments, techEpics.length);
+          }
+        } else {
+          // report_biz
+          techEpics.forEach((epic, index) => {
+            const children = bizEpicMap[epic.externalId] || [];
+
+            if (children.length === 0) return;
+
+            const statusNotesList = [];
+            if (epic.current_status_notes?.trim()) {
+              statusNotesList.push({ id: epic.externalId, text: epic.current_status_notes.trim() });
+            }
+            children.forEach(c => {
+              if (c.current_status_notes?.trim()) {
+                statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
+              }
+            });
+
+            const impedimentsList = [];
+            if (epic.blocker_notes?.trim()) {
+              impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
+            } else if (isDemandBlocked(epic)) {
+              impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+            }
+            children.forEach(c => {
+              if (c.blocker_notes?.trim()) {
+                impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
+              } else if (isDemandBlocked(c)) {
+                let bList = c.blockers;
+                if (typeof bList === 'string') {
+                  try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                }
+                const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+                impedimentsList.push({ id: c.externalId, text: `Impedida${bStr}` });
+              }
+            });
+
+            const colEpic = cleanTitle(epic.title, epic.externalId);
+            const colEpicStatus = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
+            
+            const colStatus = statusNotesList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
+            const colImpediments = impedimentsList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
+
+            addGroupToRows(colEpic, colEpicStatus, children, colStatus, colImpediments, index);
+          });
+
+          if (standaloneBizDemands.length > 0) {
+            const statusNotesList = [];
+            const impedimentsList = [];
+
+            standaloneBizDemands.forEach(c => {
+              if (c.current_status_notes?.trim()) {
+                statusNotesList.push({ id: c.externalId, text: c.current_status_notes.trim() });
+              }
+              if (c.blocker_notes?.trim()) {
+                impedimentsList.push({ id: c.externalId, text: c.blocker_notes.trim() });
+              }
+              if (isDemandBlocked(c)) {
+                let bList = c.blockers;
+                if (typeof bList === 'string') {
+                  try { bList = JSON.parse(bList); } catch(e) { bList = []; }
+                }
+                const bStr = (Array.isArray(bList) && bList.length > 0) ? ` por: ${bList.join(', ')}` : '';
+                impedimentsList.push({ id: c.externalId, text: `Impedida${bStr}` });
+              }
+            });
+
+            const colEpic = "Demandas de Negócio Avulsas\n[Sem Eixo Associado]";
+            const colEpicStatus = "-";
+            const colStatus = statusNotesList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
+            const colImpediments = impedimentsList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
+
+            addGroupToRows(colEpic, colEpicStatus, standaloneBizDemands, colStatus, colImpediments, techEpics.length);
+          }
+        }
+
+        const rowsHtml = rowsHtmlArray.join('');
+
+        const html = `
+          <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+          <head>
+            <meta charset="utf-8">
+            <!--[if gte mso 9]>
+            <xml>
+              <x:ExcelWorkbook>
+                <x:ExcelWorksheets>
+                  <x:ExcelWorksheet>
+                    <x:Name>Report Executivo</x:Name>
+                    <x:WorksheetOptions>
+                      <x:DisplayGridlines/>
+                    </x:WorksheetOptions>
+                  </x:ExcelWorksheet>
+                </x:ExcelWorksheets>
+              </x:ExcelWorkbook>
+            </xml>
+            <![endif]-->
+            <style>
+              table { border-collapse: collapse; }
+              th { background-color: #00AE9D; color: #FFFFFF; font-family: Calibri, sans-serif; font-size: 11pt; font-weight: bold; border: 1px solid #E2E8F0; text-align: left; padding: 6px; }
+              td { font-family: Calibri, sans-serif; font-size: 10pt; border: 1px solid #E2E8F0; vertical-align: top; padding: 6px; white-space: pre-wrap; }
+              .header-title { font-size: 14pt; font-weight: bold; color: #007A71; font-family: Calibri, sans-serif; border: none; padding: 6px 0; }
+              .header-info { font-size: 10pt; color: #555555; font-family: Calibri, sans-serif; border: none; padding: 0 0 10px 0; }
+              .zebra { background-color: #F8F9FA; }
+            </style>
+          </head>
+          <body>
+            <table>
+              <tr>
+                <td colspan="6" class="header-title">${reportTitle}</td>
+              </tr>
+              <tr>
+                <td colspan="6" class="header-info">${headerInfo}</td>
+              </tr>
+              <thead>
+                <tr>
+                  <th style="width: 250px;">EIXO / EPIC</th>
+                  <th style="width: 150px;">Status EIXO / EPIC</th>
+                  <th style="width: 300px;">DEMANDAS EM ANDAMENTO</th>
+                  <th style="width: 200px;">Status DEMANDA EM ANDAMENTO</th>
+                  <th style="width: 350px;">SITUAÇÃO ATUAL</th>
+                  <th style="width: 350px;">IMPEDIMENTOS / PONTOS DE ATENÇÃO</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          </body>
+          </html>
+        `;
+
+        const cleanProjName = project.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const fileName = activeTab === 'report_tech' 
+          ? `Report_Executivo_Tecnologia_${cleanProjName}.xls` 
+          : `Report_Executivo_Negocios_${cleanProjName}.xls`;
+
+        const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       };
 
       if (loading) {
@@ -4255,6 +4549,12 @@
                       className="flex items-center gap-2 px-4 py-2.5 bg-sicoob-primary hover:bg-sicoob-secondary text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 select-none"
                     >
                       <Icon name="download" className="w-3.5 h-3.5" /> Exportar PPTX
+                    </button>
+                    <button
+                      onClick={exportToExcel}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 select-none"
+                    >
+                      <Icon name="download" className="w-3.5 h-3.5" /> Exportar Excel
                     </button>
                   </>
                 )}
