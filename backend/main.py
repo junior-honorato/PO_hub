@@ -942,12 +942,17 @@ def sync_demands(req: SyncRequest = Body(...)):
                     if is_last or not next_page_token:
                         break
                 else:
-                    err_msg = f"Jira HTTP {response.status_code}: {response.text[:150]}"
+                    if response.status_code == 401:
+                        err_msg = "Token de acesso do Sicoob TI (Jira) inválido ou expirado (HTTP 401). Atualize nas Configurações."
+                    elif response.status_code == 403:
+                        err_msg = "Acesso negado no Sicoob TI (Jira) (HTTP 403). Sua conta não possui permissão."
+                    else:
+                        err_msg = f"Erro no Sicoob TI (Jira) (HTTP {response.status_code}): {response.text[:150]}"
                     print(f"Erro na sincronização do Jira: {err_msg}")
                     errors.append(err_msg)
                     break
         except Exception as e:
-            err_msg = f"Falha na conexão com Jira: {str(e)}"
+            err_msg = f"Falha na conexão com Sicoob TI (Jira): {str(e)}"
             print(err_msg)
             errors.append(err_msg)
     else:
@@ -1022,11 +1027,16 @@ def sync_demands(req: SyncRequest = Body(...)):
                 else:
                     sync_source["azure"] = "real"
             else:
-                err_msg = f"Azure DevOps WIQL HTTP {wiql_response.status_code}: {wiql_response.text[:150]}"
+                if wiql_response.status_code == 401:
+                    err_msg = "Token de acesso da MAG TI (Azure DevOps) inválido ou expirado (HTTP 401). Atualize nas Configurações."
+                elif wiql_response.status_code == 403:
+                    err_msg = "Acesso negado na MAG TI (Azure DevOps) (HTTP 403). Sua conta não possui permissão."
+                else:
+                    err_msg = f"Erro na MAG TI (Azure DevOps WIQL HTTP {wiql_response.status_code}): {wiql_response.text[:150]}"
                 print(f"Erro no Azure DevOps: {err_msg}")
                 errors.append(err_msg)
         except Exception as e:
-            err_msg = f"Falha na conexão com Azure DevOps: {str(e)}"
+            err_msg = f"Falha na conexão com MAG TI (Azure DevOps): {str(e)}"
             print(err_msg)
             errors.append(err_msg)
     else:
@@ -1154,9 +1164,13 @@ def sync_demand_by_id(req: SyncByIdRequest):
             res = requests.get(detail_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
             if res.status_code == 404:
                 raise HTTPException(status_code=404, detail="Demanda não encontrada. Verifique o ID e tente novamente.")
+            elif res.status_code == 401:
+                raise HTTPException(status_code=401, detail="Token de acesso do Jira (JIRA_PAT) inválido ou expirado. Atualize suas credenciais nas Configurações.")
+            elif res.status_code == 403:
+                raise HTTPException(status_code=403, detail="Acesso negado no Jira. Sua conta/token não possui permissão para este projeto ou demanda.")
             elif res.status_code != 200:
                 print(f"Jira HTTP error: {res.status_code} - {res.text}")
-                raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+                raise HTTPException(status_code=502, detail=f"Erro na API do Jira (HTTP {res.status_code}): {res.text[:150]}")
                 
             issue_data = res.json()
             demand = parse_jira_issue(issue_data)
@@ -1185,7 +1199,7 @@ def sync_demand_by_id(req: SyncByIdRequest):
             raise he
         except Exception as e:
             print(f"Erro ao conectar ao Jira: {e}")
-            raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+            raise HTTPException(status_code=502, detail=f"Erro ao conectar ao Jira: {str(e)}")
     else:
         # Azure DevOps
         azure_org = req.azureOrg
@@ -1214,7 +1228,7 @@ def sync_demand_by_id(req: SyncByIdRequest):
                 save_demand(mock_item_copy, "ativo")
                 return {"success": True, "message": f"Demanda {db_id} importada com sucesso!"}
             else:
-                raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+                raise HTTPException(status_code=502, detail="Credenciais do Azure DevOps não configuradas e demanda não encontrada na lista local.")
                 
         try:
             auth_str = f":{azure_token}"
@@ -1228,9 +1242,13 @@ def sync_demand_by_id(req: SyncByIdRequest):
             res = requests.get(detail_url, headers=headers, verify=VERIFY_SSL, timeout=12)
             if res.status_code == 404:
                 raise HTTPException(status_code=404, detail="Demanda não encontrada. Verifique o ID e tente novamente.")
+            elif res.status_code == 401:
+                raise HTTPException(status_code=401, detail="Token de acesso do Azure DevOps (AZURE_PAT) inválido ou expirado. Atualize suas credenciais nas Configurações.")
+            elif res.status_code == 403:
+                raise HTTPException(status_code=403, detail="Acesso negado no Azure DevOps. Sua conta/token não possui permissão para este projeto ou item.")
             elif res.status_code != 200:
                 print(f"Azure HTTP error: {res.status_code} - {res.text}")
-                raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+                raise HTTPException(status_code=502, detail=f"Erro na API do Azure DevOps (HTTP {res.status_code}): {res.text[:150]}")
                 
             item_data = res.json()
             demand = parse_azure_item(item_data, azure_url, headers)
@@ -1259,7 +1277,7 @@ def sync_demand_by_id(req: SyncByIdRequest):
             raise he
         except Exception as e:
             print(f"Erro ao conectar ao Azure DevOps: {e}")
-            raise HTTPException(status_code=502, detail="Não foi possível conectar ao serviço. Tente novamente em instantes.")
+            raise HTTPException(status_code=502, detail=f"Erro ao conectar ao Azure DevOps: {str(e)}")
 
 @app.get("/api/demands")
 def list_demands():

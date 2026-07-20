@@ -66,16 +66,17 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
           message: "Demanda não encontrada. Verifique o ID e tente novamente."
         });
       } else {
+        const errData = await res.json().catch(() => null);
         setSyncByIdFeedback({
           type: 'error',
-          message: "Não foi possível conectar ao serviço. Tente novamente em instantes."
+          message: (errData && errData.detail) || "Não foi possível conectar ao serviço. Tente novamente em instantes."
         });
       }
     } catch (err) {
       console.error(err);
       setSyncByIdFeedback({
         type: 'error',
-        message: "Não foi possível conectar ao serviço. Tente novamente em instantes."
+        message: "Não foi possível conectar ao serviço. Verifique a conexão com o servidor local."
       });
     } finally {
       setSyncByIdLoading(false);

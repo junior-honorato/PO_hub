@@ -87,7 +87,7 @@ export default function App() {
         const result = await res.json();
         await loadDemands();
         
-        const syncSourceMsg = (result.sources.jira === 'real' || result.sources.azure === 'real')
+        const syncSourceMsg = (result.sources && (result.sources.jira === 'real' || result.sources.azure === 'real'))
           ? 'Conectado a APIs Reais'
           : '';
 
@@ -112,9 +112,17 @@ export default function App() {
         
         setLastSyncStatus(syncInfo);
         localStorage.setItem('po-hub-last-sync', JSON.stringify(syncInfo));
+
+        if (result.errors && result.errors.length > 0) {
+          alert(`Atenção ao Sincronizar APIs:\n\n${result.errors.join('\n\n')}`);
+        }
+      } else {
+        const errData = await res.json().catch(() => null);
+        alert((errData && errData.detail) || "Erro ao conectar às APIs. Verifique suas credenciais nas Configurações.");
       }
     } catch (e) {
       console.error("Erro na sincronização:", e);
+      alert(`Falha de conexão ao sincronizar: ${e.message || 'Verifique se o backend local está rodando.'}`);
     } finally {
       setIsSyncing(false);
     }
