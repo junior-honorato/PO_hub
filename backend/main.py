@@ -105,6 +105,8 @@ class DemandUpdate(BaseModel):
     externalStatus: Optional[str] = None
     in_tactical_planning: Optional[int] = None
     priority_rank: Optional[int] = None
+    planned_start_date: Optional[str] = None
+    planned_end_date: Optional[str] = None
 
 class DemandManualCreate(BaseModel):
     title: str
@@ -798,7 +800,9 @@ def get_demands_data(db_name="ativo"):
             "current_status_notes": row.get("current_status_notes"),
             "blocker_notes": row.get("blocker_notes"),
             "priority_rank": row.get("priority_rank"),
-            "in_tactical_planning": row.get("in_tactical_planning") or 0
+            "in_tactical_planning": row.get("in_tactical_planning") or 0,
+            "planned_start_date": row.get("planned_start_date"),
+            "planned_end_date": row.get("planned_end_date")
         })
     return demands
 
@@ -1375,7 +1379,9 @@ def get_demand(external_id: str):
             "current_status_notes": demand.get("current_status_notes"),
             "blocker_notes": demand.get("blocker_notes"),
             "priority_rank": demand.get("priority_rank"),
-            "in_tactical_planning": demand.get("in_tactical_planning") or 0
+            "in_tactical_planning": demand.get("in_tactical_planning") or 0,
+            "planned_start_date": demand.get("planned_start_date"),
+            "planned_end_date": demand.get("planned_end_date")
         }
     except HTTPException as he:
         raise he

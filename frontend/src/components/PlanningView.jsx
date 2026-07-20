@@ -144,9 +144,60 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
     date.setDate(1);
     for (let i = 0; i < 6; i++) {
       const d = new Date(date.getFullYear(), date.getMonth() + i, 1);
-      months.push(d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).toUpperCase());
+      months.push({
+        label: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).toUpperCase(),
+        year: d.getFullYear(),
+        month: d.getMonth()
+      });
     }
     return months;
+  };
+
+  const getGanttPosition = (demand, months, fallbackIndex) => {
+    if (!demand.planned_start_date || !demand.planned_end_date) {
+      const startCol = (fallbackIndex % 4) + 1;
+      const colSpan = Math.min(6 - startCol + 1, (fallbackIndex % 3) + 2);
+      return { startCol, colSpan, isDefined: false };
+    }
+
+    try {
+      const sDate = new Date(demand.planned_start_date + 'T00:00:00');
+      const eDate = new Date(demand.planned_end_date + 'T23:59:59');
+
+      const sYear = sDate.getFullYear();
+      const sMonth = sDate.getMonth();
+      const eYear = eDate.getFullYear();
+      const eMonth = eDate.getMonth();
+
+      const firstMonth = months[0];
+      let startIdx = (sYear - firstMonth.year) * 12 + (sMonth - firstMonth.month);
+      let endIdx = (eYear - firstMonth.year) * 12 + (eMonth - firstMonth.month);
+
+      if (startIdx < 0) startIdx = 0;
+      if (endIdx > 5) endIdx = 5;
+      if (startIdx > 5) startIdx = 5;
+      if (endIdx < startIdx) endIdx = startIdx;
+
+      const startCol = startIdx + 1;
+      const colSpan = endIdx - startIdx + 1;
+
+      return { startCol, colSpan, isDefined: true };
+    } catch (e) {
+      const startCol = (fallbackIndex % 4) + 1;
+      const colSpan = Math.min(6 - startCol + 1, (fallbackIndex % 3) + 2);
+      return { startCol, colSpan, isDefined: false };
+    }
+  };
+
+  const formatDateBR = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
   };
 
   const timelineMonths = getTimelineMonths();
@@ -390,7 +441,7 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                 <div className="col-span-5">Demanda & Sub-Projeto</div>
                 <div className="col-span-7 grid grid-cols-6 text-center">
                   {timelineMonths.map((m, i) => (
-                    <div key={i} className="border-l border-slate-100 px-1">{m}</div>
+                    <div key={i} className="border-l border-slate-100 px-1">{m.label}</div>
                   ))}
                 </div>
               </div>
@@ -403,8 +454,7 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                 ) : (
                   tacticalDemandsList.map((demand, index) => {
                     const tag = getSubProjectTag(demand);
-                    const startCol = (index % 4) + 1;
-                    const colSpan = Math.min(6 - startCol + 1, (index % 3) + 2);
+                    const { startCol, colSpan, isDefined } = getGanttPosition(demand, timelineMonths, index);
 
                     return (
                       <div
@@ -421,6 +471,11 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                             <span className="text-[11px] font-mono font-bold text-slate-500">
                               {demand.externalId}
                             </span>
+                            {isDefined && (
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                ({formatDateBR(demand.planned_start_date)} a {formatDateBR(demand.planned_end_date)})
+                              </span>
+                            )}
                           </div>
                           <h4 className="text-xs font-semibold text-sicoob-text line-clamp-1 leading-snug">
                             {formatTitle(demand.title)}
@@ -429,7 +484,11 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
 
                         <div className="col-span-7 grid grid-cols-6 items-center relative h-8">
                           <div
-                            className="h-6 rounded-lg bg-gradient-to-r from-sicoob-primary to-teal-500 text-white text-[10px] font-bold px-2.5 flex items-center justify-between shadow-xs truncate"
+                            className={`h-6 rounded-lg text-white text-[10px] font-bold px-2.5 flex items-center justify-between shadow-xs truncate ${
+                              isDefined
+                                ? 'bg-gradient-to-r from-sicoob-primary to-teal-500'
+                                : 'bg-gradient-to-r from-slate-400 to-slate-500 opacity-80 border border-dashed border-slate-300'
+                            }`}
                             style={{
                               gridColumnStart: startCol,
                               gridColumnEnd: `span ${colSpan}`
@@ -437,7 +496,7 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                           >
                             <span className="truncate">[{tag}] {formatTitle(demand.title)}</span>
                             <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded text-white shrink-0 ml-1">
-                              {demand.mappedStatus || demand.externalStatus || 'Ativa'}
+                              {isDefined ? (demand.mappedStatus || demand.externalStatus || 'Ativa') : 'Datas Pendentes'}
                             </span>
                           </div>
                         </div>

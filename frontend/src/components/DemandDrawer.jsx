@@ -440,6 +440,34 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
                     <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sicoob-primary"></div>
                   </label>
                 </div>
+
+                {Boolean(demand.in_tactical_planning) && (
+                  <div className="p-3.5 rounded-xl bg-sicoob-primary/5 border border-sicoob-primary/20 space-y-2.5 mt-2 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-sicoob-primary">
+                      <Calendar className="w-3.5 h-3.5" /> Datas do Cronograma Tático
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Data Início Planejada</label>
+                        <input
+                          type="date"
+                          value={demand.planned_start_date || ''}
+                          onChange={e => handleUpdateManagementField('planned_start_date', e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Data Fim Planejada</label>
+                        <input
+                          type="date"
+                          value={demand.planned_end_date || ''}
+                          onChange={e => handleUpdateManagementField('planned_end_date', e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <hr className="border-slate-200" />
