@@ -109,16 +109,18 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local, campos de S
 - `blocker_notes` (TEXT) - Impedimentos e riscos da demanda para o Report Semanal.
 - `priority_rank` (INTEGER) - Posição de prioridade absoluta no Stack Ranking tático.
 - `in_tactical_planning` (INTEGER DEFAULT 0) - Flag de inclusão da demanda no Planejamento Tático (0: Oculta, 1: Visível).
+- `planned_start_date` (TEXT) - Data Início Planejada para o Cronograma Tático (`YYYY-MM-DD`).
+- `planned_end_date` (TEXT) - Data Fim Planejada para o Cronograma Tático (`YYYY-MM-DD`).
 
 ---
 
 ## 🎯 Principais Funcionalidades da Interface UI/UX
 
 1. **Portfólio Executivo (PPM):** Dashboard centralizado com cards horizontais de projetos detalhados, exibindo progresso (com barra de progresso horizontal colorida), sponsor, previsão de lançamento e farol de saúde (Verde, Amarelo, Vermelho) dinâmico e inteligente.
-2. **Planejamento Tático - VGBL (Novo):** Tela dedicada à priorização e acompanhamento temporal tático:
+2. **Planejamento Tático - VGBL:** Tela dedicada à priorização e acompanhamento temporal tático:
    - **Stack Ranking (Priorização Paralela):** Grid de 2 colunas verticais (**Sicoob TI (Jira)** e **MAG (Azure)**) com destaque numérico de prioridade (`1º`, `2º`, `3º`...), suporte a reordenação por Drag and Drop nativo em HTML5 e persistência instantânea no SQLite (`PUT /demands/reorder`).
-   - **Cronograma (Visão de Gantt):** Linha do tempo de demandas ativas organizadas por sub-projetos com exibição de Tags visuais (`[Autosserviços]`, `[Resgate]`, etc.).
-   - **Controle de Inclusão no Tático:** Chave de alternância *"Exibir no Planejamento Tático"* nos detalhes da demanda (`DemandDrawer`) e botão de inclusão rápida *"+ Incluir Demanda"* com busca por modal no Planejamento Tático.
+   - **Cronograma Gantt de Alta Precisão:** Linha do tempo de 6 meses que posiciona e dimensiona dinamicamente a barra de cada demanda com base nas datas reais de **Início Planejado** (`planned_start_date`) e **Fim Planejado** (`planned_end_date`).
+   - **Gestão Condicional de Datas:** Chave de alternância *"Exibir no Planejamento Tático"* nos detalhes da demanda (`DemandDrawer`) que exibe/oculta os inputs de datas planejadas e botão de inclusão rápida *"+ Incluir Demanda"* no Planejamento Tático.
 3. **Criação de Demandas de Negócio:** Botão "+ Nova Demanda de Negócio" na tabela de demandas que permite cadastrar novos itens locais (com ID único no formato `BIZ-{timestamp}` e origem `Negocio`) vinculados opcionalmente a projetos do portfólio.
 4. **Visão Geral do Projeto em Abas (Dashboard & Slide):** A visão de iniciativa do portfólio é organizada em duas abas:
    - **Gestão Operacional**: Kanban board de trilhas side-by-side agrupados por origem (**TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**) com contadores de impedimentos e destaque visual de cards travados.
@@ -126,8 +128,8 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local, campos de S
 5. **Modelo Híbrido de Curadoria Refinado:** Regras de negócio aprimoradas para exibição inteligente de demandas no Report Executivo:
    - *Condição de Curadoria do PO:* Qualquer demanda com o campo `blocker_notes` preenchido é exibida, independentemente do seu `State` atual.
    - *Regra de Exclusão:* Demandas inativas sem `current_status_notes` são automaticamente ocultadas.
-6. **Modal Centralizado Amplo de Detalhes:** Gaveta lateral (Drawer) estruturada em duas colunas com suporte a notas, tags, histórico e chave de Planejamento Tático.
+6. **Modal Centralizado Amplo de Detalhes:** Gaveta lateral (Drawer) estruturada em duas colunas com suporte a notas, tags, histórico, chave de Planejamento Tático e campos de datas de cronograma.
 7. **Modo Apresentação Premium & Fullscreen Real:** Projeção do relatório cobrindo 100% da viewport de forma absoluta (`fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12`), ocultando menus com atalho `ESC`.
 8. **Mapeamento e Unificação de Status (Status Mapper):** Regras locais de mapeamento de status por canal (Jira, Azure DevOps, Negócio) integradas ao banco de dados SQLite (`status_mappings`).
-9. **Sincronização Incremental (Delta Sync):** Redução do tempo de sincronização para menos de 1 segundo salvando banda e requisições de API.
+9. **Sincronização Incremental (Delta Sync) e Diagnóstico de Erros:** Sincronização rápida salvando banda, com tratamento e exibição explicativa de erros HTTP (ex: HTTP 401 para tokens expirados e HTTP 403 para permissões de projeto).
 10. **Exportação PowerPoint (.pptx) & Excel (.xls):** Relatórios em PPTX (estilo Sicoob widescreen 16:9 via `PptxGenJS`) e planilhas em Excel formatadas.
