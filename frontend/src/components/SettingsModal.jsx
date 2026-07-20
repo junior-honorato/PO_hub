@@ -140,11 +140,11 @@ export default function SettingsModal({ isOpen, onClose }) {
             {/* Seção Jira */}
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5" /> Jira Cloud
+                <Globe className="w-3.5 h-3.5" /> Sicoob TI (Jira)
               </h3>
               <div className="grid grid-cols-1 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs text-slate-500 font-medium">Jira URL</label>
+                  <label className="text-xs text-slate-500 font-medium">URL do Jira (Sicoob)</label>
                   <input
                     type="url"
                     placeholder="https://sua-empresa.atlassian.net"
@@ -155,7 +155,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-500 font-medium">E-mail do Usuário</label>
+                    <label className="text-xs text-slate-500 font-medium">E-mail do Usuário (Sicoob)</label>
                     <input
                       type="email"
                       placeholder="nome@empresa.com"
@@ -165,7 +165,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-500 font-medium">Token de Acesso (PAT)</label>
+                    <label className="text-xs text-slate-500 font-medium">Token de Acesso (Sicoob)</label>
                     <input
                       type="password"
                       placeholder="••••••••••••••••••••"
@@ -181,12 +181,12 @@ export default function SettingsModal({ isOpen, onClose }) {
             {/* Seção Azure */}
             <div className="space-y-4 pt-2 border-t border-slate-200">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-emerald-600" /> Azure DevOps
+                <Globe className="w-3.5 h-3.5 text-emerald-600" /> MAG TI (Azure DevOps)
               </h3>
               <div className="grid grid-cols-1 gap-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-500 font-medium">Organização</label>
+                    <label className="text-xs text-slate-500 font-medium">Organização (MAG TI)</label>
                     <input
                       type="text"
                       placeholder="sua-organizacao"
@@ -196,7 +196,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs text-slate-500 font-medium">Projeto</label>
+                    <label className="text-xs text-slate-500 font-medium">Projeto (MAG TI)</label>
                     <input
                       type="text"
                       placeholder="seu-projeto"
@@ -207,7 +207,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs text-slate-500 font-medium">Token de Acesso (PAT)</label>
+                  <label className="text-xs text-slate-500 font-medium">Token de Acesso (MAG TI)</label>
                   <input
                     type="password"
                     placeholder="••••••••••••••••••••"

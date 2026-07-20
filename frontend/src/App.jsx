@@ -8,6 +8,7 @@ import ManagerSyncView from './components/ManagerSyncView';
 import HistoryView from './components/HistoryView';
 import PortfolioView from './components/PortfolioView';
 import ProjectOverview from './components/ProjectOverview';
+import PlanningView from './components/PlanningView';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('portfolio');
@@ -58,7 +59,7 @@ export default function App() {
     const hasAzure = azureOrg && azureProject && azureToken;
 
     if (!hasJira && !hasAzure) {
-      alert('Por favor, preencha as credenciais do Jira ou do Azure DevOps no menu de Configurações antes de sincronizar.');
+      alert('Por favor, preencha as credenciais do Sicoob TI (Jira) ou da MAG TI (Azure DevOps) no menu de Configurações antes de sincronizar.');
       return;
     }
 
@@ -94,10 +95,10 @@ export default function App() {
         if (result.sync_types && syncSourceMsg) {
           const types = [];
           if (result.sources.jira === 'real' && result.sync_types.jira) {
-            types.push(`Jira: ${result.sync_types.jira === 'incremental' ? 'Delta' : 'Completa'}`);
+            types.push(`Sicoob TI (Jira): ${result.sync_types.jira === 'incremental' ? 'Delta' : 'Completa'}`);
           }
           if (result.sources.azure === 'real' && result.sync_types.azure) {
-            types.push(`Azure: ${result.sync_types.azure === 'incremental' ? 'Delta' : 'Completa'}`);
+            types.push(`MAG TI (Azure): ${result.sync_types.azure === 'incremental' ? 'Delta' : 'Completa'}`);
           }
           if (types.length > 0) {
             syncTypeDetail = ` (${types.join(', ')})`;
@@ -213,6 +214,8 @@ export default function App() {
           />
         ) : activeTab === 'portfolio' ? (
           <PortfolioView onSelectProject={setSelectedProjectId} />
+        ) : activeTab === 'planning' ? (
+          <PlanningView demands={demands} onSelectDemand={handleSelectDemand} onRefreshDemands={loadDemands} />
         ) : activeTab === 'one-on-one' ? (
           <ManagerSyncView demands={demands} onSelectDemand={handleSelectDemand} />
         ) : activeTab === 'history' ? (

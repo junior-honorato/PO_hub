@@ -143,6 +143,17 @@
               Portfólio Executivo
             </button>
             <button
+              onClick={() => setActiveTab('planning')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                activeTab === 'planning'
+                  ? 'bg-slate-100 text-sicoob-primary border-l-4 border-sicoob-primary font-semibold shadow-xs'
+                  : 'text-slate-550 hover:bg-slate-50 hover:text-sicoob-primary'
+              }`}
+            >
+              <Icon name="calendar" className="w-5 h-5" />
+              Planejamento Tático
+            </button>
+            <button
               onClick={() => setActiveTab('demands')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                 activeTab === 'demands'
@@ -235,18 +246,18 @@
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-300">
               <Icon name="columns" className="w-24 h-24" />
             </div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jira Epics</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sicoob TI (Jira)</p>
             <h3 className="text-3xl font-bold mt-2 text-sky-400">{jiraCount}</h3>
-            <span className="text-xs text-slate-500 mt-2 block">Originadas no Jira API</span>
+            <span className="text-xs text-slate-500 mt-2 block">Sincronizado do Jira</span>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group hover:border-sicoob-primary/30 transition-all duration-300">
             <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-300">
               <Icon name="git-pull-request" className="w-24 h-24" />
             </div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Azure DevOps Backlog</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">MAG TI (Azure DevOps)</p>
             <h3 className="text-3xl font-bold mt-2 text-emerald-400">{azureCount}</h3>
-            <span className="text-xs text-slate-500 mt-2 block">Histórias e bugs sincronizados</span>
+            <span className="text-xs text-slate-500 mt-2 block">Sincronizado do Azure DevOps</span>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-5 backdrop-blur-md relative overflow-hidden group hover:border-sicoob-primary/30 transition-all duration-300">
@@ -532,7 +543,7 @@
                   onClick={handleOpenSyncByIdModal}
                   className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-100 active:scale-95 text-sicoob-text hover:text-white text-xs font-bold rounded-xl transition-all border border-slate-300 whitespace-nowrap animate-in"
                 >
-                  <Icon name="refresh-cw" className="w-3.5 h-3.5" /> Adicionar Manualmente Demanda Jira/Azure
+                  <Icon name="refresh-cw" className="w-3.5 h-3.5" /> Adicionar Manualmente Demanda Sicoob/MAG TI
                 </button>
               </div>
               
@@ -544,8 +555,8 @@
                   className="bg-white border border-slate-350 rounded-xl py-2 px-3 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary"
                 >
                   <option value="All">Origem</option>
-                  <option value="Jira">Jira Only</option>
-                  <option value="Azure">Azure DevOps</option>
+                  <option value="Jira">Sicoob TI (Jira)</option>
+                  <option value="Azure">MAG TI (Azure DevOps)</option>
                   <option value="Negocio">Negócio (Manual)</option>
                 </select>
 
@@ -892,11 +903,11 @@
                 
                 <form onSubmit={handleSyncById} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs text-slate-500 font-semibold">ID do Jira ou do Azure DevOps</label>
+                    <label className="text-xs text-slate-500 font-semibold">ID do Sicoob TI (Jira) ou da MAG TI (Azure DevOps)</label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: SGRVDI-2262 (Jira) ou 2329 (Azure)"
+                      placeholder="Ex: SGRVDI-2262 (Sicoob TI) ou 2329 (MAG TI)"
                       value={syncIdInput}
                       onChange={e => setSyncIdInput(e.target.value)}
                       disabled={syncByIdLoading}
@@ -1024,8 +1035,8 @@
                   onChange={e => setOrigin(e.target.value)}
                   className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-600 focus:outline-none focus:border-brand-500 transition-colors"
                 >
-                  <option value="Jira">Jira</option>
-                  <option value="Azure">Azure DevOps</option>
+                  <option value="Jira">Sicoob TI (Jira)</option>
+                  <option value="Azure">MAG TI (Azure DevOps)</option>
                   <option value="Negocio">Negócio (Local)</option>
                 </select>
               </div>
@@ -1091,7 +1102,7 @@
                               m.origin === 'Azure' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
                               'bg-purple-50 text-purple-700 border border-purple-100'
                             }`}>
-                              {m.origin === 'Azure' ? 'Azure DevOps' : m.origin}
+                              {m.origin === 'Azure' ? 'MAG TI (Azure DevOps)' : m.origin === 'Jira' ? 'Sicoob TI (Jira)' : m.origin}
                             </span>
                           </td>
                           <td className="px-4 py-2 font-medium font-mono">{m.external_status}</td>
@@ -1270,11 +1281,11 @@
                 {/* Seção Jira */}
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <Icon name="globe" className="w-3.5 h-3.5 text-sky-400" /> Jira Cloud
+                    <Icon name="globe" className="w-3.5 h-3.5 text-sky-400" /> Sicoob TI (Jira)
                   </h3>
                   <div className="grid grid-cols-1 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-500 font-medium">Jira URL</label>
+                      <label className="text-xs text-slate-500 font-medium">URL do Jira (Sicoob)</label>
                       <input
                         type="url"
                         placeholder="https://sua-empresa.atlassian.net"
@@ -1285,7 +1296,7 @@
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-xs text-slate-500 font-medium">E-mail do Usuário</label>
+                        <label className="text-xs text-slate-500 font-medium">E-mail do Usuário (Sicoob)</label>
                         <input
                           type="email"
                           placeholder="nome@empresa.com"
@@ -1295,7 +1306,7 @@
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs text-slate-500 font-medium">Token de Acesso (PAT)</label>
+                        <label className="text-xs text-slate-500 font-medium">Token de Acesso (Sicoob)</label>
                         <input
                           type="password"
                           placeholder="••••••••••••••••••••"
@@ -1311,12 +1322,12 @@
                 {/* Seção Azure */}
                 <div className="space-y-4 pt-2 border-t border-slate-200">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <Icon name="globe" className="w-3.5 h-3.5 text-emerald-400" /> Azure DevOps
+                    <Icon name="globe" className="w-3.5 h-3.5 text-emerald-400" /> MAG TI (Azure DevOps)
                   </h3>
                   <div className="grid grid-cols-1 gap-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-xs text-slate-500 font-medium">Organização</label>
+                        <label className="text-xs text-slate-500 font-medium">Organização (MAG TI)</label>
                         <input
                           type="text"
                           placeholder="sua-organizacao"
@@ -1326,7 +1337,7 @@
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs text-slate-500 font-medium">Projeto</label>
+                        <label className="text-xs text-slate-500 font-medium">Projeto (MAG TI)</label>
                         <input
                           type="text"
                           placeholder="seu-projeto"
@@ -1337,7 +1348,7 @@
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs text-slate-500 font-medium">Token de Acesso (PAT)</label>
+                      <label className="text-xs text-slate-500 font-medium">Token de Acesso (MAG TI)</label>
                       <input
                         type="password"
                         placeholder="••••••••••••••••••••"
@@ -1844,6 +1855,22 @@
                         <Icon name="clock" className="w-3.5 h-3.5" />
                         Última Atualização: <strong className="text-sicoob-text">{formatDate(demand.updatedAt)}</strong>
                       </div>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 mt-2">
+                      <div className="flex items-center gap-2">
+                        <Icon name="calendar" className="w-4 h-4 text-sicoob-primary" />
+                        <span className="text-xs font-bold text-sicoob-text">Exibir no Planejamento Tático</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(demand.in_tactical_planning)}
+                          onChange={(e) => handleUpdateManagementField('in_tactical_planning', e.target.checked ? 1 : 0)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sicoob-primary"></div>
+                      </label>
                     </div>
                   </div>
 
@@ -2414,7 +2441,7 @@
               <div className="space-y-4 my-6">
                 <div>
                   <div className="flex justify-between text-xs font-medium text-slate-600 mb-1.5">
-                    <span>Jira (Epics/Opportunities)</span>
+                    <span>Sicoob TI (Jira)</span>
                     <span>{demands.filter(d => d.origin === 'Jira').length}</span>
                   </div>
                   <div className="w-full bg-white rounded-full h-2">
@@ -2429,7 +2456,7 @@
 
                 <div>
                   <div className="flex justify-between text-xs font-medium text-slate-600 mb-1.5">
-                    <span>Azure DevOps (Stories/Bugs)</span>
+                    <span>MAG TI (Azure DevOps)</span>
                     <span>{demands.filter(d => d.origin === 'Azure').length}</span>
                   </div>
                   <div className="w-full bg-white rounded-full h-2">
@@ -2711,7 +2738,7 @@
                           </button>
                         )}
                         <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium">
-                          Azure: {azureDemands.length} | Jira: {jiraDemands.length}
+                          MAG TI: {azureDemands.length} | Sicoob TI: {jiraDemands.length}
                         </span>
                         {isExpanded ? (
                           <Icon name="chevron-up" className="w-4 h-4 text-slate-500" />
@@ -2728,8 +2755,8 @@
                           <div className="space-y-4">
                             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                               <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                                Azure DevOps
+                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                                MAG TI (Azure DevOps)
                               </h4>
                               <span className="text-[10px] text-slate-500 font-bold">{azureDemands.length} itens</span>
                             </div>
@@ -2745,7 +2772,7 @@
                                 ))
                               ) : (
                                 <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl text-slate-600 text-xs">
-                                  Nenhuma demanda do Azure DevOps neste projeto.
+                                  Nenhuma demanda da MAG TI (Azure DevOps) neste projeto.
                                 </div>
                               )}
                             </div>
@@ -2755,8 +2782,8 @@
                           <div className="space-y-4">
                             <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                               <h4 className="text-xs font-bold text-sky-400 uppercase tracking-widest flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-sky-400" />
-                                Jira Backlog
+                                <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
+                                Sicoob TI (Jira)
                               </h4>
                               <span className="text-[10px] text-slate-500 font-bold">{jiraDemands.length} itens</span>
                             </div>
@@ -2772,7 +2799,7 @@
                                 ))
                               ) : (
                                 <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl text-slate-600 text-xs">
-                                  Nenhuma demanda do Jira neste projeto.
+                                  Nenhuma demanda do Sicoob TI (Jira) neste projeto.
                                 </div>
                               )}
                             </div>
@@ -4715,7 +4742,7 @@
                     <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                       <span className="text-xs font-bold text-slate-600 flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
-                        TI - Jira
+                        Sicoob TI (Jira)
                       </span>
                       <span className="bg-sky-500/10 text-sky-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
                         {jiraDemands.length}
@@ -4723,7 +4750,7 @@
                     </div>
 
                     <div className="flex-1 overflow-y-auto max-h-[500px] pr-1 custom-scrollbar">
-                      {renderColumnDemands(jiraDemands, "Sem entregas no Jira")}
+                      {renderColumnDemands(jiraDemands, "Sem entregas no Sicoob TI (Jira)")}
                     </div>
 
                     <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-xs text-slate-500 mt-auto">
@@ -4739,7 +4766,7 @@
                     <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                       <span className="text-xs font-bold text-slate-600 flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                        TI - Azure DevOps
+                        MAG TI (Azure DevOps)
                       </span>
                       <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
                         {azureDemands.length}
@@ -4747,7 +4774,7 @@
                     </div>
 
                     <div className="flex-1 overflow-y-auto max-h-[500px] pr-1 custom-scrollbar">
-                      {renderColumnDemands(azureDemands, "Sem entregas no Azure")}
+                      {renderColumnDemands(azureDemands, "Sem entregas no MAG TI (Azure)")}
                     </div>
 
                     <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-xs text-slate-500 mt-auto">
@@ -5797,6 +5824,544 @@
       );
     }
 
+    // Componente PlanningView
+    function PlanningView({ demands = [], onSelectDemand, onRefreshDemands }) {
+      const [activeTab, setActiveTab] = useState('ranking'); // 'ranking' | 'gantt'
+      const [jiraDemands, setJiraDemands] = useState([]);
+      const [azureDemands, setAzureDemands] = useState([]);
+      const [draggedItem, setDraggedItem] = useState(null);
+      const [draggedOverIndex, setDraggedOverIndex] = useState(null);
+      const [draggedColumn, setDraggedColumn] = useState(null);
+      const [isSaving, setIsSaving] = useState(false);
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [modalSearch, setModalSearch] = useState('');
+
+      useEffect(() => {
+        const tacticalDemands = demands.filter(d => Boolean(d.in_tactical_planning));
+        const jira = tacticalDemands.filter(d => d.origin === 'Jira');
+        const azure = tacticalDemands.filter(d => d.origin === 'Azure');
+
+        const sortFn = (a, b) => {
+          const rankA = a.priority_rank !== null && a.priority_rank !== undefined ? a.priority_rank : 999999;
+          const rankB = b.priority_rank !== null && b.priority_rank !== undefined ? b.priority_rank : 999999;
+          if (rankA !== rankB) return rankA - rankB;
+          return new Date((b.updatedAt || '').replace(' ', 'T')) - new Date((a.updatedAt || '').replace(' ', 'T'));
+        };
+
+        setJiraDemands([...jira].sort(sortFn));
+        setAzureDemands([...azure].sort(sortFn));
+      }, [demands]);
+
+      const handleDragStart = (e, item, columnOrigin, index) => {
+        setDraggedItem(item);
+        setDraggedColumn(columnOrigin);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', item.externalId);
+      };
+
+      const handleDragOver = (e, index, columnOrigin) => {
+        e.preventDefault();
+        if (draggedColumn === columnOrigin && draggedOverIndex !== index) {
+          setDraggedOverIndex(index);
+        }
+      };
+
+      const handleDrop = async (e, targetColumnOrigin) => {
+        e.preventDefault();
+        if (!draggedItem || draggedColumn !== targetColumnOrigin) {
+          setDraggedItem(null);
+          setDraggedOverIndex(null);
+          setDraggedColumn(null);
+          return;
+        }
+
+        const currentList = targetColumnOrigin === 'Jira' ? [...jiraDemands] : [...azureDemands];
+        const currentIndex = currentList.findIndex(d => d.externalId === draggedItem.externalId);
+        
+        if (currentIndex === -1 || draggedOverIndex === null || currentIndex === draggedOverIndex) {
+          setDraggedItem(null);
+          setDraggedOverIndex(null);
+          setDraggedColumn(null);
+          return;
+        }
+
+        const newList = [...currentList];
+        const [removed] = newList.splice(currentIndex, 1);
+        newList.splice(draggedOverIndex, 0, removed);
+
+        const reorderedPayload = newList.map((item, idx) => ({
+          externalId: item.externalId,
+          priority_rank: idx + 1
+        }));
+
+        if (targetColumnOrigin === 'Jira') {
+          setJiraDemands(newList.map((item, idx) => ({ ...item, priority_rank: idx + 1 })));
+        } else {
+          setAzureDemands(newList.map((item, idx) => ({ ...item, priority_rank: idx + 1 })));
+        }
+
+        setDraggedItem(null);
+        setDraggedOverIndex(null);
+        setDraggedColumn(null);
+
+        setIsSaving(true);
+        try {
+          const res = await fetch('/demands/reorder', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reorderedPayload)
+          });
+          if (!res.ok) {
+            await fetch('/api/demands/reorder', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(reorderedPayload)
+            });
+          }
+          if (onRefreshDemands) onRefreshDemands();
+        } catch (err) {
+          console.error("Erro ao persistir nova ordem das demandas:", err);
+        } finally {
+          setIsSaving(false);
+        }
+      };
+
+      const handleToggleTacticalStatus = async (externalId, currentStatus) => {
+        const newStatus = currentStatus ? 0 : 1;
+        try {
+          await fetch(`/api/demands/${externalId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ in_tactical_planning: newStatus })
+          });
+          if (onRefreshDemands) onRefreshDemands();
+        } catch (err) {
+          console.error("Erro ao alterar status no planejamento tático:", err);
+        }
+      };
+
+      const getSubProjectTag = (demand) => {
+        if (demand.tags && demand.tags.length > 0) return demand.tags[0];
+        const match = (demand.title || '').match(/^\[(.*?)\]/);
+        if (match) return match[1];
+        if (demand.project) return demand.project;
+        return 'Geral';
+      };
+
+      const formatTitle = (title) => {
+        if (!title) return '';
+        return title.replace(/^\[.*?\]\s*/, '').trim();
+      };
+
+      const getTimelineMonths = () => {
+        const months = [];
+        const date = new Date();
+        date.setDate(1);
+        for (let i = 0; i < 6; i++) {
+          const d = new Date(date.getFullYear(), date.getMonth() + i, 1);
+          months.push(d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).toUpperCase());
+        }
+        return months;
+      };
+
+      const timelineMonths = getTimelineMonths();
+      const tacticalDemandsList = demands.filter(d => Boolean(d.in_tactical_planning));
+
+      const filteredModalDemands = demands.filter(d => {
+        const query = modalSearch.toLowerCase().trim();
+        if (!query) return true;
+        return d.title.toLowerCase().includes(query) || d.externalId.toLowerCase().includes(query);
+      });
+
+      return (
+        <div className="flex-1 overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-sicoob-text tracking-tight flex items-center gap-2.5">
+                <Icon name="layers" className="w-6 h-6 text-sicoob-primary" /> Planejamento Tático - VGBL
+              </h2>
+              <p className="text-sm text-slate-500">Priorização em paralelo e linha do tempo de entregas táticas selecionadas</p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-sicoob-primary hover:bg-sicoob-secondary active:scale-95 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+              >
+                <Icon name="plus" className="w-4 h-4" />
+                Incluir Demanda ({tacticalDemandsList.length})
+              </button>
+
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 w-fit">
+                <button
+                  onClick={() => setActiveTab('ranking')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    activeTab === 'ranking'
+                      ? 'bg-white text-sicoob-primary shadow-xs'
+                      : 'text-slate-600 hover:text-sicoob-text'
+                  }`}
+                >
+                  <Icon name="list-ordered" className="w-4 h-4" />
+                  Stack Ranking
+                </button>
+                <button
+                  onClick={() => setActiveTab('gantt')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    activeTab === 'gantt'
+                      ? 'bg-white text-sicoob-primary shadow-xs'
+                      : 'text-slate-600 hover:text-sicoob-text'
+                  }`}
+                >
+                  <Icon name="calendar" className="w-4 h-4" />
+                  Cronograma
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {activeTab === 'ranking' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-xs text-slate-500 bg-slate-50 border border-slate-200/80 p-3 rounded-xl">
+                <span className="flex items-center gap-2 font-medium">
+                  <Icon name="info" className="w-4 h-4 text-sicoob-primary shrink-0" />
+                  Exibindo apenas demandas selecionadas para o Planejamento Tático. Arraste verticalmente para priorizar.
+                </span>
+                {isSaving && (
+                  <span className="text-sicoob-primary font-bold animate-pulse text-[11px]">
+                    Salvando prioridade...
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Column 1: Sicoob TI (Jira) */}
+                <div
+                  className="bg-slate-50/70 border border-slate-200 rounded-2xl p-4 flex flex-col space-y-3 min-h-[450px]"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleDrop(e, 'Jira')}
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-cyan-600" />
+                      <h3 className="font-bold text-sicoob-text text-sm">Sicoob TI (Jira)</h3>
+                    </div>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                      {jiraDemands.length} demandas
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5 flex-1">
+                    {jiraDemands.length === 0 ? (
+                      <div className="text-center py-12 text-xs text-slate-400 italic space-y-2">
+                        <p>Nenhuma demanda Jira inclusa no Planejamento Tático.</p>
+                        <button
+                          onClick={() => setIsModalOpen(true)}
+                          className="text-sicoob-primary font-bold hover:underline"
+                        >
+                          + Incluir demandas do Jira
+                        </button>
+                      </div>
+                    ) : (
+                      jiraDemands.map((item, index) => {
+                        const isDragging = draggedItem?.externalId === item.externalId;
+                        const isOver = draggedColumn === 'Jira' && draggedOverIndex === index;
+
+                        return (
+                          <div
+                            key={item.externalId}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, item, 'Jira', index)}
+                            onDragOver={(e) => handleDragOver(e, index, 'Jira')}
+                            onClick={() => onSelectDemand && onSelectDemand(item.externalId)}
+                            className={`bg-white border p-3.5 rounded-xl transition-all shadow-2xs hover:shadow-md cursor-grab active:cursor-grabbing flex items-center justify-between gap-3 ${
+                              isDragging ? 'opacity-40 border-dashed border-sicoob-primary' :
+                              isOver ? 'border-2 border-sicoob-primary scale-[1.01]' :
+                              'border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex items-center justify-center shrink-0 w-8 h-8 rounded-lg bg-sicoob-primary/10 text-sicoob-primary font-black text-sm border border-sicoob-primary/20">
+                                {index + 1}º
+                              </div>
+                              <div className="min-w-0 space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-mono font-bold text-slate-500">
+                                    {item.externalId}
+                                  </span>
+                                  {item.externalStatus && (
+                                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                      {item.externalStatus}
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-xs font-semibold text-sicoob-text truncate leading-snug">
+                                  {formatTitle(item.title)}
+                                </h4>
+                              </div>
+                            </div>
+                            <Icon name="grip-vertical" className="w-4 h-4 text-slate-300 shrink-0 hover:text-slate-500" />
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* Column 2: MAG (Azure) */}
+                <div
+                  className="bg-slate-50/70 border border-slate-200 rounded-2xl p-4 flex flex-col space-y-3 min-h-[450px]"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleDrop(e, 'Azure')}
+                >
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-blue-600" />
+                      <h3 className="font-bold text-sicoob-text text-sm">MAG (Azure)</h3>
+                    </div>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                      {azureDemands.length} demandas
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5 flex-1">
+                    {azureDemands.length === 0 ? (
+                      <div className="text-center py-12 text-xs text-slate-400 italic space-y-2">
+                        <p>Nenhuma demanda Azure inclusa no Planejamento Tático.</p>
+                        <button
+                          onClick={() => setIsModalOpen(true)}
+                          className="text-sicoob-primary font-bold hover:underline"
+                        >
+                          + Incluir demandas do Azure
+                        </button>
+                      </div>
+                    ) : (
+                      azureDemands.map((item, index) => {
+                        const isDragging = draggedItem?.externalId === item.externalId;
+                        const isOver = draggedColumn === 'Azure' && draggedOverIndex === index;
+
+                        return (
+                          <div
+                            key={item.externalId}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, item, 'Azure', index)}
+                            onDragOver={(e) => handleDragOver(e, index, 'Azure')}
+                            onClick={() => onSelectDemand && onSelectDemand(item.externalId)}
+                            className={`bg-white border p-3.5 rounded-xl transition-all shadow-2xs hover:shadow-md cursor-grab active:cursor-grabbing flex items-center justify-between gap-3 ${
+                              isDragging ? 'opacity-40 border-dashed border-blue-500' :
+                              isOver ? 'border-2 border-blue-500 scale-[1.01]' :
+                              'border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex items-center justify-center shrink-0 w-8 h-8 rounded-lg bg-blue-50 text-blue-700 font-black text-sm border border-blue-200">
+                                {index + 1}º
+                              </div>
+                              <div className="min-w-0 space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] font-mono font-bold text-slate-500">
+                                    {item.externalId}
+                                  </span>
+                                  {item.externalStatus && (
+                                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                      {item.externalStatus}
+                                    </span>
+                                  )}
+                                </div>
+                                <h4 className="text-xs font-semibold text-sicoob-text truncate leading-snug">
+                                  {formatTitle(item.title)}
+                                </h4>
+                              </div>
+                            </div>
+                            <Icon name="grip-vertical" className="w-4 h-4 text-slate-300 shrink-0 hover:text-slate-500" />
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'gantt' && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-sicoob-text text-base">Cronograma Tático VGBL</h3>
+                  <p className="text-xs text-slate-500">Rastreabilidade das demandas ativas do planejamento organizadas por sub-projetos</p>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                  <span className="inline-block w-3 h-3 rounded-full bg-sicoob-primary" /> Demanda em Andamento
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <div className="min-w-[700px]">
+                  <div className="grid grid-cols-12 gap-2 pb-3 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <div className="col-span-5">Demanda & Sub-Projeto</div>
+                    <div className="col-span-7 grid grid-cols-6 text-center">
+                      {timelineMonths.map((m, i) => (
+                        <div key={i} className="border-l border-slate-100 px-1">{m}</div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {tacticalDemandsList.length === 0 ? (
+                      <div className="text-center py-12 text-xs text-slate-400 italic">
+                        Nenhuma demanda inclusa no cronograma tático.
+                      </div>
+                    ) : (
+                      tacticalDemandsList.map((demand, index) => {
+                        const tag = getSubProjectTag(demand);
+                        const startCol = (index % 4) + 1;
+                        const colSpan = Math.min(6 - startCol + 1, (index % 3) + 2);
+
+                        return (
+                          <div
+                            key={demand.externalId}
+                            onClick={() => onSelectDemand && onSelectDemand(demand.externalId)}
+                            className="grid grid-cols-12 gap-2 py-3.5 items-center hover:bg-slate-50/80 rounded-lg transition-colors cursor-pointer px-1"
+                          >
+                            <div className="col-span-5 pr-3 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <Icon name="tag" className="w-3 h-3 text-emerald-600" />
+                                  [{tag}]
+                                </span>
+                                <span className="text-[11px] font-mono font-bold text-slate-500">
+                                  {demand.externalId}
+                                </span>
+                              </div>
+                              <h4 className="text-xs font-semibold text-sicoob-text line-clamp-1 leading-snug">
+                                {formatTitle(demand.title)}
+                              </h4>
+                            </div>
+
+                            <div className="col-span-7 grid grid-cols-6 items-center relative h-8">
+                              <div
+                                className="h-6 rounded-lg bg-gradient-to-r from-sicoob-primary to-teal-500 text-white text-[10px] font-bold px-2.5 flex items-center justify-between shadow-xs truncate"
+                                style={{
+                                  gridColumnStart: startCol,
+                                  gridColumnEnd: `span ${colSpan}`
+                                }}
+                              >
+                                <span className="truncate">[{tag}] {formatTitle(demand.title)}</span>
+                                <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded text-white shrink-0 ml-1">
+                                  {demand.mappedStatus || demand.externalStatus || 'Ativa'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Inclusão Rápida no Planejamento Tático */}
+          {isModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+                onClick={() => setIsModalOpen(false)}
+              />
+              <div className="relative bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden z-10 animate-in zoom-in-95 duration-200">
+                <div className="p-4 border-b border-slate-200 flex items-center justify-between shrink-0">
+                  <div>
+                    <h3 className="font-bold text-sicoob-text text-base">Gerenciar Demandas do Planejamento Tático</h3>
+                    <p className="text-xs text-slate-500">Marque as demandas que farão parte da visão de priorização tática</p>
+                  </div>
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  >
+                    <Icon name="x" className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-3 border-b border-slate-200 bg-slate-50/50">
+                  <div className="relative">
+                    <Icon name="search" className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por título ou ID..."
+                      value={modalSearch}
+                      onChange={(e) => setModalSearch(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 divide-y divide-slate-100 space-y-1">
+                  {filteredModalDemands.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-slate-400 italic">
+                      Nenhuma demanda encontrada.
+                    </div>
+                  ) : (
+                    filteredModalDemands.map(demand => {
+                      const isChecked = Boolean(demand.in_tactical_planning);
+                      return (
+                        <div
+                          key={demand.externalId}
+                          className="py-2.5 px-2 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                          onClick={() => handleToggleTacticalStatus(demand.externalId, isChecked)}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded text-sicoob-primary focus:ring-sicoob-primary cursor-pointer"
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] font-mono font-bold text-slate-500">
+                                  [{demand.origin}] {demand.externalId}
+                                </span>
+                                {demand.externalStatus && (
+                                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                                    {demand.externalStatus}
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="text-xs font-semibold text-sicoob-text truncate leading-snug">
+                                {formatTitle(demand.title)}
+                              </h4>
+                            </div>
+                          </div>
+
+                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                            isChecked
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {isChecked ? 'Incluso' : 'Fora do Tático'}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="p-3 border-t border-slate-200 flex justify-end">
+                  <button
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 bg-sicoob-primary hover:bg-sicoob-secondary text-white text-xs font-bold rounded-xl"
+                  >
+                    Concluir
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // Componente HistoryView
     function HistoryView({ onSelectDemand }) {
       const [demands, setDemands] = useState([]);
@@ -5900,7 +6465,7 @@
         const hasAzure = azureOrg && azureProject && azureToken;
 
         if (!hasJira && !hasAzure) {
-          alert('Por favor, preencha as credenciais do Jira ou do Azure DevOps no menu de Configurações antes de sincronizar.');
+          alert('Por favor, preencha as credenciais do Sicoob TI (Jira) ou da MAG TI (Azure DevOps) no menu de Configurações antes de sincronizar.');
           return;
         }
 
@@ -5936,10 +6501,10 @@
             if (result.sync_types && syncSourceMsg) {
               const types = [];
               if (result.sources.jira === 'real' && result.sync_types.jira) {
-                types.push(`Jira: ${result.sync_types.jira === 'incremental' ? 'Delta' : 'Completa'}`);
+                types.push(`Sicoob TI (Jira): ${result.sync_types.jira === 'incremental' ? 'Delta' : 'Completa'}`);
               }
               if (result.sources.azure === 'real' && result.sync_types.azure) {
-                types.push(`Azure: ${result.sync_types.azure === 'incremental' ? 'Delta' : 'Completa'}`);
+                types.push(`MAG TI (Azure): ${result.sync_types.azure === 'incremental' ? 'Delta' : 'Completa'}`);
               }
               if (types.length > 0) {
                 syncTypeDetail = ` (${types.join(', ')})`;
@@ -6052,6 +6617,8 @@
               />
             ) : activeTab === 'portfolio' ? (
               <PortfolioView onSelectProject={setSelectedProjectId} />
+            ) : activeTab === 'planning' ? (
+              <PlanningView demands={demands} onSelectDemand={handleSelectDemand} onRefreshDemands={loadDemands} />
             ) : activeTab === 'one-on-one' ? (
               <ManagerSyncView demands={demands} onSelectDemand={handleSelectDemand} />
             ) : activeTab === 'history' ? (

@@ -103,6 +103,8 @@ class DemandUpdate(BaseModel):
     current_status_notes: Optional[str] = None
     blocker_notes: Optional[str] = None
     externalStatus: Optional[str] = None
+    in_tactical_planning: Optional[int] = None
+    priority_rank: Optional[int] = None
 
 class DemandManualCreate(BaseModel):
     title: str
@@ -742,7 +744,7 @@ def get_demands_data(db_name="ativo"):
         LEFT JOIN tags t ON d.externalId = t.externalId
         {where_clause}
         GROUP BY d.externalId
-        ORDER BY d.updatedAt DESC
+        ORDER BY CASE WHEN d.priority_rank IS NULL THEN 999999 ELSE d.priority_rank END ASC, d.updatedAt DESC
     """
     rows = fetch_all(query, params, db_name=db_name)
     demands = []
@@ -794,7 +796,9 @@ def get_demands_data(db_name="ativo"):
             "isStale": is_stale,
             "project": row.get("project"),
             "current_status_notes": row.get("current_status_notes"),
-            "blocker_notes": row.get("blocker_notes")
+            "blocker_notes": row.get("blocker_notes"),
+            "priority_rank": row.get("priority_rank"),
+            "in_tactical_planning": row.get("in_tactical_planning") or 0
         })
     return demands
 
@@ -1112,7 +1116,7 @@ def sync_demand_by_id(req: SyncByIdRequest):
         is_azure = False
         db_id = ext_id.upper()
     else:
-        raise HTTPException(status_code=400, detail="Formato de ID inválido. Use letras e hífen para Jira (ex: SGRVDI-2262) ou apenas números para Azure (ex: 2329).")
+        raise HTTPException(status_code=400, detail="Formato de ID inválido. Use letras e hífen para Sicoob TI (Jira) (ex: SGRVDI-2262) ou apenas números para MAG TI (Azure) (ex: 2329).")
 
     if not is_azure:
         # Jira
@@ -1351,13 +1355,41 @@ def get_demand(external_id: str):
             "summary_updated_at": demand.get("summary_updated_at"),
             "project": demand.get("project"),
             "current_status_notes": demand.get("current_status_notes"),
-            "blocker_notes": demand.get("blocker_notes")
+            "blocker_notes": demand.get("blocker_notes"),
+            "priority_rank": demand.get("priority_rank"),
+            "in_tactical_planning": demand.get("in_tactical_planning") or 0
         }
     except HTTPException as he:
         raise he
     except Exception as e:
         print(f"Erro ao obter demanda {external_id}: {e}")
         raise HTTPException(status_code=500, detail="Erro ao carregar detalhes da demanda.")
+
+@app.put("/api/demands/reorder")
+@app.put("/demands/reorder")
+def reorder_demands(payload: list[dict] | dict = Body(...)):
+    try:
+        items = []
+        if isinstance(payload, list):
+            items = payload
+        elif isinstance(payload, dict) and "items" in payload:
+            items = payload["items"]
+        else:
+            raise HTTPException(status_code=400, detail="Payload inválido. Esperado array ou objeto com chave 'items'.")
+
+        for item in items:
+            ext_id = item.get("externalId")
+            rank = item.get("priority_rank")
+            if ext_id and rank is not None:
+                execute_query("UPDATE demands SET priority_rank = ? WHERE externalId = ?", (rank, ext_id), "ativo")
+                execute_query("UPDATE demands SET priority_rank = ? WHERE externalId = ?", (rank, ext_id), "historico")
+
+        return {"success": True, "message": "Reordenação salva com sucesso."}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao reordenar demandas: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao atualizar a ordem das demandas.")
 
 @app.post("/api/demands/{external_id}/summarize")
 def summarize_demand(external_id: str):

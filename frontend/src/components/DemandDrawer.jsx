@@ -424,6 +424,22 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
                     Última Atualização: <strong className="text-sicoob-text font-semibold">{formatDate(demand.updatedAt)}</strong>
                   </div>
                 </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 mt-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-sicoob-primary" />
+                    <span className="text-xs font-bold text-sicoob-text">Exibir no Planejamento Tático</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(demand.in_tactical_planning)}
+                      onChange={(e) => handleUpdateManagementField('in_tactical_planning', e.target.checked ? 1 : 0)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sicoob-primary"></div>
+                  </label>
+                </div>
               </div>
 
               <hr className="border-slate-200" />

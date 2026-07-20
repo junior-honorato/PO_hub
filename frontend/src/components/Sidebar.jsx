@@ -1,4 +1,4 @@
-import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target, FolderKanban, Network, History, Briefcase, Settings } from 'lucide-react';
+import { LayoutDashboard, Grid, ListTodo, RefreshCw, Target, FolderKanban, Network, History, Briefcase, Settings, Calendar } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, lastSyncStatus, onOpenSettings }) {
   return (
@@ -26,6 +26,17 @@ export default function Sidebar({ activeTab, setActiveTab, onSync, isSyncing, la
         >
           <Briefcase className="w-5 h-5" />
           Portfólio Executivo
+        </button>
+        <button
+          onClick={() => setActiveTab('planning')}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+            activeTab === 'planning'
+              ? 'bg-slate-100 text-sicoob-primary border-l-4 border-sicoob-primary font-semibold shadow-xs'
+              : 'text-slate-650 hover:bg-slate-50 hover:text-sicoob-primary'
+          }`}
+        >
+          <Calendar className="w-5 h-5" />
+          Planejamento Tático
         </button>
         <button
           onClick={() => setActiveTab('demands')}

@@ -60,7 +60,9 @@ def init_db():
                     summary_updated_at TEXT,
                     project TEXT,
                     current_status_notes TEXT,
-                    blocker_notes TEXT
+                    blocker_notes TEXT,
+                    priority_rank INTEGER,
+                    in_tactical_planning INTEGER DEFAULT 0
                 )
             """)
 
@@ -97,7 +99,9 @@ def init_db():
                             summary_updated_at TEXT,
                             project TEXT,
                             current_status_notes TEXT,
-                            blocker_notes TEXT
+                            blocker_notes TEXT,
+                            priority_rank INTEGER,
+                            in_tactical_planning INTEGER DEFAULT 0
                         )
                     """)
                     # Repopula colunas existentes
@@ -141,6 +145,10 @@ def init_db():
                 conn.execute("ALTER TABLE demands ADD COLUMN current_status_notes TEXT")
             if "blocker_notes" not in columns:
                 conn.execute("ALTER TABLE demands ADD COLUMN blocker_notes TEXT")
+            if "priority_rank" not in columns:
+                conn.execute("ALTER TABLE demands ADD COLUMN priority_rank INTEGER")
+            if "in_tactical_planning" not in columns:
+                conn.execute("ALTER TABLE demands ADD COLUMN in_tactical_planning INTEGER DEFAULT 0")
 
             # Tabela Annotations (Apontamentos/Histórico local)
             conn.execute("""

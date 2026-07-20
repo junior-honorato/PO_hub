@@ -155,7 +155,7 @@ export default function ProjectView({ demands, onSelectDemand }) {
                       </button>
                     )}
                     <span className="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full font-medium">
-                      Azure: {azureDemands.length} | Jira: {jiraDemands.length}
+                      MAG TI: {azureDemands.length} | Sicoob TI: {jiraDemands.length}
                     </span>
                     {isExpanded ? (
                       <ChevronUp className="w-4 h-4 text-slate-400" />
@@ -174,7 +174,7 @@ export default function ProjectView({ demands, onSelectDemand }) {
                         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                           <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-widest flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                            Azure DevOps
+                            MAG TI (Azure DevOps)
                           </h4>
                           <span className="text-[10px] text-slate-500 font-bold">{azureDemands.length} itens</span>
                         </div>
@@ -190,7 +190,7 @@ export default function ProjectView({ demands, onSelectDemand }) {
                             ))
                           ) : (
                             <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
-                              Nenhuma demanda do Azure DevOps neste projeto.
+                              Nenhuma demanda da MAG TI (Azure DevOps) neste projeto.
                             </div>
                           )}
                         </div>
@@ -201,7 +201,7 @@ export default function ProjectView({ demands, onSelectDemand }) {
                         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                           <h4 className="text-xs font-bold text-sky-700 uppercase tracking-widest flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-sky-400" />
-                            Jira Backlog
+                            Sicoob TI (Jira)
                           </h4>
                           <span className="text-[10px] text-slate-500 font-bold">{jiraDemands.length} itens</span>
                         </div>
@@ -217,7 +217,7 @@ export default function ProjectView({ demands, onSelectDemand }) {
                             ))
                           ) : (
                             <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
-                              Nenhuma demanda do Jira neste projeto.
+                              Nenhuma demanda do Sicoob TI (Jira) neste projeto.
                             </div>
                           )}
                         </div>

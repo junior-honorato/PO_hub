@@ -24,9 +24,9 @@ export default function MetricCards({ demands }) {
         <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:scale-110 transition-transform duration-300">
           <Trello className="w-24 h-24 text-sicoob-text" />
         </div>
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Jira Epics</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sicoob TI (Jira)</p>
         <h3 className="text-3xl font-bold mt-2 text-sky-600">{jiraCount}</h3>
-        <span className="text-xs text-slate-500 mt-2 block">Originadas no Jira API</span>
+        <span className="text-xs text-slate-500 mt-2 block">Sincronizado do Jira</span>
       </div>
 
       {/* Azure Card */}
@@ -34,9 +34,9 @@ export default function MetricCards({ demands }) {
         <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:scale-110 transition-transform duration-300">
           <GitPullRequest className="w-24 h-24 text-sicoob-text" />
         </div>
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Azure DevOps Backlog</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">MAG TI (Azure DevOps)</p>
         <h3 className="text-3xl font-bold mt-2 text-emerald-600">{azureCount}</h3>
-        <span className="text-xs text-slate-500 mt-2 block">Histórias e bugs sincronizados</span>
+        <span className="text-xs text-slate-500 mt-2 block">Sincronizado do Azure DevOps</span>
       </div>
 
       {/* Tags Card */}

@@ -1115,7 +1115,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                 <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                   <span className="text-xs font-bold text-slate-600 flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
-                    TI - Jira
+                    Sicoob TI (Jira)
                   </span>
                   <span className="bg-sky-500/10 text-sky-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
                     {jiraDemands.length}
@@ -1123,7 +1123,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                 </div>
 
                 <div className="flex-1 overflow-y-auto max-h-[500px] pr-1 custom-scrollbar">
-                  {renderColumnDemands(jiraDemands, "Sem entregas no Jira")}
+                  {renderColumnDemands(jiraDemands, "Sem entregas no Sicoob TI (Jira)")}
                 </div>
 
                 <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-xs text-slate-500 mt-auto">
@@ -1139,7 +1139,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                 <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                   <span className="text-xs font-bold text-slate-600 flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                    TI - Azure DevOps
+                    MAG TI (Azure DevOps)
                   </span>
                   <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
                     {azureDemands.length}
@@ -1147,7 +1147,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                 </div>
 
                 <div className="flex-1 overflow-y-auto max-h-[500px] pr-1 custom-scrollbar">
-                  {renderColumnDemands(azureDemands, "Sem entregas no Azure")}
+                  {renderColumnDemands(azureDemands, "Sem entregas no MAG TI (Azure)")}
                 </div>
 
                 <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-xs text-slate-500 mt-auto">

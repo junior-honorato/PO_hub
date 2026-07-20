@@ -85,8 +85,8 @@ export default function StatusMapperTab() {
               onChange={e => setOrigin(e.target.value)}
               className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
             >
-              <option value="Jira">Jira</option>
-              <option value="Azure">Azure DevOps</option>
+              <option value="Jira">Sicoob TI (Jira)</option>
+              <option value="Azure">MAG TI (Azure DevOps)</option>
               <option value="Negocio">Negócio (Local)</option>
             </select>
           </div>
@@ -153,7 +153,7 @@ export default function StatusMapperTab() {
                           m.origin === 'Azure' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
                           'bg-purple-50 text-purple-700 border border-purple-100'
                         }`}>
-                          {m.origin === 'Azure' ? 'Azure DevOps' : m.origin}
+                          {m.origin === 'Azure' ? 'MAG TI (Azure DevOps)' : m.origin === 'Jira' ? 'Sicoob TI (Jira)' : m.origin}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 font-medium font-mono">{m.external_status}</td>

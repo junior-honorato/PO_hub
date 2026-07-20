@@ -271,7 +271,7 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
               onClick={handleOpenSyncByIdModal}
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white hover:bg-slate-50 active:scale-95 text-slate-600 hover:text-sicoob-text text-xs font-bold rounded-xl transition-all border border-slate-200 shadow-sm whitespace-nowrap"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> Adicionar Manualmente Demanda Jira/Azure
+              <RefreshCw className="w-3.5 h-3.5" /> Adicionar Manualmente Demanda Sicoob/MAG TI
             </button>
           </div>
           
@@ -283,8 +283,8 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
               className="bg-white border border-slate-300 rounded-xl py-2 px-3 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary"
             >
               <option value="All">Origem</option>
-              <option value="Jira">Jira Only</option>
-              <option value="Azure">Azure DevOps</option>
+              <option value="Jira">Sicoob TI (Jira)</option>
+              <option value="Azure">MAG TI (Azure DevOps)</option>
               <option value="Negocio">Negócio (Manual)</option>
             </select>
 
@@ -631,11 +631,11 @@ export default function DemandTable({ demands, onSelectDemand, onRefreshDemands 
             
             <form onSubmit={handleSyncById} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs text-slate-500 font-bold uppercase">ID do Jira ou do Azure DevOps</label>
+                <label className="text-xs text-slate-500 font-bold uppercase">ID do Sicoob TI (Jira) ou da MAG TI (Azure DevOps)</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: SGRVDI-2262 (Jira) ou 2329 (Azure)"
+                  placeholder="Ex: SGRVDI-2262 (Sicoob TI) ou 2329 (MAG TI)"
                   value={syncIdInput}
                   onChange={e => setSyncIdInput(e.target.value)}
                   disabled={syncByIdLoading}
