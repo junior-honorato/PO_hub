@@ -37,6 +37,27 @@ def validate_env_protection():
 
 validate_env_protection()
 
+def resolve_azure_url(org: Optional[str], project: Optional[str], fallback_url: Optional[str]) -> Optional[str]:
+    if org:
+        org_str = org.strip()
+        path_part = org_str.replace("https://", "").replace("http://", "")
+        parts = [p for p in path_part.split("/") if p]
+        
+        if "dev.azure.com" in path_part or "visualstudio.com" in path_part:
+            if len(parts) >= 3:
+                if not org_str.startswith("http"):
+                    return f"https://{org_str}"
+                return org_str
+            elif len(parts) == 2 and project:
+                base = org_str if org_str.startswith("http") else f"https://{org_str}"
+                return f"{base.rstrip('/')}/{project.strip()}"
+            if not org_str.startswith("http"):
+                return f"https://{org_str}"
+            return org_str
+    if org and project:
+        return f"https://dev.azure.com/{org.strip()}/{project.strip()}"
+    return fallback_url
+
 # Configura o cliente do Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_API_KEY:
@@ -856,8 +877,21 @@ def delete_status_mapping(mapping_id: int):
 def sync_demands(req: SyncRequest = Body(...)):
     print("Iniciando sincronização com Dois Bancos...")
     
-    has_jira_payload = bool(req.jiraUrl and req.jiraEmail and req.jiraToken)
-    has_azure_payload = bool(req.azureOrg and req.azureProject and req.azureToken)
+    # Resolve credentials: payload -> credentials.json -> env variables
+    saved_creds = load_credentials_from_file()
+    
+    jira_url_val = req.jiraUrl or saved_creds.get("jiraUrl") or os.getenv("JIRA_API_URL")
+    jira_email_val = req.jiraEmail or saved_creds.get("jiraEmail") or os.getenv("JIRA_USER_EMAIL")
+    jira_token_val = req.jiraToken or saved_creds.get("jiraToken") or os.getenv("JIRA_PAT")
+    has_jira_payload = bool(jira_url_val and jira_email_val and jira_token_val)
+    
+    azure_org_val = req.azureOrg or saved_creds.get("azureOrg")
+    azure_project_val = req.azureProject or saved_creds.get("azureProject")
+    azure_token_val = req.azureToken or saved_creds.get("azureToken") or os.getenv("AZURE_PAT")
+    azure_url_raw = os.getenv("AZURE_API_URL")
+    
+    azure_url_val = resolve_azure_url(azure_org_val, azure_project_val, azure_url_raw)
+    has_azure_payload = bool(azure_url_val and azure_token_val)
     
     # Sempre limpa demandas do projeto TST do banco local para garantir que dados antigos sejam eliminados
     try:
@@ -887,15 +921,15 @@ def sync_demands(req: SyncRequest = Body(...)):
     # 1. Jira Sync
     if has_jira_payload:
         try:
-            print("Buscando dados reais do Jira...")
-            jira_url_raw = req.jiraUrl
+            jira_url_raw = jira_url_val
             jira_url_base = jira_url_raw.rstrip('/')
             if ".atlassian.net/jira" in jira_url_base.lower():
                 jira_url_base = jira_url_base.lower().replace("/jira", "")
                 
             jira_url = f"{jira_url_base}/rest/api/3/search/jql"
-            user_email = req.jiraEmail
-            pat = req.jiraToken
+            print(f"Buscando dados reais do Jira em: {jira_url}")
+            user_email = jira_email_val
+            pat = jira_token_val
             auth_str = f"{user_email}:{pat}"
             auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
             
@@ -971,9 +1005,9 @@ def sync_demands(req: SyncRequest = Body(...)):
     # 2. Azure DevOps Sync
     if has_azure_payload:
         try:
-            print("Buscando dados reais do Azure DevOps...")
-            azure_url = f"https://dev.azure.com/{req.azureOrg}/{req.azureProject}".rstrip('/')
-            pat = req.azureToken
+            azure_url = azure_url_val.rstrip('/')
+            print(f"Buscando dados reais do Azure DevOps em: {azure_url}")
+            pat = azure_token_val
             auth_str = f":{pat}"
             auth_b64 = base64.b64encode(auth_str.encode('utf-8')).decode('utf-8')
             
@@ -982,7 +1016,7 @@ def sync_demands(req: SyncRequest = Body(...)):
                 "Content-Type": "application/json"
             }
             
-            wiql_url = f"{azure_url}/_apis/wit/wiql?api-version=6.0"
+            wiql_url = f"{azure_url}/_apis/wit/wiql?timePrecision=true&api-version=6.0"
             wiql_str = (
                 "Select [System.Id] From WorkItems Where [System.State] <> 'Removed' "
                 "AND ("
@@ -1054,13 +1088,13 @@ def sync_demands(req: SyncRequest = Body(...)):
 
     # Process sync using our unified selective sync function, passing payload credentials
     jira_creds = {
-        "url": req.jiraUrl,
-        "email": req.jiraEmail,
-        "token": req.jiraToken
+        "url": jira_url_val,
+        "email": jira_email_val,
+        "token": jira_token_val
     } if has_jira_payload else None
 
-    azure_url_constructed = f"https://dev.azure.com/{req.azureOrg}/{req.azureProject}" if has_azure_payload else None
-    azure_pat = req.azureToken if has_azure_payload else None
+    azure_url_constructed = azure_url_val if has_azure_payload else None
+    azure_pat = azure_token_val if has_azure_payload else None
     azure_headers = {
         "Authorization": f"Basic {base64.b64encode(f':{azure_pat}'.encode('utf-8')).decode('utf-8')}",
         "Content-Type": "application/json"
@@ -1211,12 +1245,9 @@ def sync_demand_by_id(req: SyncByIdRequest):
         azure_token = req.azureToken
         
         azure_url_raw = os.getenv("AZURE_API_URL")
-        if azure_org and azure_project:
-            azure_url = f"https://dev.azure.com/{azure_org}/{azure_project}".rstrip('/')
-        elif azure_url_raw:
-            azure_url = azure_url_raw.rstrip('/')
-        else:
-            azure_url = None
+        azure_url = resolve_azure_url(azure_org, azure_project, azure_url_raw)
+        if azure_url:
+            azure_url = azure_url.rstrip('/')
             
         azure_token = azure_token or os.getenv("AZURE_PAT")
         has_creds = bool(azure_url and azure_token)
@@ -2039,6 +2070,83 @@ async def delete_project(project_id: int):
     except Exception as e:
         print(f"Erro ao deletar projeto: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao deletar projeto.")
+
+CREDENTIALS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
+
+def load_credentials_from_file():
+    if os.path.exists(CREDENTIALS_PATH):
+        try:
+            with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Erro ao carregar credentials.json: {e}")
+    return {}
+
+def save_credentials_to_file(creds: dict):
+    try:
+        with open(CREDENTIALS_PATH, "w", encoding="utf-8") as f:
+            json.dump(creds, f, indent=4, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Erro ao salvar credentials.json: {e}")
+        return False
+
+class CredentialsUpdate(BaseModel):
+    jiraUrl: Optional[str] = ""
+    jiraEmail: Optional[str] = ""
+    jiraToken: Optional[str] = ""
+    azureOrg: Optional[str] = ""
+    azureProject: Optional[str] = ""
+    azureToken: Optional[str] = ""
+
+@app.get("/api/settings/credentials")
+def get_credentials():
+    creds = load_credentials_from_file()
+    # Migração automática: se credentials.json estiver vazio, tenta carregar do .env
+    if not creds:
+        jira_url = os.getenv("JIRA_API_URL", "")
+        jira_email = os.getenv("JIRA_USER_EMAIL", "")
+        jira_token = os.getenv("JIRA_PAT", "")
+        
+        azure_url_raw = os.getenv("AZURE_API_URL", "")
+        azure_pat = os.getenv("AZURE_PAT", "")
+        azure_org = ""
+        azure_project = ""
+        if azure_url_raw:
+            try:
+                parts = azure_url_raw.replace("https://", "").replace("http://", "").split("/")
+                if "dev.azure.com" in parts[0] and len(parts) >= 3:
+                    azure_org = parts[1]
+                    azure_project = parts[2]
+            except Exception:
+                pass
+        
+        if jira_url or jira_email or jira_token or azure_org or azure_project or azure_pat:
+            creds = {
+                "jiraUrl": jira_url,
+                "jiraEmail": jira_email,
+                "jiraToken": jira_token,
+                "azureOrg": azure_org,
+                "azureProject": azure_project,
+                "azureToken": azure_pat
+            }
+            save_credentials_to_file(creds)
+            
+    return creds
+
+@app.post("/api/settings/credentials")
+def update_credentials(payload: CredentialsUpdate):
+    creds = {
+        "jiraUrl": (payload.jiraUrl or "").strip(),
+        "jiraEmail": (payload.jiraEmail or "").strip(),
+        "jiraToken": (payload.jiraToken or "").strip(),
+        "azureOrg": (payload.azureOrg or "").strip(),
+        "azureProject": (payload.azureProject or "").strip(),
+        "azureToken": (payload.azureToken or "").strip(),
+    }
+    if save_credentials_to_file(creds):
+        return {"success": True}
+    raise HTTPException(status_code=500, detail="Erro ao salvar credenciais no servidor.")
 
 class DbPathRequest(BaseModel):
     db_path: str

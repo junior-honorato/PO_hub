@@ -30,6 +30,23 @@ export default function SettingsModal({ isOpen, onClose }) {
     }
   };
 
+  const fetchCredentials = async () => {
+    try {
+      const res = await fetch('/api/settings/credentials');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.jiraUrl) setJiraUrl(data.jiraUrl);
+        if (data.jiraEmail) setJiraEmail(data.jiraEmail);
+        if (data.jiraToken) setJiraToken(data.jiraToken);
+        if (data.azureOrg) setAzureOrg(data.azureOrg);
+        if (data.azureProject) setAzureProject(data.azureProject);
+        if (data.azureToken) setAzureToken(data.azureToken);
+      }
+    } catch (err) {
+      console.error("Erro ao obter credenciais do servidor:", err);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setJiraUrl(localStorage.getItem('jira_url') || '');
@@ -42,10 +59,11 @@ export default function SettingsModal({ isOpen, onClose }) {
       setDbSaveError('');
       setDbSaveSuccess(false);
       fetchDbPath();
+      fetchCredentials();
     }
   }, [isOpen]);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     localStorage.setItem('jira_url', jiraUrl.trim());
     localStorage.setItem('jira_email', jiraEmail.trim());
@@ -53,6 +71,24 @@ export default function SettingsModal({ isOpen, onClose }) {
     localStorage.setItem('azure_org', azureOrg.trim());
     localStorage.setItem('azure_project', azureProject.trim());
     localStorage.setItem('azure_token', azureToken.trim());
+    
+    try {
+      await fetch('/api/settings/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jiraUrl: jiraUrl.trim(),
+          jiraEmail: jiraEmail.trim(),
+          jiraToken: jiraToken.trim(),
+          azureOrg: azureOrg.trim(),
+          azureProject: azureProject.trim(),
+          azureToken: azureToken.trim()
+        })
+      });
+    } catch (err) {
+      console.error("Erro ao salvar credenciais no servidor:", err);
+    }
+    
     onClose();
   };
 

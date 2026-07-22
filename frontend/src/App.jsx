@@ -21,8 +21,26 @@ export default function App() {
   const [lastSyncStatus, setLastSyncStatus] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  const fetchAndSyncCredentials = async () => {
+    try {
+      const res = await fetch('/api/settings/credentials');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.jiraUrl) localStorage.setItem('jira_url', data.jiraUrl);
+        if (data.jiraEmail) localStorage.setItem('jira_email', data.jiraEmail);
+        if (data.jiraToken) localStorage.setItem('jira_token', data.jiraToken);
+        if (data.azureOrg) localStorage.setItem('azure_org', data.azureOrg);
+        if (data.azureProject) localStorage.setItem('azure_project', data.azureProject);
+        if (data.azureToken) localStorage.setItem('azure_token', data.azureToken);
+      }
+    } catch (e) {
+      console.error("Erro ao sincronizar credenciais do servidor:", e);
+    }
+  };
+
   useEffect(() => {
     loadDemands();
+    fetchAndSyncCredentials();
     const savedSync = localStorage.getItem('po-hub-last-sync');
     if (savedSync) {
       try {
@@ -55,14 +73,6 @@ export default function App() {
     const azureProject = localStorage.getItem('azure_project');
     const azureToken = localStorage.getItem('azure_token');
 
-    const hasJira = jiraUrl && jiraEmail && jiraToken;
-    const hasAzure = azureOrg && azureProject && azureToken;
-
-    if (!hasJira && !hasAzure) {
-      alert('Por favor, preencha as credenciais do Sicoob TI (Jira) ou da MAG TI (Azure DevOps) no menu de Configurações antes de sincronizar.');
-      return;
-    }
-
     const force = e && e.shiftKey === true;
     console.log(force ? "Iniciando carga completa (force_refresh = true)..." : "Iniciando carga incremental...");
 
@@ -91,24 +101,11 @@ export default function App() {
           ? 'Conectado a APIs Reais'
           : '';
 
-        let syncTypeDetail = '';
-        if (result.sync_types && syncSourceMsg) {
-          const types = [];
-          if (result.sources.jira === 'real' && result.sync_types.jira) {
-            types.push(`Sicoob TI (Jira): ${result.sync_types.jira === 'incremental' ? 'Delta' : 'Completa'}`);
-          }
-          if (result.sources.azure === 'real' && result.sync_types.azure) {
-            types.push(`MAG TI (Azure): ${result.sync_types.azure === 'incremental' ? 'Delta' : 'Completa'}`);
-          }
-          if (types.length > 0) {
-            syncTypeDetail = ` (${types.join(', ')})`;
-          }
-        }
-
         const syncInfo = {
           time: new Date().toLocaleString('pt-BR'),
-          source: syncSourceMsg ? `${syncSourceMsg}${syncTypeDetail}` : ''
+          source: syncSourceMsg
         };
+
         
         setLastSyncStatus(syncInfo);
         localStorage.setItem('po-hub-last-sync', JSON.stringify(syncInfo));

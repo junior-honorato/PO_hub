@@ -49,18 +49,16 @@ po-hub/
 
 ## 🔒 Configuração e Segurança
 
-O projeto utiliza um arquivo `.env` para ler as chaves de API necessárias para integração com as plataformas externas. **Nunca commite chaves de acesso no repositório.**
+O PO Hub possui um sistema de persistência híbrido e robusto para gerenciar e salvar suas chaves de API de forma segura e portátil:
 
-1. Copie o arquivo `.env.example` para `po-hub/backend/.env`:
+1. **Persistência no Servidor (`credentials.json`)**: Ao configurar suas chaves de API através do menu **Configurações** na interface web, os dados são salvos localmente no servidor em `backend/credentials.json`. Este arquivo é ignorado automaticamente no `.gitignore` para garantir que suas credenciais nunca sejam enviadas ao Git.
+2. **Importação e Fallback Automático (`.env`)**: Se o arquivo `credentials.json` não existir, o servidor lerá as credenciais definidas no arquivo `backend/.env` (útil para configuração inicial). Você pode criar este arquivo copiando o modelo `.env.example`:
    ```bash
    cp .env.example backend/.env
    ```
-2. Abra o arquivo `backend/.env` e configure suas variáveis de ambiente:
-   - `JIRA_API_URL`, `JIRA_USER_EMAIL` e `JIRA_PAT` (Personal Access Token).
-   - `AZURE_API_URL` e `AZURE_PAT`.
-   - `SSL_VERIFY` (Padrão: `False`).
-   - `GEMINI_API_KEY` (Chave de API do Google Gemini para habilitar o resumo de demandas).
-3. **Fallback (Mock):** Se as chaves de API forem omitidas, o sistema gera demandas mockadas funcionais ao sincronizar.
+   E preenchendo as variáveis correspondentes (`JIRA_API_URL`, `JIRA_USER_EMAIL`, `JIRA_PAT`, `AZURE_API_URL`, `AZURE_PAT` e `GEMINI_API_KEY`).
+3. **Resolução de Conflitos e Portabilidade**: Se você acessar a aplicação sob um novo IP, nova porta, ou navegador diferente, o front-end carregará automaticamente as chaves salvas no servidor no carregamento inicial. Se outro usuário configurar chaves personalizadas no navegador dele, as chaves dele terão prioridade em sua própria sessão.
+4. **Fallback (Mock)**: Caso nenhuma credencial seja configurada (tanto no servidor quanto na interface), o sistema continuará funcionando utilizando demandas mockadas locais para demonstração.
 
 ---
 
