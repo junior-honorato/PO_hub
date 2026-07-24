@@ -33,7 +33,8 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
       const azureOrg = localStorage.getItem('azure_org');
       const azureProject = localStorage.getItem('azure_project');
       if (azureOrg && azureProject) {
-        return `https://dev.azure.com/${azureOrg}/${azureProject}/_workitems/edit/${demand.externalId}`;
+        const numericId = demand.externalId.replace(/\D/g, '');
+        return `https://dev.azure.com/${azureOrg}/${azureProject}/_workitems/edit/${numericId}`;
       }
     }
     return demand.externalUrl;
