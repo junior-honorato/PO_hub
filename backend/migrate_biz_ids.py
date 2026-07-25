@@ -1,9 +1,7 @@
 import sqlite3
 import os
 
-def get_db_paths():
-    default_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(default_dir, "database_ativo.db"), os.path.join(default_dir, "database_historico.db")
+from database import get_db_paths
 
 def migrate_db(db_path):
     if not os.path.exists(db_path):
