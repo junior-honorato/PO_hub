@@ -187,11 +187,11 @@ export default function SettingsModal({ isOpen, onClose }) {
         </div>
 
         {/* Seleção de Abas */}
-        <div className="grid grid-cols-4 border-b border-slate-200 w-full">
+        <div className="flex justify-between border-b border-slate-200 w-full">
           <button
             type="button"
             onClick={() => setActiveTab('credentials')}
-            className={`w-full pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-52 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'credentials'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -202,7 +202,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setActiveTab('mappings')}
-            className={`w-full pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-52 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'mappings'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -213,7 +213,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setActiveTab('database')}
-            className={`w-full pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-52 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'database'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -224,7 +224,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setActiveTab('llm')}
-            className={`w-full pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-52 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'llm'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
