@@ -17,6 +17,13 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [dbSaveSuccess, setDbSaveSuccess] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
 
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [geminiModelName, setGeminiModelName] = useState('gemini-1.5-flash');
+  const [systemInstruction, setSystemInstruction] = useState('');
+  const [llmSaveError, setLlmSaveError] = useState('');
+  const [llmSaveSuccess, setLlmSaveSuccess] = useState(false);
+  const [isSavingLlm, setIsSavingLlm] = useState(false);
+
   const fetchDbPath = async () => {
     try {
       const res = await fetch('/api/settings/db-path');
@@ -47,6 +54,48 @@ export default function SettingsModal({ isOpen, onClose }) {
     }
   };
 
+  const fetchLlmConfig = async () => {
+    try {
+      const res = await fetch('/api/settings/llm');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.geminiApiKey) setGeminiApiKey(data.geminiApiKey);
+        if (data.geminiModelName) setGeminiModelName(data.geminiModelName);
+        if (data.systemInstruction) setSystemInstruction(data.systemInstruction);
+      }
+    } catch (err) {
+      console.error("Erro ao obter configurações da LLM do servidor:", err);
+    }
+  };
+
+  const handleSaveLlm = async (e) => {
+    e.preventDefault();
+    setLlmSaveError('');
+    setLlmSaveSuccess(false);
+    setIsSavingLlm(true);
+    try {
+      const res = await fetch('/api/settings/llm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          geminiApiKey: geminiApiKey.trim(),
+          geminiModelName: geminiModelName.trim(),
+          systemInstruction: systemInstruction
+        })
+      });
+      if (res.ok) {
+        setLlmSaveSuccess(true);
+      } else {
+        const errData = await res.json();
+        setLlmSaveError(errData.detail || 'Erro ao salvar configurações da LLM.');
+      }
+    } catch (err) {
+      setLlmSaveError('Erro de conexão ao tentar salvar configurações da LLM.');
+    } finally {
+      setIsSavingLlm(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       setJiraUrl(localStorage.getItem('jira_url') || '');
@@ -58,8 +107,11 @@ export default function SettingsModal({ isOpen, onClose }) {
       setActiveTab('credentials');
       setDbSaveError('');
       setDbSaveSuccess(false);
+      setLlmSaveError('');
+      setLlmSaveSuccess(false);
       fetchDbPath();
       fetchCredentials();
+      fetchLlmConfig();
     }
   }, [isOpen]);
 
@@ -169,6 +221,17 @@ export default function SettingsModal({ isOpen, onClose }) {
           >
             Banco de Dados
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('llm')}
+            className={`flex-1 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+              activeTab === 'llm'
+                ? 'border-emerald-600 text-emerald-600'
+                : 'border-transparent text-slate-500 hover:text-emerald-700'
+            }`}
+          >
+            Inteligência Artificial (LLM)
+          </button>
         </div>
 
         {activeTab === 'credentials' ? (
@@ -273,7 +336,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           </form>
         ) : activeTab === 'mappings' ? (
           <StatusMapperTab />
-        ) : (
+        ) : activeTab === 'database' ? (
           <form onSubmit={handleSaveDbPath} className="space-y-6">
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -333,6 +396,86 @@ export default function SettingsModal({ isOpen, onClose }) {
                 className="px-4 py-2 bg-sicoob-primary hover:bg-sicoob-secondary rounded-xl text-xs font-bold text-white transition-colors disabled:opacity-50 disabled:pointer-events-none shadow-sm"
               >
                 {isSavingDb ? 'Salvando e Migrando...' : 'Salvar e Migrar Banco'}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleSaveLlm} className="space-y-6">
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-emerald-650" /> Parametrização da LLM (Gemini)
+              </h3>
+              
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 space-y-2 leading-relaxed">
+                <p>
+                  <strong>Ajuste de Comportamento do Resumo:</strong>
+                </p>
+                <p>
+                  Defina a chave de API do Gemini e personalize as instruções do sistema. O prompt customizado controlará como o relatório semanal gerará os blocos, o tom de voz e as prioridades do seu Status Report Executivo.
+                </p>
+              </div>
+
+              {llmSaveError && (
+                <div className="bg-rose-50 border border-rose-100 text-rose-700 text-xs px-4 py-3 rounded-xl">
+                  {llmSaveError}
+                </div>
+              )}
+
+              {llmSaveSuccess && (
+                <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-4 py-3 rounded-xl">
+                  Configurações do Gemini salvas com sucesso!
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-500 font-medium">Chave de API do Gemini</label>
+                  <input
+                    type="password"
+                    placeholder="Cole a chave de API do Gemini (AIzaSy...)"
+                    value={geminiApiKey}
+                    onChange={e => setGeminiApiKey(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-slate-500 font-medium">Modelo do Gemini</label>
+                  <input
+                    type="text"
+                    placeholder="gemini-1.5-flash ou gemini-1.5-pro"
+                    value={geminiModelName}
+                    onChange={e => setGeminiModelName(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-slate-500 font-medium">Instrução do Sistema (Prompt Principal)</label>
+                <textarea
+                  rows="10"
+                  placeholder="Escreva as instruções detalhadas de como a IA deve analisar as demandas e formatar o relatório..."
+                  value={systemInstruction}
+                  onChange={e => setSystemInstruction(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors resize-none custom-scrollbar"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-800 transition-colors"
+              >
+                Fechar
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingLlm}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none shadow-sm"
+              >
+                {isSavingLlm ? 'Salvando...' : 'Salvar Parametrização'}
               </button>
             </div>
           </form>

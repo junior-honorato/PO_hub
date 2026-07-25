@@ -1159,6 +1159,13 @@
       const [dbSaveSuccess, setDbSaveSuccess] = React.useState(false);
       const [isSavingDb, setIsSavingDb] = React.useState(false);
 
+      const [geminiApiKey, setGeminiApiKey] = React.useState('');
+      const [geminiModelName, setGeminiModelName] = React.useState('gemini-1.5-flash');
+      const [systemInstruction, setSystemInstruction] = React.useState('');
+      const [llmSaveError, setLlmSaveError] = React.useState('');
+      const [llmSaveSuccess, setLlmSaveSuccess] = React.useState(false);
+      const [isSavingLlm, setIsSavingLlm] = React.useState(false);
+
       const fetchDbPath = async () => {
         try {
           const res = await fetch('/api/settings/db-path');
@@ -1189,6 +1196,48 @@
         }
       };
 
+      const fetchLlmConfig = async () => {
+        try {
+          const res = await fetch('/api/settings/llm');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.geminiApiKey) setGeminiApiKey(data.geminiApiKey);
+            if (data.geminiModelName) setGeminiModelName(data.geminiModelName);
+            if (data.systemInstruction) setSystemInstruction(data.systemInstruction);
+          }
+        } catch (err) {
+          console.error("Erro ao obter configurações da LLM do servidor:", err);
+        }
+      };
+
+      const handleSaveLlm = async (e) => {
+        e.preventDefault();
+        setLlmSaveError('');
+        setLlmSaveSuccess(false);
+        setIsSavingLlm(true);
+        try {
+          const res = await fetch('/api/settings/llm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              geminiApiKey: geminiApiKey.trim(),
+              geminiModelName: geminiModelName.trim(),
+              systemInstruction: systemInstruction
+            })
+          });
+          if (res.ok) {
+            setLlmSaveSuccess(true);
+          } else {
+            const errData = await res.json();
+            setLlmSaveError(errData.detail || 'Erro ao salvar configurações da LLM.');
+          }
+        } catch (err) {
+          setLlmSaveError('Erro de conexão ao tentar salvar configurações da LLM.');
+        } finally {
+          setIsSavingLlm(false);
+        }
+      };
+
       React.useEffect(() => {
         if (isOpen) {
           setJiraUrl(localStorage.getItem('jira_url') || '');
@@ -1200,8 +1249,11 @@
           setActiveTab('credentials');
           setDbSaveError('');
           setDbSaveSuccess(false);
+          setLlmSaveError('');
+          setLlmSaveSuccess(false);
           fetchDbPath();
           fetchCredentials();
+          fetchLlmConfig();
         }
       }, [isOpen]);
 
@@ -1311,6 +1363,17 @@
               >
                 Banco de Dados
               </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('llm')}
+                className={`flex-1 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+                  activeTab === 'llm'
+                    ? 'border-emerald-600 text-emerald-600'
+                    : 'border-transparent text-slate-500 hover:text-emerald-700'
+                }`}
+              >
+                Inteligência Artificial (LLM)
+              </button>
             </div>
 
             {activeTab === 'credentials' ? (
@@ -1415,7 +1478,7 @@
               </form>
             ) : activeTab === 'mappings' ? (
               <StatusMapperTab />
-            ) : (
+            ) : activeTab === 'database' ? (
               <form onSubmit={handleSaveDbPath} className="space-y-6">
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -1428,7 +1491,7 @@
                     </p>
                     <ul className="list-disc pl-4 space-y-1">
                       <li>O banco de dados do PO Hub utiliza SQLite (arquivo local). Não é possível conectar diretamente a links HTTP/HTTPS do OneDrive.</li>
-                      <li>Para hospedar o banco na nuvem, você deve especificar abaixo o <strong>caminho físico absoluto da pasta local</strong> sincronizada no seu computador pelo aplicativo do OneDrive (ex: <code className="bg-white px-1 py-0.5 rounded text-sicoob-primary">C:\Users\usuario\OneDrive - Empresa\PO_Hub</code>).</li>
+                      <li>Para hospedar o banco na nuvem, você deve especificar abaixo o <strong>caminho físico absoluto da pasta local</strong> sincronizada no seu computador pelo aplicativo do OneDrive (ex: <code className="bg-slate-100 px-1.5 py-0.5 rounded text-sicoob-primary">C:\Users\usuario\OneDrive - Empresa\PO_Hub</code>).</li>
                       <li>O aplicativo desktop do OneDrive se encarregará de sincronizar os arquivos automaticamente para a nuvem.</li>
                       <li><strong>Nota:</strong> Ao salvar, os dados existentes serão copiados para a nova pasta e a página será recarregada. Se deixar em branco, o sistema usará a pasta padrão do projeto.</li>
                     </ul>
@@ -1475,6 +1538,86 @@
                     className="px-4 py-2 bg-sicoob-primary hover:bg-sicoob-secondary rounded-xl text-xs font-bold text-white transition-colors disabled:opacity-50 disabled:pointer-events-none"
                   >
                     {isSavingDb ? 'Salvando e Migrando...' : 'Salvar e Migrar Banco'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleSaveLlm} className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <Icon name="globe" className="w-3.5 h-3.5 text-emerald-500" /> Parametrização da LLM (Gemini)
+                  </h3>
+                  
+                  <div className="bg-white/40 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 space-y-2 leading-relaxed">
+                    <p>
+                      <strong>Ajuste de Comportamento do Resumo:</strong>
+                    </p>
+                    <p>
+                      Defina a chave de API do Gemini e personalize as instruções do sistema. O prompt customizado controlará como o relatório semanal gerará os blocos, o tom de voz e as prioridades do seu Status Report Executivo.
+                    </p>
+                  </div>
+
+                  {llmSaveError && (
+                    <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs px-4 py-3 rounded-xl">
+                      {llmSaveError}
+                    </div>
+                  )}
+
+                  {llmSaveSuccess && (
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs px-4 py-3 rounded-xl">
+                      Configurações do Gemini salvas com sucesso!
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-500 font-medium">Chave de API do Gemini</label>
+                      <input
+                        type="password"
+                        placeholder="Cole a chave de API do Gemini (AIzaSy...)"
+                        value={geminiApiKey}
+                        onChange={e => setGeminiApiKey(e.target.value)}
+                        className="w-full bg-white border border-slate-350 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-500 font-medium">Modelo do Gemini</label>
+                      <input
+                        type="text"
+                        placeholder="gemini-1.5-flash ou gemini-1.5-pro"
+                        value={geminiModelName}
+                        onChange={e => setGeminiModelName(e.target.value)}
+                        className="w-full bg-white border border-slate-350 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-slate-500 font-medium">Instrução do Sistema (Prompt Principal)</label>
+                    <textarea
+                      rows="10"
+                      placeholder="Escreva as instruções detalhadas de como a IA deve analisar as demandas e formatar o relatório..."
+                      value={systemInstruction}
+                      onChange={e => setSystemInstruction(e.target.value)}
+                      className="w-full bg-white border border-slate-350 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary transition-colors resize-none custom-scrollbar"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-500 hover:text-sicoob-text transition-colors"
+                  >
+                    Fechar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingLlm}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    {isSavingLlm ? 'Salvando...' : 'Salvar Parametrização'}
                   </button>
                 </div>
               </form>

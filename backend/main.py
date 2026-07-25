@@ -1551,10 +1551,9 @@ def generate_project_summary(payload: ProjectSummaryRequest):
                     "cached": True
                 }
                 
-        # 1. Check Gemini API key
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise HTTPException(status_code=400, detail="Chave de API do Gemini (GEMINI_API_KEY) não configurada no arquivo .env.")
+        # 1. Load LLM settings
+        llm_config = load_llm_config_from_file()
+        api_key = llm_config["geminiApiKey"]
             
         # Determine demand_ids
         demand_ids = payload.demand_ids
@@ -1629,26 +1628,20 @@ def generate_project_summary(payload: ProjectSummaryRequest):
             
         concatenated_data = "\n".join(structured_lines)
         
-        # 4. Call Gemini model
+        # 4. Load LLM configuration parameters from settings
+        api_key = llm_config["geminiApiKey"]
+        model_name = llm_config["geminiModelName"]
+        system_instruction = llm_config["systemInstruction"]
+
+        if not api_key:
+            raise HTTPException(status_code=400, detail="Chave de API do Gemini (GEMINI_API_KEY) não configurada.")
+
+        # Call Gemini model
         genai.configure(api_key=api_key)
-        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
         
         model = genai.GenerativeModel(
             model_name=model_name,
-            system_instruction=(
-                "Atue como um Agile Coach / Product Owner de alto nível. Leia o status atual, prazos de entrega ("
-                "Promessa de Entrega), próximas cobranças (Próxima Cobrança), notas da gestora, anotações locais "
-                "(Evolução, Impedimentos, Histórico) e comentários da plataforma de desenvolvimento para gerar um "
-                "Status Report semanal executivo e conciso do projeto.\n"
-                "Instruções cruciais:\n"
-                "1. Identifique e destaque datas de promessa de entrega críticas ou atrasadas, bem como datas de próxima "
-                "cobrança agendadas.\n"
-                "2. Considere as anotações locais (Evolução, Impedimentos, Histórico) como o contexto de negócio/decisão "
-                "mais recente, real e prioritário.\n"
-                "3. Estruture a resposta estritamente em 3 blocos em português: 1. 🚀 Principais Entregas/Avanços da Semana, "
-                "2. 🔄 O que está em Andamento, "
-                "3. ⚠️ Atenção Necessária (riscos, bloqueios, cobranças ou datas prometidas)."
-            )
+            system_instruction=system_instruction
         )
         
         response = model.generate_content(concatenated_data)
@@ -2153,6 +2146,61 @@ async def delete_project(project_id: int):
         print(f"Erro ao deletar projeto: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao deletar projeto.")
 
+LLM_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "llm_config.json")
+
+DEFAULT_SYSTEM_INSTRUCTION = (
+    "Atue como um Agile Coach / Product Owner de alto nível. Leia o status atual, prazos de entrega ("
+    "Promessa de Entrega), próximas cobranças (Próxima Cobrança), notas da gestora, anotações locais "
+    "(Evolução, Impedimentos, Histórico) e comentários da plataforma de desenvolvimento para gerar um "
+    "Status Report semanal executivo e conciso do projeto.\n"
+    "Instruções cruciais:\n"
+    "1. Identifique e destaque datas de promessa de entrega críticas ou atrasadas, bem como datas de próxima "
+    "cobrança agendadas.\n"
+    "2. Considere as anotações locais (Evolução, Impedimentos, Histórico) como o contexto de negócio/decisão "
+    "mais recente, real e prioritário.\n"
+    "3. Estruture a resposta estritamente em 3 blocos em português: 1. 🚀 Principais Entregas/Avanços da Semana, "
+    "2. 🔄 O que está em Andamento, "
+    "3. ⚠️ Atenção Necessária (riscos, bloqueios, cobranças ou datas prometidas)."
+)
+
+def load_llm_config_from_file():
+    config = {
+        "geminiApiKey": "",
+        "geminiModelName": "gemini-1.5-flash",
+        "systemInstruction": DEFAULT_SYSTEM_INSTRUCTION
+    }
+    # Fallbacks from environment variables if present
+    env_key = os.getenv("GEMINI_API_KEY", "")
+    env_model = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
+    if env_key:
+        config["geminiApiKey"] = env_key
+    if env_model:
+        config["geminiModelName"] = env_model
+        
+    if os.path.exists(LLM_CONFIG_PATH):
+        try:
+            with open(LLM_CONFIG_PATH, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+                if loaded.get("geminiApiKey"):
+                    config["geminiApiKey"] = loaded["geminiApiKey"].strip()
+                if loaded.get("geminiModelName"):
+                    config["geminiModelName"] = loaded["geminiModelName"].strip()
+                if loaded.get("systemInstruction"):
+                    config["systemInstruction"] = loaded["systemInstruction"]
+        except Exception as e:
+            print(f"Erro ao carregar llm_config.json: {e}")
+            
+    return config
+
+def save_llm_config_to_file(config: dict):
+    try:
+        with open(LLM_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=4, ensure_ascii=False)
+        return True
+    except Exception as e:
+        print(f"Erro ao salvar llm_config.json: {e}")
+        return False
+
 CREDENTIALS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
 
 def load_credentials_from_file():
@@ -2310,6 +2358,36 @@ async def update_db_path(req: DbPathRequest):
         raise he
     except Exception as e:
         print(f"Erro ao atualizar caminho do banco: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
+class LlmConfigUpdate(BaseModel):
+    geminiApiKey: Optional[str] = ""
+    geminiModelName: Optional[str] = ""
+    systemInstruction: Optional[str] = ""
+
+@app.get("/api/settings/llm")
+def get_llm_settings():
+    try:
+        return load_llm_config_from_file()
+    except Exception as e:
+        print(f"Erro ao carregar configurações da LLM: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao carregar configurações da LLM.")
+
+@app.post("/api/settings/llm")
+def update_llm_settings(payload: LlmConfigUpdate):
+    try:
+        config = {
+            "geminiApiKey": (payload.geminiApiKey or "").strip(),
+            "geminiModelName": (payload.geminiModelName or "gemini-1.5-flash").strip(),
+            "systemInstruction": (payload.systemInstruction or DEFAULT_SYSTEM_INSTRUCTION)
+        }
+        if save_llm_config_to_file(config):
+            return {"success": True}
+        raise HTTPException(status_code=500, detail="Erro ao salvar arquivo de configurações da LLM.")
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"Erro ao salvar configurações da LLM: {e}")
         raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 # Monta o diretório static na raiz `/` (DEVE vir após as rotas da API)

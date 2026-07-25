@@ -8,6 +8,7 @@ backend/.env
 frontend/.env
 .env
 backend/credentials.json
+backend/llm_config.json
 
 # Python Cache
 **/__pycache__/
