@@ -21,6 +21,61 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const [activeTab, setActiveTab] = useState('operational'); // 'operational', 'report_tech', or 'report_biz'
   const [isPresentationMode, setIsPresentationMode] = useState(false);
 
+  const [aiReport, setAiReport] = useState('');
+  const [aiGeneratedAt, setAiGeneratedAt] = useState('');
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [copiedAi, setCopiedAi] = useState(false);
+
+  const handleFetchAiSummary = async (force = false) => {
+    if (!data?.project?.name) return;
+    setIsGeneratingAi(true);
+    setAiError('');
+    if (force) {
+      setAiReport('');
+    }
+    try {
+      const res = await fetch('/api/projects/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_name: data.project.name,
+          demand_ids: null,
+          force_refresh: force
+        })
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setAiReport(result.report);
+        setAiGeneratedAt(result.generated_at || '');
+      } else {
+        const errData = await res.json();
+        setAiError(errData.detail || 'Não foi possível gerar o resumo com IA.');
+      }
+    } catch (err) {
+      console.error(err);
+      setAiError('Erro de conexão ao tentar gerar o resumo com IA.');
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  const handleCopyAiReport = async () => {
+    try {
+      await navigator.clipboard.writeText(aiReport);
+      setCopiedAi(true);
+      setTimeout(() => setCopiedAi(false), 2000);
+    } catch (err) {
+      console.error("Falha ao copiar:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'ai_summary' && !aiReport && data?.project?.name) {
+      handleFetchAiSummary(false);
+    }
+  }, [activeTab, data]);
+
   const [editSummary, setEditSummary] = useState(false);
   const [summaryValue, setSummaryValue] = useState('');
   const [editNotes, setEditNotes] = useState(false);
@@ -916,6 +971,144 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const epics = techEpics;
   const epicMap = techEpicMap;
 
+  const renderAiSummaryTab = () => {
+    return (
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 p-4 overflow-y-auto">
+        {/* Left Column: AI Summary Report */}
+        <div className="flex-1 bg-white border border-slate-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-emerald-600 animate-pulse" />
+                  Status Report Inteligente (Gemini)
+                </h3>
+                <p className="text-xs text-slate-500">Relatório consolidado gerado automaticamente pela Inteligência Artificial</p>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {aiGeneratedAt && (
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Gerado em: {aiGeneratedAt}
+                  </span>
+                )}
+                <button
+                  onClick={() => handleFetchAiSummary(true)}
+                  disabled={isGeneratingAi}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 disabled:bg-slate-50 disabled:text-slate-400 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isGeneratingAi ? 'animate-spin' : ''}`} />
+                  {isGeneratingAi ? 'Atualizando...' : 'Atualizar com IA'}
+                </button>
+              </div>
+            </div>
+
+            {aiError && (
+              <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 text-xs text-rose-700 flex items-start gap-2.5">
+                <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5" />
+                <span>{aiError}</span>
+              </div>
+            )}
+
+            {isGeneratingAi && !aiReport ? (
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-slate-700 animate-pulse">Consultando o Gemini...</p>
+                  <p className="text-xs text-slate-400 mt-1">Consolidando anotações locais, datas e comentários das demandas.</p>
+                </div>
+              </div>
+            ) : aiReport ? (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-sm text-slate-750 leading-relaxed whitespace-pre-wrap font-sans max-h-[55vh] overflow-y-auto custom-scrollbar">
+                {aiReport}
+              </div>
+            ) : (
+              <div className="text-center py-20 border border-dashed border-slate-200 rounded-xl text-slate-400 flex flex-col items-center justify-center gap-3">
+                <Sparkles className="w-10 h-10 text-slate-300" />
+                <div>
+                  <p className="text-sm font-semibold text-slate-650">Nenhum resumo gerado.</p>
+                  <p className="text-xs mt-1">Clique no botão "Atualizar com IA" para gerar o resumo semanal do projeto.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {aiReport && !isGeneratingAi && (
+            <div className="border-t border-slate-100 pt-4 mt-6 flex justify-end">
+              <button
+                onClick={handleCopyAiReport}
+                disabled={copiedAi}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm"
+              >
+                {copiedAi ? 'Copiado!' : 'Copiar Relatório'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Source Material Context */}
+        <div className="w-full lg:w-80 shrink-0 bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col shadow-xs max-h-[75vh]">
+          <h4 className="font-bold text-xs text-slate-550 uppercase tracking-wider mb-3">Fontes de Contexto Enviadas</h4>
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+            {data.demands && data.demands.length > 0 ? (
+              data.demands.map(d => {
+                const hasDates = d.promisedDate || d.followUpDate;
+                const hasLocalNotes = d.managerNotes || d.current_status_notes || d.blocker_notes;
+                
+                return (
+                  <div 
+                    key={d.externalId}
+                    onClick={() => onSelectDemand(d.externalId)}
+                    className="bg-white border border-slate-150 hover:border-emerald-500/50 rounded-xl p-3 space-y-2 cursor-pointer shadow-xs transition-all active:scale-98 group"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 group-hover:text-emerald-600 transition-colors uppercase">{d.externalId}</span>
+                      <span className="text-[9px] font-semibold bg-slate-100 border border-slate-150 px-1.5 py-0.5 rounded text-slate-600">
+                        {d.externalStatus}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-700 line-clamp-2 leading-snug">{d.title}</p>
+                    
+                    {hasDates && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {d.promisedDate && (
+                          <span className="text-[9px] font-bold bg-sky-50 text-sky-700 border border-sky-100 px-1.5 py-0.5 rounded">
+                            Promessa: {d.promisedDate}
+                          </span>
+                        )}
+                        {d.followUpDate && (
+                          <span className="text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 px-1.5 py-0.5 rounded">
+                            Cobrança: {d.followUpDate}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {hasLocalNotes && (
+                      <div className="bg-slate-50 border border-slate-100 rounded-lg p-2 space-y-1 mt-1 text-[10px]">
+                        {d.managerNotes && (
+                          <p className="text-slate-600 line-clamp-1"><strong className="text-slate-700 font-bold">Gestora:</strong> {d.managerNotes}</p>
+                        )}
+                        {d.current_status_notes && (
+                          <p className="text-slate-600 line-clamp-1"><strong className="text-emerald-700 font-bold">Evolução:</strong> {d.current_status_notes}</p>
+                        )}
+                        {d.blocker_notes && (
+                          <p className="text-slate-600 line-clamp-1"><strong className="text-rose-700 font-bold">Impedimento:</strong> {d.blocker_notes}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-xs text-slate-400 text-center py-6">Nenhuma demanda ativa neste projeto.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className={`flex-1 ${isPresentationMode ? 'fixed inset-0 z-[100] bg-white w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12 flex flex-col items-center justify-start' : 'overflow-y-auto w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-12 sm:py-6 space-y-6'}`}>
       {isPresentationMode && (
@@ -1094,6 +1287,17 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
             }`}
           >
             Mapa do Roadmap
+          </button>
+          <button
+            onClick={() => setActiveTab('ai_summary')}
+            className={`px-6 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'ai_summary'
+                ? 'border-emerald-600 text-emerald-600'
+                : 'border-transparent text-slate-500 hover:text-emerald-700'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            Resumo IA
           </button>
         </div>
       )}
@@ -2145,6 +2349,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
           <h3 className="text-base font-bold text-sicoob-text mb-4 shrink-0">Mapa de Dependências e Roadmap</h3>
           <RoadmapGraphView demands={data.demands} onSelectDemand={onSelectDemand} />
         </div>
+      ) : activeTab === 'ai_summary' ? (
+        renderAiSummaryTab()
       ) : null}
     </div>
   );

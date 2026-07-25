@@ -1565,9 +1565,13 @@ def generate_project_summary(payload: ProjectSummaryRequest):
         if not demand_ids:
             raise HTTPException(status_code=400, detail="Este projeto não possui demandas ativas para gerar o resumo.")
             
-        # 2. Query active db for externalId, title, externalStatus, comments_history
+        # 2. Query active db for externalId, title, externalStatus, comments_history, promisedDate, followUpDate, etc.
         placeholders = ", ".join(["?"] * len(demand_ids))
-        query = f"SELECT externalId, title, externalStatus, comments_history FROM demands WHERE externalId IN ({placeholders})"
+        query = (
+            f"SELECT externalId, title, externalStatus, comments_history, promisedDate, followUpDate, "
+            f"managerNotes, current_status_notes, blocker_notes "
+            f"FROM demands WHERE externalId IN ({placeholders})"
+        )
         rows = fetch_all(query, tuple(demand_ids), "ativo")
         
         if not rows:
@@ -1589,10 +1593,38 @@ def generate_project_summary(payload: ProjectSummaryRequest):
         structured_lines = []
         for r in rows:
             ext_id = r["externalId"]
-            comments = r.get("comments_history") or "Sem comentários"
+            comments = r.get("comments_history") or ""
             anns = annotations_by_demand.get(ext_id, [])
-            anns_str = " | Anotações Locais: " + "; ".join(anns) if anns else ""
-            line = f"ID: {ext_id} | Título: {r['title']} | Status: {r['externalStatus']} | Histórico: {comments.strip()}{anns_str}"
+            
+            parts = [
+                f"ID: {ext_id}",
+                f"Título: {r['title']}",
+                f"Status: {r['externalStatus']}"
+            ]
+            
+            # Promessas de data e próxima cobrança
+            if r.get("promisedDate"):
+                parts.append(f"Promessa de Entrega: {r['promisedDate']}")
+            if r.get("followUpDate"):
+                parts.append(f"Próxima Cobrança: {r['followUpDate']}")
+                
+            # Notas gerenciais e anotações locais do painel
+            if r.get("managerNotes"):
+                parts.append(f"Notas Gerais da Gestora: {r['managerNotes']}")
+            if r.get("current_status_notes"):
+                parts.append(f"Anotação de Evolução: {r['current_status_notes']}")
+            if r.get("blocker_notes"):
+                parts.append(f"Anotação de Impedimento: {r['blocker_notes']}")
+                
+            # Anotações históricas adicionais
+            if anns:
+                parts.append("Anotações de Histórico: " + "; ".join(anns))
+                
+            # Comentários externos da plataforma (Jira/Azure)
+            if comments:
+                parts.append(f"Comentários da Plataforma: {comments.strip()}")
+                
+            line = " | ".join(parts)
             structured_lines.append(line)
             
         concatenated_data = "\n".join(structured_lines)
@@ -1604,11 +1636,18 @@ def generate_project_summary(payload: ProjectSummaryRequest):
         model = genai.GenerativeModel(
             model_name=model_name,
             system_instruction=(
-                "Atue como um Agile Coach / Product Owner. Leia o status atual, histórico e anotações locais das demandas "
-                "de um projeto e gere um Status Report semanal executivo e conciso. Considere as anotações locais ("
-                "Anotações Locais) como o contexto de negócio/decisão mais recente e prioritário. Estruture a resposta "
-                "estritamente em 3 blocos: 1. 🚀 Principais Entregas/Avanços da Semana, 2. 🔄 O que está em Andamento, "
-                "3. ⚠️ Atenção Necessária (riscos, bloqueios ou anotações críticas identificados)."
+                "Atue como um Agile Coach / Product Owner de alto nível. Leia o status atual, prazos de entrega ("
+                "Promessa de Entrega), próximas cobranças (Próxima Cobrança), notas da gestora, anotações locais "
+                "(Evolução, Impedimentos, Histórico) e comentários da plataforma de desenvolvimento para gerar um "
+                "Status Report semanal executivo e conciso do projeto.\n"
+                "Instruções cruciais:\n"
+                "1. Identifique e destaque datas de promessa de entrega críticas ou atrasadas, bem como datas de próxima "
+                "cobrança agendadas.\n"
+                "2. Considere as anotações locais (Evolução, Impedimentos, Histórico) como o contexto de negócio/decisão "
+                "mais recente, real e prioritário.\n"
+                "3. Estruture a resposta estritamente em 3 blocos em português: 1. 🚀 Principais Entregas/Avanços da Semana, "
+                "2. 🔄 O que está em Andamento, "
+                "3. ⚠️ Atenção Necessária (riscos, bloqueios, cobranças ou datas prometidas)."
             )
         )
         
