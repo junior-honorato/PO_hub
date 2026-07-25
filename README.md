@@ -49,14 +49,17 @@ po-hub/
 
 ## 🔒 Configuração e Segurança
 
-O PO Hub possui um sistema de persistência híbrido e robusto para gerenciar e salvar suas chaves de API de forma segura e portátil:
+O PO Hub possui um sistema de persistência híbrido e robusto para gerenciar e salvar suas chaves de API e parametrizações de Inteligência Artificial de forma segura e portátil:
 
-1. **Persistência no Servidor (`credentials.json`)**: Ao configurar suas chaves de API através do menu **Configurações** na interface web, os dados são salvos localmente no servidor em `backend/credentials.json`. Este arquivo é ignorado automaticamente no `.gitignore` para garantir que suas credenciais nunca sejam enviadas ao Git.
-2. **Importação e Fallback Automático (`.env`)**: Se o arquivo `credentials.json` não existir, o servidor lerá as credenciais definidas no arquivo `backend/.env` (útil para configuração inicial). Você pode criar este arquivo copiando o modelo `.env.example`:
+1. **Persistência no Servidor (`credentials.json` e `llm_config.json`)**:
+   - **Credenciais**: Salvas em `backend/credentials.json` via interface de configurações (Jira e Azure).
+   - **Inteligência Artificial**: Configurações de API Key, modelo ativo e prompt de sistema do Gemini são salvas localmente em `backend/llm_config.json`.
+   - *Ambos os arquivos são automaticamente ignorados no `.gitignore`* para assegurar que segredos e chaves de API locais nunca sejam expostos no repositório Git.
+2. **Importação e Fallback Automático (`.env`)**: Se as chaves do Gemini ou chaves de integradores não estiverem presentes nos arquivos locais, o servidor lerá os valores definidos no arquivo `backend/.env`. Copie o modelo `.env.example`:
    ```bash
    cp .env.example backend/.env
    ```
-   E preenchendo as variáveis correspondentes (`JIRA_API_URL`, `JIRA_USER_EMAIL`, `JIRA_PAT`, `AZURE_API_URL`, `AZURE_PAT` e `GEMINI_API_KEY`).
+   E preencha com suas variáveis (`JIRA_API_URL`, `JIRA_USER_EMAIL`, `JIRA_PAT`, `AZURE_API_URL`, `AZURE_PAT`, `GEMINI_API_KEY` e `GEMINI_MODEL_NAME`).
 3. **Resolução de Conflitos e Portabilidade**: Se você acessar a aplicação sob um novo IP, nova porta, ou navegador diferente, o front-end carregará automaticamente as chaves salvas no servidor no carregamento inicial. Se outro usuário configurar chaves personalizadas no navegador dele, as chaves dele terão prioridade em sua própria sessão.
 4. **Fallback (Mock)**: Caso nenhuma credencial seja configurada (tanto no servidor quanto na interface), o sistema continuará funcionando utilizando demandas mockadas locais para demonstração.
 
@@ -115,19 +118,26 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local, campos de S
 ## 🎯 Principais Funcionalidades da Interface UI/UX
 
 1. **Portfólio Executivo (PPM):** Dashboard centralizado com cards horizontais de projetos detalhados, exibindo progresso (com barra de progresso horizontal colorida), sponsor, previsão de lançamento e farol de saúde (Verde, Amarelo, Vermelho) dinâmico e inteligente.
-2. **Planejamento Tático - VGBL:** Tela dedicada à priorização e acompanhamento temporal tático:
+2. **Resumo Geral de Portfólio com IA (Gemini):** Nova aba integrada **"Resumo IA"** dentro da Visão Geral de cada projeto executivo:
+   - **Status Report Automatizado:** Análise avançada via LLM (Gemini) que varre e condensa todos os comentários de evolução, impedimentos, notas locais, anotações de cobrança, promessas de entrega e notas de gestora das demandas associadas ao projeto.
+   - **Visualização em Duas Colunas:** Exibição do relatório em markdown na coluna esquerda (com recursos de cópia rápida e atualização forçada) e listagem das demandas enviadas como fonte de contexto à direita (com badges de promessas de entrega e status detalhados).
+3. **Parametrização da LLM diretamente na Interface:** Aba **"Inteligência Artificial"** nas Configurações do Painel para configurar e gerenciar chaves do Gemini, modelo ativo (ex: `gemini-2.5-flash`) e instruções de sistema (prompt customizado) de forma portátil e individual.
+4. **UX/UI Aprimorado das Configurações**:
+   - **Modal de Altura Constante**: Altura física do modal fixada em `680px` com área interna rolável para evitar tremulações ou redimensionamentos visuais desconfortáveis ao navegar nas abas.
+   - **Simetria nas Abas**: Alinhamento de abas à esquerda com largura estritamente padronizada (`w-48`) para garantir que os títulos permaneçam legíveis e sem quebras de linha em qualquer dispositivo.
+5. **Criação de Demandas de Negócio com ID Curto Sequencial:** Nova nomenclatura para demandas de negócio locais no formato curto sequencial (`BIZ-0001` a `BIZ-9999`), facilitando a memorização e leitura rápida de demandas no portfólio.
+6. **Planejamento Tático - VGBL:** Tela dedicada à priorização e acompanhamento temporal tático:
    - **Stack Ranking (Priorização Paralela):** Grid de 2 colunas verticais (**Sicoob TI (Jira)** e **MAG (Azure)**) com destaque numérico de prioridade (`1º`, `2º`, `3º`...), suporte a reordenação por Drag and Drop nativo em HTML5 e persistência instantânea no SQLite (`PUT /demands/reorder`).
    - **Cronograma Gantt de Alta Precisão:** Linha do tempo de 6 meses que posiciona e dimensiona dinamicamente a barra de cada demanda com base nas datas reais de **Início Planejado** (`planned_start_date`) e **Fim Planejado** (`planned_end_date`).
    - **Gestão Condicional de Datas:** Chave de alternância *"Exibir no Planejamento Tático"* nos detalhes da demanda (`DemandDrawer`) que exibe/oculta os inputs de datas planejadas e botão de inclusão rápida *"+ Incluir Demanda"* no Planejamento Tático.
-3. **Criação de Demandas de Negócio:** Botão "+ Nova Demanda de Negócio" na tabela de demandas que permite cadastrar novos itens locais (com ID único no formato `BIZ-{timestamp}` e origem `Negocio`) vinculados opcionalmente a projetos do portfólio.
-4. **Visão Geral do Projeto em Abas (Dashboard & Slide):** A visão de iniciativa do portfólio é organizada em duas abas:
+7. **Visão Geral do Projeto em Abas (Dashboard & Slide):** A visão de iniciativa do portfólio é organizada em duas abas:
    - **Gestão Operacional**: Kanban board de trilhas side-by-side agrupados por origem (**TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**) com contadores de impedimentos e destaque visual de cards travados.
    - **Report Executivo**: Tabela executiva horizontal de status semanal que consolida automaticamente as demandas em andamento, situação atual/evolução (`current_status_notes`) e impedimentos/riscos (`blocker_notes`), agrupados por Epics (Jira/Azure) ou Eixos (Negócios) e com badges de promessa de entrega formatados (ex: "Jun/26").
-5. **Modelo Híbrido de Curadoria Refinado:** Regras de negócio aprimoradas para exibição inteligente de demandas no Report Executivo:
+8. **Modelo Híbrido de Curadoria Refinado:** Regras de negócio aprimoradas para exibição inteligente de demandas no Report Executivo:
    - *Condição de Curadoria do PO:* Qualquer demanda com o campo `blocker_notes` preenchido é exibida, independentemente do seu `State` atual.
    - *Regra de Exclusão:* Demandas inativas sem `current_status_notes` são automaticamente ocultadas.
-6. **Modal Centralizado Amplo de Detalhes:** Gaveta lateral (Drawer) estruturada em duas colunas com suporte a notas, tags, histórico, chave de Planejamento Tático e campos de datas de cronograma.
-7. **Modo Apresentação Premium & Fullscreen Real:** Projeção do relatório cobrindo 100% da viewport de forma absoluta (`fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12`), ocultando menus com atalho `ESC`.
-8. **Mapeamento e Unificação de Status (Status Mapper):** Regras locais de mapeamento de status por canal (Jira, Azure DevOps, Negócio) integradas ao banco de dados SQLite (`status_mappings`).
-9. **Sincronização Incremental (Delta Sync) e Diagnóstico de Erros:** Sincronização rápida salvando banda, com tratamento e exibição explicativa de erros HTTP (ex: HTTP 401 para tokens expirados e HTTP 403 para permissões de projeto).
-10. **Exportação PowerPoint (.pptx) & Excel (.xls):** Relatórios em PPTX (estilo Sicoob widescreen 16:9 via `PptxGenJS`) e planilhas em Excel formatadas.
+9. **Modal Centralizado Amplo de Detalhes:** Gaveta lateral (Drawer) estruturada em duas colunas com suporte a notas, tags, histórico, chave de Planejamento Tático e campos de datas de cronograma.
+10. **Modo Apresentação Premium & Fullscreen Real:** Projeção do relatório cobrindo 100% da viewport de forma absoluta (`fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12`), ocultando menus com atalho `ESC`.
+11. **Mapeamento e Unificação de Status (Status Mapper):** Regras locais de mapeamento de status por canal (Jira, Azure DevOps, Negócio) integradas ao banco de dados SQLite (`status_mappings`).
+12. **Sincronização Incremental (Delta Sync) e Diagnóstico de Erros:** Sincronização rápida salvando banda, com tratamento e exibição explicativa de erros HTTP (ex: HTTP 401 para tokens expirados e HTTP 403 para permissões de projeto).
+13. **Exportação PowerPoint (.pptx) & Excel (.xls):** Relatórios em PPTX (estilo Sicoob widescreen 16:9 via `PptxGenJS`) e planilhas em Excel formatadas.
