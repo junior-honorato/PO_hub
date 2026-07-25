@@ -1726,9 +1726,25 @@ async def create_manual_demand(payload: DemandManualCreate):
         raise HTTPException(status_code=400, detail="O título da demanda não pode ser vazio.")
         
     try:
-        import time
-        timestamp = int(time.time() * 1000)
-        external_id = f"BIZ-{timestamp}"
+        # Encontra o próximo ID disponível no formato BIZ-XXXX (4 dígitos)
+        rows_ativo = fetch_all("SELECT externalId FROM demands WHERE origin = 'Negocio'", db_name="ativo")
+        rows_hist = fetch_all("SELECT externalId FROM demands WHERE origin = 'Negocio'", db_name="historico")
+        all_rows = rows_ativo + rows_hist
+        max_num = 0
+        for r in all_rows:
+            ext_id = r["externalId"]
+            if ext_id.startswith("BIZ-"):
+                parts = ext_id.split("-")
+                if len(parts) > 1:
+                    num_part = parts[1]
+                    if num_part.isdigit() and len(num_part) == 4:
+                        val = int(num_part)
+                        if val > max_num:
+                            max_num = val
+        next_val = max_num + 1
+        if next_val > 9999:
+            raise HTTPException(status_code=400, detail="Limite de 9999 demandas de negócio atingido.")
+        external_id = f"BIZ-{next_val:04d}"
         
         project_name = payload.project_name
         if project_name:
