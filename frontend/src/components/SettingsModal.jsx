@@ -187,11 +187,11 @@ export default function SettingsModal({ isOpen, onClose }) {
         </div>
 
         {/* Seleção de Abas */}
-        <div className="flex border-b border-slate-200">
+        <div className="grid grid-cols-4 border-b border-slate-200 w-full">
           <button
             type="button"
             onClick={() => setActiveTab('credentials')}
-            className={`flex-1 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-full pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'credentials'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -202,7 +202,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setActiveTab('mappings')}
-            className={`flex-1 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-full pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'mappings'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -213,7 +213,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setActiveTab('database')}
-            className={`flex-1 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-full pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'database'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -224,13 +224,13 @@ export default function SettingsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setActiveTab('llm')}
-            className={`flex-1 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-full pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'llm'
-                ? 'border-emerald-600 text-emerald-600'
-                : 'border-transparent text-slate-500 hover:text-emerald-700'
+                ? 'border-sicoob-primary text-sicoob-primary'
+                : 'border-transparent text-slate-500 hover:text-sicoob-text'
             }`}
           >
-            Inteligência Artificial (LLM)
+            Inteligência Artificial
           </button>
         </div>
 
