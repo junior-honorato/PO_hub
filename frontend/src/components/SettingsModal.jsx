@@ -175,7 +175,7 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-4xl p-6 shadow-2xl flex flex-col h-[680px] max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-4xl p-6 shadow-2xl flex flex-col h-[680px] max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-200 pb-3">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-sicoob-primary" />
@@ -187,11 +187,11 @@ export default function SettingsModal({ isOpen, onClose }) {
         </div>
 
         {/* Seleção de Abas */}
-        <div className="flex justify-between border-b border-slate-200 w-full">
+        <div className="flex justify-start border-b border-slate-200 w-full gap-2">
           <button
             type="button"
             onClick={() => setActiveTab('credentials')}
-            className={`w-52 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-48 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'credentials'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -202,7 +202,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setActiveTab('mappings')}
-            className={`w-52 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-48 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'mappings'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -213,7 +213,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setActiveTab('database')}
-            className={`w-52 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-48 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'database'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -224,7 +224,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={() => setActiveTab('llm')}
-            className={`w-52 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
+            className={`w-48 shrink-0 pb-2 text-center text-xs font-bold transition-all border-b-2 ${
               activeTab === 'llm'
                 ? 'border-sicoob-primary text-sicoob-primary'
                 : 'border-transparent text-slate-500 hover:text-sicoob-text'
@@ -234,7 +234,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0 mt-4">
+        <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 min-h-0">
           {activeTab === 'credentials' ? (
           <form onSubmit={handleSave} className="space-y-6">
             {/* Seção Jira */}
