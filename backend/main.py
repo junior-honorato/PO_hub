@@ -110,7 +110,7 @@ class SyncByIdRequest(BaseModel):
 
 class ProjectSummaryRequest(BaseModel):
     project_name: str
-    demand_ids: list[str]
+    demand_ids: Optional[list[str]] = None
     force_refresh: Optional[bool] = False
 
 
@@ -1540,9 +1540,6 @@ Responda de forma direta, clara e profissional em português. Não adicione intr
 
 @app.post("/api/projects/summary")
 def generate_project_summary(payload: ProjectSummaryRequest):
-    if not payload.demand_ids:
-        raise HTTPException(status_code=400, detail="A lista de IDs de demandas não pode estar vazia.")
-        
     try:
         # Check cache if force_refresh is False
         if not payload.force_refresh:
@@ -1559,19 +1556,43 @@ def generate_project_summary(payload: ProjectSummaryRequest):
         if not api_key:
             raise HTTPException(status_code=400, detail="Chave de API do Gemini (GEMINI_API_KEY) não configurada no arquivo .env.")
             
+        # Determine demand_ids
+        demand_ids = payload.demand_ids
+        if not demand_ids:
+            proj_demands = fetch_all("SELECT externalId FROM demands WHERE project = ?", (payload.project_name,), "ativo")
+            demand_ids = [r["externalId"] for r in proj_demands]
+            
+        if not demand_ids:
+            raise HTTPException(status_code=400, detail="Este projeto não possui demandas ativas para gerar o resumo.")
+            
         # 2. Query active db for externalId, title, externalStatus, comments_history
-        placeholders = ", ".join(["?"] * len(payload.demand_ids))
+        placeholders = ", ".join(["?"] * len(demand_ids))
         query = f"SELECT externalId, title, externalStatus, comments_history FROM demands WHERE externalId IN ({placeholders})"
-        rows = fetch_all(query, tuple(payload.demand_ids), "ativo")
+        rows = fetch_all(query, tuple(demand_ids), "ativo")
         
         if not rows:
             raise HTTPException(status_code=404, detail="Nenhuma das demandas especificadas foi encontrada na base ativa.")
             
+        # 2b. Query active db for annotations of these demands
+        query_ann = f"SELECT externalId, content, createdAt FROM annotations WHERE externalId IN ({placeholders}) ORDER BY createdAt ASC"
+        ann_rows = fetch_all(query_ann, tuple(demand_ids), "ativo")
+        
+        # Group annotations by demand ID
+        annotations_by_demand = {}
+        for ann in ann_rows:
+            ext_id = ann["externalId"]
+            if ext_id not in annotations_by_demand:
+                annotations_by_demand[ext_id] = []
+            annotations_by_demand[ext_id].append(ann["content"])
+            
         # 3. Concatenate structured data
         structured_lines = []
         for r in rows:
+            ext_id = r["externalId"]
             comments = r.get("comments_history") or "Sem comentários"
-            line = f"ID: {r['externalId']} | Título: {r['title']} | Status: {r['externalStatus']} | Histórico: {comments.strip()}"
+            anns = annotations_by_demand.get(ext_id, [])
+            anns_str = " | Anotações Locais: " + "; ".join(anns) if anns else ""
+            line = f"ID: {ext_id} | Título: {r['title']} | Status: {r['externalStatus']} | Histórico: {comments.strip()}{anns_str}"
             structured_lines.append(line)
             
         concatenated_data = "\n".join(structured_lines)
@@ -1582,7 +1603,13 @@ def generate_project_summary(payload: ProjectSummaryRequest):
         
         model = genai.GenerativeModel(
             model_name=model_name,
-            system_instruction="Atue como um Agile Coach / Product Owner. Leia o status atual e o histórico destas demandas de um projeto e gere um Status Report semanal executivo e conciso. Estruture a resposta estritamente em 3 blocos: 1. 🚀 Principais Entregas/Avanços da Semana, 2. 🔄 O que está em Andamento, 3. ⚠️ Atenção Necessária (riscos ou bloqueios identificados)."
+            system_instruction=(
+                "Atue como um Agile Coach / Product Owner. Leia o status atual, histórico e anotações locais das demandas "
+                "de um projeto e gere um Status Report semanal executivo e conciso. Considere as anotações locais ("
+                "Anotações Locais) como o contexto de negócio/decisão mais recente e prioritário. Estruture a resposta "
+                "estritamente em 3 blocos: 1. 🚀 Principais Entregas/Avanços da Semana, 2. 🔄 O que está em Andamento, "
+                "3. ⚠️ Atenção Necessária (riscos, bloqueios ou anotações críticas identificados)."
+            )
         )
         
         response = model.generate_content(concatenated_data)
