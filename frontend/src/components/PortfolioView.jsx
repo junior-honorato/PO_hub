@@ -193,12 +193,26 @@ export default function PortfolioView({ onSelectProject }) {
           {projects.map((proj) => (
             <div
               key={proj.id}
-              className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-sicoob-primary/50 transition-all duration-300 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6"
+              className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-sicoob-primary/50 transition-all duration-300 shadow-sm flex flex-col lg:flex-row lg:items-center justify-start gap-8"
             >
-              {/* Left Column: Project Name & Sponsor */}
-              <div className="flex-1 min-w-[200px]">
-                <h3 className="text-lg font-bold text-sicoob-text tracking-tight">{proj.name}</h3>
-                <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+              {/* Left Column: Project Name, Health Status & Sponsor */}
+              <div className="w-[280px] shrink-0">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="text-lg font-bold text-sicoob-text tracking-tight">{proj.name}</h3>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                    proj.health_status === 'Verde' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                    proj.health_status === 'Amarelo' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                    'bg-rose-50 text-rose-700 border-rose-100'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      proj.health_status === 'Verde' ? 'bg-emerald-500' :
+                      proj.health_status === 'Amarelo' ? 'bg-amber-500' :
+                      'bg-rose-500'
+                    }`} />
+                    {proj.health_status}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-2 flex items-center gap-1.5">
                   <span>Sponsor:</span>
                   <span className="text-sicoob-text font-bold">{proj.sponsor || 'Não definido'}</span>
                 </p>
@@ -222,24 +236,8 @@ export default function PortfolioView({ onSelectProject }) {
                 </p>
               </div>
 
-              {/* Right Column: Health Status */}
-              <div className="shrink-0">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-                  proj.health_status === 'Verde' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                  proj.health_status === 'Amarelo' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                  'bg-rose-50 text-rose-700 border-rose-100'
-                }`}>
-                  <span className={`w-2 h-2 rounded-full ${
-                    proj.health_status === 'Verde' ? 'bg-emerald-500' :
-                    proj.health_status === 'Amarelo' ? 'bg-amber-500' :
-                    'bg-rose-500'
-                  }`} />
-                  {proj.health_status}
-                </span>
-              </div>
-
               {/* Actions Column */}
-              <div className="shrink-0 flex items-center gap-2">
+              <div className="shrink-0 flex items-center gap-2 lg:ml-auto">
                 <button
                   onClick={() => onSelectProject(proj.id)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sicoob-primary hover:bg-sicoob-secondary text-white text-xs font-bold transition-all active:scale-95 shadow-sm"
