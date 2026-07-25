@@ -15,7 +15,6 @@ export default function PortfolioView({ onSelectProject }) {
   const [progress, setProgress] = useState(0);
   const [executiveSummary, setExecutiveSummary] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
   useEffect(() => {
     fetchProjects();
@@ -63,40 +62,7 @@ export default function PortfolioView({ onSelectProject }) {
     setEditingProject(null);
   };
 
-  const handleGenerateAiSummary = async () => {
-    if (!name.trim()) {
-      setErrorMsg('O nome da iniciativa é obrigatório para buscar as demandas correspondentes.');
-      return;
-    }
-    
-    setIsGeneratingAi(true);
-    setErrorMsg('');
-    try {
-      const res = await fetch('/api/projects/summary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_name: name.trim(),
-          demand_ids: null,
-          force_refresh: true
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setExecutiveSummary(data.report);
-      } else {
-        const errData = await res.json();
-        setErrorMsg(errData.detail || 'Erro ao gerar o resumo com IA.');
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg('Erro de conexão ao tentar gerar o resumo com IA.');
-    } finally {
-      setIsGeneratingAi(false);
-    }
-  };
-
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
@@ -388,35 +354,6 @@ export default function PortfolioView({ onSelectProject }) {
                   </div>
                 </div>
 
-                {/* Executive Summary */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label className="text-xs font-bold text-slate-550 uppercase tracking-wider">Resumo Executivo & Impedimentos</label>
-                    <button
-                      type="button"
-                      onClick={handleGenerateAiSummary}
-                      disabled={isGeneratingAi}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 disabled:bg-slate-50 disabled:text-slate-400 text-emerald-700 border border-emerald-250 rounded-lg text-[10px] font-bold transition-all shadow-xs"
-                    >
-                      {isGeneratingAi ? (
-                        <>
-                          <RefreshCw className="w-3 h-3 animate-spin" /> Gerando...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-3 h-3 text-emerald-600" /> Gerar com IA
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <textarea
-                    rows="3"
-                    placeholder="Descreva o andamento semanal, principais marcos ou impedimentos críticos..."
-                    value={executiveSummary}
-                    onChange={(e) => setExecutiveSummary(e.target.value)}
-                    className="w-full bg-white border border-slate-350 rounded-xl py-2.5 px-3.5 text-sm text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors resize-none custom-scrollbar"
-                  />
-                </div>
               </div>
 
               {/* Modal Footer */}
