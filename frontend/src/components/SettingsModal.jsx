@@ -17,8 +17,11 @@ export default function SettingsModal({ isOpen, onClose }) {
   const [dbSaveSuccess, setDbSaveSuccess] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
 
+  const [llmProvider, setLlmProvider] = useState('gemini');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [geminiModelName, setGeminiModelName] = useState('gemini-1.5-flash');
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const [openaiModelName, setOpenaiModelName] = useState('gpt-4o-mini');
   const [systemInstruction, setSystemInstruction] = useState('');
   const [llmSaveError, setLlmSaveError] = useState('');
   const [llmSaveSuccess, setLlmSaveSuccess] = useState(false);
@@ -59,8 +62,11 @@ export default function SettingsModal({ isOpen, onClose }) {
       const res = await fetch('/api/settings/llm');
       if (res.ok) {
         const data = await res.json();
+        if (data.llmProvider) setLlmProvider(data.llmProvider);
         if (data.geminiApiKey) setGeminiApiKey(data.geminiApiKey);
         if (data.geminiModelName) setGeminiModelName(data.geminiModelName);
+        if (data.openaiApiKey) setOpenaiApiKey(data.openaiApiKey);
+        if (data.openaiModelName) setOpenaiModelName(data.openaiModelName);
         if (data.systemInstruction) setSystemInstruction(data.systemInstruction);
       }
     } catch (err) {
@@ -78,8 +84,11 @@ export default function SettingsModal({ isOpen, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          llmProvider: llmProvider.trim(),
           geminiApiKey: geminiApiKey.trim(),
           geminiModelName: geminiModelName.trim(),
+          openaiApiKey: openaiApiKey.trim(),
+          openaiModelName: openaiModelName.trim(),
           systemInstruction: systemInstruction
         })
       });
@@ -404,7 +413,7 @@ export default function SettingsModal({ isOpen, onClose }) {
           <form onSubmit={handleSaveLlm} className="space-y-6">
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-emerald-650" /> Parametrização da LLM (Gemini)
+                <Globe className="w-3.5 h-3.5 text-emerald-650" /> Parametrização da LLM
               </h3>
               
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 space-y-2 leading-relaxed">
@@ -412,7 +421,7 @@ export default function SettingsModal({ isOpen, onClose }) {
                   <strong>Ajuste de Comportamento do Resumo:</strong>
                 </p>
                 <p>
-                  Defina a chave de API do Gemini e personalize as instruções do sistema. O prompt customizado controlará como o relatório semanal gerará os blocos, o tom de voz e as prioridades do seu Status Report Executivo.
+                  Defina o provedor de LLM de sua escolha (Gemini ou OpenAI/GPT), preencha a respectiva chave de API e personalize as instruções do sistema.
                 </p>
               </div>
 
@@ -424,37 +433,76 @@ export default function SettingsModal({ isOpen, onClose }) {
 
               {llmSaveSuccess && (
                 <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-4 py-3 rounded-xl">
-                  Configurações do Gemini salvas com sucesso!
+                  Configurações salvas com sucesso!
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-3">
                 <div className="space-y-1">
-                  <label className="text-xs text-slate-500 font-medium">Chave de API do Gemini</label>
-                  <input
-                    type="password"
-                    placeholder="Cole a chave de API do Gemini (AIzaSy...)"
-                    value={geminiApiKey}
-                    onChange={e => setGeminiApiKey(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
-                  />
+                  <label className="text-xs text-slate-500 font-medium">Provedor de LLM</label>
+                  <select
+                    value={llmProvider}
+                    onChange={e => setLlmProvider(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors cursor-pointer"
+                  >
+                    <option value="gemini">Gemini (Google)</option>
+                    <option value="openai">OpenAI (GPT)</option>
+                  </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-slate-500 font-medium">Modelo do Gemini</label>
-                  <input
-                    type="text"
-                    placeholder="gemini-1.5-flash ou gemini-1.5-pro"
-                    value={geminiModelName}
-                    onChange={e => setGeminiModelName(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
-                  />
-                </div>
+
+                {llmProvider === 'gemini' ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-500 font-medium">Chave de API do Gemini</label>
+                      <input
+                        type="password"
+                        placeholder="Cole a chave de API do Gemini (AIzaSy...)"
+                        value={geminiApiKey}
+                        onChange={e => setGeminiApiKey(e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-500 font-medium">Modelo do Gemini</label>
+                      <input
+                        type="text"
+                        placeholder="gemini-1.5-flash ou gemini-2.5-flash"
+                        value={geminiModelName}
+                        onChange={e => setGeminiModelName(e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-500 font-medium">Chave de API da OpenAI</label>
+                      <input
+                        type="password"
+                        placeholder="Cole a chave de API da OpenAI (sk-...)"
+                        value={openaiApiKey}
+                        onChange={e => setOpenaiApiKey(e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-500 font-medium">Modelo da OpenAI</label>
+                      <input
+                        type="text"
+                        placeholder="gpt-4o-mini ou gpt-4o"
+                        value={openaiModelName}
+                        onChange={e => setOpenaiModelName(e.target.value)}
+                        className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-sicoob-text focus:outline-none focus:border-sicoob-primary focus:ring-1 focus:ring-sicoob-primary transition-colors"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs text-slate-500 font-medium">Instrução do Sistema (Prompt Principal)</label>
                 <textarea
-                  rows="10"
+                  rows="8"
                   placeholder="Escreva as instruções detalhadas de como a IA deve analisar as demandas e formatar o relatório..."
                   value={systemInstruction}
                   onChange={e => setSystemInstruction(e.target.value)}

@@ -1,6 +1,6 @@
 # PO Hub - Consolidador de Backlogs Local & PPM (Rebranded Sicoob)
 
-O **PO Hub** é uma aplicação web local focada em consolidar demandas provenientes de duas ferramentas externas de gestão de projetos (**Jira** e **Azure DevOps**) e integrá-las com um módulo de **PPM (Project Portfolio Management)** e **Planejamento Tático (VGBL)**. A interface foi totalmente reconfigurada seguindo a identidade corporativa do **Sicoob**, focada 100% no Modo Claro (Light Mode) de alto contraste e design executivo limpo. O sistema permite visualizar esses backlogs de forma unificada, gerenciar iniciativas estratégicas de portfólio (com faróis de saúde e progresso) e possibilitar a inserção de anotações, histórico temporal, tags customizadas e dependências manuais de forma persistente em um banco de dados local **SQLite**.
+O **PO Hub** é uma aplicação web local focada em consolidar demandas provenientes de duas ferramentas externas de gestão de projetos (**Jira** e **Azure DevOps**) e integrá-las com um módulo de **PPM (Project Portfolio Management)** e **Planejamento Tático**. A interface foi totalmente reconfigurada seguindo a identidade corporativa do **Sicoob**, focada 100% no Modo Claro (Light Mode) de alto contraste e design executivo limpo. O sistema permite visualizar esses backlogs de forma unificada, gerenciar iniciativas estratégicas de portfólio (com faróis de saúde e progresso) e possibilitar a inserção de anotações, histórico temporal, tags customizadas e dependências manuais de forma persistente em um banco de dados local **SQLite**.
 
 ---
 
@@ -53,7 +53,7 @@ O PO Hub possui um sistema de persistência híbrido e robusto para gerenciar e 
 
 1. **Persistência no Servidor (`credentials.json` e `llm_config.json`)**:
    - **Credenciais**: Salvas em `backend/credentials.json` via interface de configurações (Jira e Azure).
-   - **Inteligência Artificial**: Configurações de API Key, modelo ativo e prompt de sistema do Gemini são salvas localmente em `backend/llm_config.json`.
+   - **Inteligência Artificial**: Configurações de provedor (Gemini ou OpenAI), chaves de API, modelos ativos de cada provedor e instruções do sistema são salvas localmente em `backend/llm_config.json`.
    - *Ambos os arquivos são automaticamente ignorados no `.gitignore`* para assegurar que segredos e chaves de API locais nunca sejam expostos no repositório Git.
 2. **Importação e Fallback Automático (`.env`)**: Se as chaves do Gemini ou chaves de integradores não estiverem presentes nos arquivos locais, o servidor lerá os valores definidos no arquivo `backend/.env`. Copie o modelo `.env.example`:
    ```bash
@@ -121,12 +121,12 @@ Armazena as demandas. Atualizada com suporte a projeto, canal local, campos de S
 2. **Resumo Geral de Portfólio com IA (Gemini):** Nova aba integrada **"Resumo IA"** dentro da Visão Geral de cada projeto executivo:
    - **Status Report Automatizado:** Análise avançada via LLM (Gemini) que varre e condensa todos os comentários de evolução, impedimentos, notas locais, anotações de cobrança, promessas de entrega e notas de gestora das demandas associadas ao projeto.
    - **Visualização em Duas Colunas:** Exibição do relatório em markdown na coluna esquerda (com recursos de cópia rápida e atualização forçada) e listagem das demandas enviadas como fonte de contexto à direita (com badges de promessas de entrega e status detalhados).
-3. **Parametrização da LLM diretamente na Interface:** Aba **"Inteligência Artificial"** nas Configurações do Painel para configurar e gerenciar chaves do Gemini, modelo ativo (ex: `gemini-2.5-flash`) e instruções de sistema (prompt customizado) de forma portátil e individual.
+3. **Parametrização da LLM diretamente na Interface:** Aba **"Inteligência Artificial"** nas Configurações do Painel para configurar e gerenciar chaves do Gemini e OpenAI, alternar o provedor de LLM ativo, definir os modelos correspondentes (ex: `gemini-2.5-flash` ou `gpt-4o-mini`) e personalizar as instruções de sistema (prompt principal) de forma portátil e individual.
 4. **UX/UI Aprimorado das Configurações**:
    - **Modal de Altura Constante**: Altura física do modal fixada em `680px` com área interna rolável para evitar tremulações ou redimensionamentos visuais desconfortáveis ao navegar nas abas.
    - **Simetria nas Abas**: Alinhamento de abas à esquerda com largura estritamente padronizada (`w-48`) para garantir que os títulos permaneçam legíveis e sem quebras de linha em qualquer dispositivo.
 5. **Criação de Demandas de Negócio com ID Curto Sequencial:** Nova nomenclatura para demandas de negócio locais no formato curto sequencial (`BIZ-0001` a `BIZ-9999`), facilitando a memorização e leitura rápida de demandas no portfólio.
-6. **Planejamento Tático - VGBL:** Tela dedicada à priorização e acompanhamento temporal tático:
+6. **Planejamento Tático:** Tela dedicada à priorização e acompanhamento temporal tático:
    - **Stack Ranking (Priorização Paralela):** Grid de 2 colunas verticais (**Sicoob TI (Jira)** e **MAG (Azure)**) com destaque numérico de prioridade (`1º`, `2º`, `3º`...), suporte a reordenação por Drag and Drop nativo em HTML5 e persistência instantânea no SQLite (`PUT /demands/reorder`).
    - **Cronograma Gantt de Alta Precisão:** Linha do tempo de 6 meses que posiciona e dimensiona dinamicamente a barra de cada demanda com base nas datas reais de **Início Planejado** (`planned_start_date`) e **Fim Planejado** (`planned_end_date`).
    - **Gestão Condicional de Datas:** Chave de alternância *"Exibir no Planejamento Tático"* nos detalhes da demanda (`DemandDrawer`) que exibe/oculta os inputs de datas planejadas e botão de inclusão rápida *"+ Incluir Demanda"* no Planejamento Tático.

@@ -215,7 +215,7 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <h2 className="text-2xl font-bold text-sicoob-text tracking-tight flex items-center gap-2.5">
-            <Layers className="w-6 h-6 text-sicoob-primary" /> Planejamento Tático - VGBL
+            <Layers className="w-6 h-6 text-sicoob-primary" /> Planejamento Tático
           </h2>
           <p className="text-sm text-slate-500">Priorização em paralelo e linha do tempo de entregas táticas selecionadas</p>
         </div>
@@ -427,7 +427,7 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-sicoob-text text-base">Cronograma Tático VGBL</h3>
+              <h3 className="font-bold text-sicoob-text text-base">Cronograma Tático</h3>
               <p className="text-xs text-slate-500">Rastreabilidade das demandas ativas do planejamento organizadas por sub-projetos</p>
             </div>
             <div className="flex items-center gap-2 text-xs font-medium text-slate-600">

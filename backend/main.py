@@ -1479,11 +1479,10 @@ def summarize_demand(external_id: str):
                 "cached": True
             }
             
-        # Cache miss or stale summary -> call Gemini
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise HTTPException(status_code=400, detail="Chave de API do Gemini (GEMINI_API_KEY) não configurada no arquivo .env.")
-            
+        # Cache miss or stale summary -> call LLM
+        llm_config = load_llm_config_from_file()
+        provider = llm_config.get("llmProvider", "gemini").lower()
+        
         comments_history = demand.get("comments_history")
         if not comments_history or not comments_history.strip():
             raise HTTPException(
@@ -1508,14 +1507,43 @@ Responda de forma direta, clara e profissional em português. Não adicione intr
 """
         
         # Configure and invoke
-        genai.configure(api_key=api_key)
-        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-        model = genai.GenerativeModel(model_name)
+        if provider == "openai":
+            api_key = llm_config.get("openaiApiKey")
+            model_name = llm_config.get("openaiModelName") or "gpt-4o-mini"
+            if not api_key:
+                raise HTTPException(status_code=400, detail="Chave de API da OpenAI (OPENAI_API_KEY) não configurada.")
+            
+            try:
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": model_name,
+                    "messages": [
+                        {"role": "user", "content": prompt}
+                    ]
+                }
+                res = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=30)
+                if res.status_code != 200:
+                    raise HTTPException(status_code=res.status_code, detail=f"Erro da API da OpenAI: {res.text}")
+                data = res.json()
+                new_summary = data["choices"][0]["message"]["content"]
+            except Exception as ex:
+                raise HTTPException(status_code=500, detail=f"Erro ao chamar OpenAI: {str(ex)}")
+        else:
+            api_key = llm_config.get("geminiApiKey")
+            model_name = llm_config.get("geminiModelName") or "gemini-1.5-flash"
+            if not api_key:
+                raise HTTPException(status_code=400, detail="Chave de API do Gemini (GEMINI_API_KEY) não configurada.")
+            
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(prompt)
+            new_summary = response.text
         
-        response = model.generate_content(prompt)
-        new_summary = response.text
         if not new_summary:
-            raise HTTPException(status_code=500, detail="Não foi possível obter uma resposta válida do Gemini.")
+            raise HTTPException(status_code=500, detail="Não foi possível obter uma resposta válida da LLM.")
             
         current_timestamp = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S")
         
@@ -1629,25 +1657,51 @@ def generate_project_summary(payload: ProjectSummaryRequest):
         concatenated_data = "\n".join(structured_lines)
         
         # 4. Load LLM configuration parameters from settings
-        api_key = llm_config["geminiApiKey"]
-        model_name = llm_config["geminiModelName"]
-        system_instruction = llm_config["systemInstruction"]
+        provider = llm_config.get("llmProvider", "gemini").lower()
+        system_instruction = llm_config.get("systemInstruction") or DEFAULT_SYSTEM_INSTRUCTION
 
-        if not api_key:
-            raise HTTPException(status_code=400, detail="Chave de API do Gemini (GEMINI_API_KEY) não configurada.")
+        if provider == "openai":
+            api_key = llm_config.get("openaiApiKey")
+            model_name = llm_config.get("openaiModelName") or "gpt-4o-mini"
+            if not api_key:
+                raise HTTPException(status_code=400, detail="Chave de API da OpenAI (OPENAI_API_KEY) não configurada.")
+            
+            try:
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": model_name,
+                    "messages": [
+                        {"role": "system", "content": system_instruction},
+                        {"role": "user", "content": concatenated_data}
+                    ]
+                }
+                res = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
+                if res.status_code != 200:
+                    raise HTTPException(status_code=res.status_code, detail=f"Erro da API da OpenAI: {res.text}")
+                data = res.json()
+                report_text = data["choices"][0]["message"]["content"]
+            except Exception as ex:
+                raise HTTPException(status_code=500, detail=f"Erro ao chamar OpenAI: {str(ex)}")
+        else:
+            api_key = llm_config.get("geminiApiKey")
+            model_name = llm_config.get("geminiModelName") or "gemini-1.5-flash"
+            if not api_key:
+                raise HTTPException(status_code=400, detail="Chave de API do Gemini (GEMINI_API_KEY) não configurada.")
 
-        # Call Gemini model
-        genai.configure(api_key=api_key)
-        
-        model = genai.GenerativeModel(
-            model_name=model_name,
-            system_instruction=system_instruction
-        )
-        
-        response = model.generate_content(concatenated_data)
-        report_text = response.text
+            # Call Gemini model
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                system_instruction=system_instruction
+            )
+            response = model.generate_content(concatenated_data)
+            report_text = response.text
+            
         if not report_text:
-            raise HTTPException(status_code=500, detail="Não foi possível obter um relatório válido do Gemini.")
+            raise HTTPException(status_code=500, detail="Não foi possível obter um relatório válido da LLM.")
             
         # Format current timestamp and save/update in DB
         current_timestamp = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%d/%m/%Y %H:%M")
@@ -2165,26 +2219,45 @@ DEFAULT_SYSTEM_INSTRUCTION = (
 
 def load_llm_config_from_file():
     config = {
+        "llmProvider": "gemini",
         "geminiApiKey": "",
         "geminiModelName": "gemini-1.5-flash",
+        "openaiApiKey": "",
+        "openaiModelName": "gpt-4o-mini",
         "systemInstruction": DEFAULT_SYSTEM_INSTRUCTION
     }
     # Fallbacks from environment variables if present
+    env_provider = os.getenv("LLM_PROVIDER", "")
     env_key = os.getenv("GEMINI_API_KEY", "")
-    env_model = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash")
+    env_model = os.getenv("GEMINI_MODEL_NAME", "")
+    env_openai_key = os.getenv("OPENAI_API_KEY", "")
+    env_openai_model = os.getenv("OPENAI_MODEL_NAME", "")
+    
+    if env_provider:
+        config["llmProvider"] = env_provider
     if env_key:
         config["geminiApiKey"] = env_key
     if env_model:
         config["geminiModelName"] = env_model
+    if env_openai_key:
+        config["openaiApiKey"] = env_openai_key
+    if env_openai_model:
+        config["openaiModelName"] = env_openai_model
         
     if os.path.exists(LLM_CONFIG_PATH):
         try:
             with open(LLM_CONFIG_PATH, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
+                if loaded.get("llmProvider"):
+                    config["llmProvider"] = loaded["llmProvider"].strip()
                 if loaded.get("geminiApiKey"):
                     config["geminiApiKey"] = loaded["geminiApiKey"].strip()
                 if loaded.get("geminiModelName"):
                     config["geminiModelName"] = loaded["geminiModelName"].strip()
+                if loaded.get("openaiApiKey"):
+                    config["openaiApiKey"] = loaded["openaiApiKey"].strip()
+                if loaded.get("openaiModelName"):
+                    config["openaiModelName"] = loaded["openaiModelName"].strip()
                 if loaded.get("systemInstruction"):
                     config["systemInstruction"] = loaded["systemInstruction"]
         except Exception as e:
@@ -2361,8 +2434,11 @@ async def update_db_path(req: DbPathRequest):
         raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 class LlmConfigUpdate(BaseModel):
+    llmProvider: Optional[str] = "gemini"
     geminiApiKey: Optional[str] = ""
     geminiModelName: Optional[str] = ""
+    openaiApiKey: Optional[str] = ""
+    openaiModelName: Optional[str] = ""
     systemInstruction: Optional[str] = ""
 
 @app.get("/api/settings/llm")
@@ -2377,8 +2453,11 @@ def get_llm_settings():
 def update_llm_settings(payload: LlmConfigUpdate):
     try:
         config = {
+            "llmProvider": (payload.llmProvider or "gemini").strip(),
             "geminiApiKey": (payload.geminiApiKey or "").strip(),
             "geminiModelName": (payload.geminiModelName or "gemini-1.5-flash").strip(),
+            "openaiApiKey": (payload.openaiApiKey or "").strip(),
+            "openaiModelName": (payload.openaiModelName or "gpt-4o-mini").strip(),
             "systemInstruction": (payload.systemInstruction or DEFAULT_SYSTEM_INSTRUCTION)
         }
         if save_llm_config_to_file(config):
