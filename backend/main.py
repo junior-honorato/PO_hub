@@ -307,11 +307,14 @@ def migrate_to_history(external_id):
         
     for dep in dependencies:
         dep_dict = dict(dep)
-        execute_query(
-            "INSERT OR REPLACE INTO dependencies (blocked_id, blocker_id) VALUES (?, ?)",
-            (dep_dict["blocked_id"], dep_dict["blocker_id"]),
-            "historico"
-        )
+        try:
+            execute_query(
+                "INSERT OR REPLACE INTO dependencies (blocked_id, blocker_id) VALUES (?, ?)",
+                (dep_dict["blocked_id"], dep_dict["blocker_id"]),
+                "historico"
+            )
+        except Exception as e:
+            print(f"[Migration] Ignorando dependência {dep_dict['blocked_id']} -> {dep_dict['blocker_id']} ao mover para histórico: {e}")
         
     # Delete from active
     execute_query("DELETE FROM demands WHERE externalId = ?", (external_id,), "ativo")
@@ -355,11 +358,14 @@ def migrate_to_active(external_id):
         
     for dep in dependencies:
         dep_dict = dict(dep)
-        execute_query(
-            "INSERT OR REPLACE INTO dependencies (blocked_id, blocker_id) VALUES (?, ?)",
-            (dep_dict["blocked_id"], dep_dict["blocker_id"]),
-            "ativo"
-        )
+        try:
+            execute_query(
+                "INSERT OR REPLACE INTO dependencies (blocked_id, blocker_id) VALUES (?, ?)",
+                (dep_dict["blocked_id"], dep_dict["blocker_id"]),
+                "ativo"
+            )
+        except Exception as e:
+            print(f"[Migration] Ignorando dependência {dep_dict['blocked_id']} -> {dep_dict['blocker_id']} ao mover para ativo: {e}")
         
     # Delete from history
     execute_query("DELETE FROM demands WHERE externalId = ?", (external_id,), "historico")
