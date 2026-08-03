@@ -2058,7 +2058,11 @@ async def get_project_overview(project_id: int):
                 "isStale": is_stale,
                 "project": row.get("project"),
                 "current_status_notes": row.get("current_status_notes"),
-                "blocker_notes": row.get("blocker_notes")
+                "blocker_notes": row.get("blocker_notes"),
+                "priority_rank": row.get("priority_rank"),
+                "in_tactical_planning": row.get("in_tactical_planning") or 0,
+                "planned_start_date": row.get("planned_start_date"),
+                "planned_end_date": row.get("planned_end_date")
             })
             
         # PASSO 1: Inteligência do Farol
