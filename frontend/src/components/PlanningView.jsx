@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ListOrdered, Calendar, GripVertical, Layers, Tag, Info, Plus, Search, X, Check } from 'lucide-react';
+import { ListOrdered, Calendar, GripVertical, Layers, Tag, Info, Plus, Search, X, Check, Lock, Link2 } from 'lucide-react';
 
 export default function PlanningView({ demands = [], onSelectDemand, onRefreshDemands }) {
   const [activeTab, setActiveTab] = useState('ranking'); // 'ranking' | 'gantt'
@@ -479,6 +479,7 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                   ganttDemandsList.map((demand, index) => {
                     const tag = getSubProjectTag(demand);
                     const { startCol, colSpan, isDefined } = getGanttPosition(demand, timelineMonths, index);
+                    const isBlocked = demand.blockers && demand.blockers.length > 0;
 
                     return (
                       <div
@@ -500,6 +501,15 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                                 ({formatDateBR(demand.planned_start_date)} a {formatDateBR(demand.planned_end_date)})
                               </span>
                             )}
+                            {isBlocked && (
+                              <span 
+                                className="inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200"
+                                title={`Esta demanda depende de: ${demand.blockers.join(', ')}`}
+                              >
+                                <Lock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                                Depende de {demand.blockers.join(', ')}
+                              </span>
+                            )}
                           </div>
                           <h4 className="text-xs font-semibold text-sicoob-text line-clamp-1 leading-snug">
                             {formatTitle(demand.title)}
@@ -510,7 +520,9 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                           <div
                             className={`h-6 rounded-lg text-white text-[10px] font-bold px-2.5 flex items-center justify-center shadow-xs truncate ${
                               isDefined
-                                ? 'bg-gradient-to-r from-sicoob-primary to-teal-500'
+                                ? isBlocked
+                                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 border border-amber-600/30'
+                                  : 'bg-gradient-to-r from-sicoob-primary to-teal-500'
                                 : 'bg-gradient-to-r from-slate-400 to-slate-500 opacity-80 border border-dashed border-slate-300'
                             }`}
                             style={{
@@ -518,7 +530,8 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                               gridColumnEnd: `span ${colSpan}`
                             }}
                           >
-                            <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded text-white shrink-0">
+                            <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded text-white shrink-0 flex items-center gap-1">
+                              {isBlocked && <Lock className="w-2.5 h-2.5" />}
                               {isDefined ? (demand.mappedStatus || demand.externalStatus || 'Ativa') : 'Datas Pendentes'}
                             </span>
                           </div>
