@@ -211,7 +211,40 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
 
   const timelineMonths = getTimelineMonths();
   const tacticalDemandsList = demands.filter(d => Boolean(d.in_tactical_planning));
-  const ganttDemandsList = tacticalDemandsList.filter(d => d.planned_start_date && d.planned_end_date);
+
+  const sortDemandsByDependency = (list) => {
+    const visited = new Set();
+    const sorted = [];
+    const visit = (demand) => {
+      if (visited.has(demand.externalId)) return;
+      visited.add(demand.externalId);
+      sorted.push(demand);
+      const dependents = list.filter(d => 
+        d.blockers && d.blockers.includes(demand.externalId)
+      );
+      for (const dep of dependents) {
+        visit(dep);
+      }
+    };
+    const idsInList = new Set(list.map(d => d.externalId));
+    for (const demand of list) {
+      const hasLocalBlockers = demand.blockers && demand.blockers.some(b => idsInList.has(b));
+      if (!hasLocalBlockers) {
+        visit(demand);
+      }
+    }
+    for (const demand of list) {
+      if (!visited.has(demand.externalId)) {
+        visit(demand);
+      }
+    }
+    return sorted;
+  };
+
+  const ganttDemandsList = sortDemandsByDependency(
+    tacticalDemandsList.filter(d => d.planned_start_date && d.planned_end_date)
+  );
+  const idsInGantt = new Set(ganttDemandsList.map(d => d.externalId));
 
   const filteredModalDemands = demands.filter(d => {
     const query = modalSearch.toLowerCase().trim();
@@ -480,6 +513,7 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                     const tag = getSubProjectTag(demand);
                     const { startCol, colSpan, isDefined } = getGanttPosition(demand, timelineMonths, index);
                     const isBlocked = demand.blockers && demand.blockers.length > 0;
+                    const hasLocalBlockers = demand.blockers && demand.blockers.some(b => idsInGantt.has(b));
 
                     return (
                       <div
@@ -487,7 +521,10 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
                         onClick={() => onSelectDemand && onSelectDemand(demand.externalId)}
                         className="grid grid-cols-12 gap-2 py-3.5 items-center hover:bg-slate-50/80 rounded-lg transition-colors cursor-pointer px-1"
                       >
-                        <div className="col-span-5 pr-3 space-y-1">
+                        <div className={`col-span-5 pr-3 space-y-1 relative ${hasLocalBlockers ? 'pl-6' : ''}`}>
+                          {hasLocalBlockers && (
+                            <div className="absolute left-1 -top-3.5 bottom-1/2 w-3 border-l-2 border-b-2 border-amber-400/60 rounded-bl-md pointer-events-none" />
+                          )}
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <Tag className="w-3 h-3 text-emerald-600" />
