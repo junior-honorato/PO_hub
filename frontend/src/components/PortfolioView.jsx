@@ -14,6 +14,7 @@ export default function PortfolioView({ onSelectProject }) {
   const [healthStatus, setHealthStatus] = useState('Verde');
   const [progress, setProgress] = useState(0);
   const [executiveSummary, setExecutiveSummary] = useState('');
+  const [hasGanttChart, setHasGanttChart] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function PortfolioView({ onSelectProject }) {
       setHealthStatus(project.health_status || 'Verde');
       setProgress(project.progress || 0);
       setExecutiveSummary(project.executive_summary || '');
+      setHasGanttChart(project.has_gantt_chart || 0);
     } else {
       setEditingProject(null);
       setName('');
@@ -53,6 +55,7 @@ export default function PortfolioView({ onSelectProject }) {
       setHealthStatus('Verde');
       setProgress(0);
       setExecutiveSummary('');
+      setHasGanttChart(0);
     }
     setIsModalOpen(true);
   };
@@ -77,7 +80,8 @@ const handleSubmit = async (e) => {
       target_go_live: targetGoLive.trim() || null,
       health_status: healthStatus,
       progress: parseInt(progress, 10),
-      executive_summary: executiveSummary.trim() || null
+      executive_summary: executiveSummary.trim() || null,
+      has_gantt_chart: hasGanttChart ? 1 : 0
     };
 
     try {
@@ -354,6 +358,19 @@ const handleSubmit = async (e) => {
                   </div>
                 </div>
 
+                {/* Toggle Gantt Chart */}
+                <div className="flex items-center gap-3 py-2 border-t border-slate-100 pt-4">
+                  <input
+                    type="checkbox"
+                    id="hasGanttChart"
+                    checked={hasGanttChart === 1}
+                    onChange={(e) => setHasGanttChart(e.target.checked ? 1 : 0)}
+                    className="w-4 h-4 accent-sicoob-primary border-slate-350 rounded cursor-pointer"
+                  />
+                  <label htmlFor="hasGanttChart" className="text-xs font-bold text-slate-550 cursor-pointer select-none">
+                    Habilitar Cronograma exclusivo para esta iniciativa
+                  </label>
+                </div>
               </div>
 
               {/* Modal Footer */}

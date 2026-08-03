@@ -209,7 +209,8 @@ def init_db():
                     sponsor TEXT,
                     target_go_live TEXT,
                     executive_summary TEXT,
-                    strategic_notes TEXT
+                    strategic_notes TEXT,
+                    has_gantt_chart INTEGER DEFAULT 0
                 )
             """)
 
@@ -218,6 +219,8 @@ def init_db():
             proj_columns = [row[1] for row in cursor.fetchall()]
             if "strategic_notes" not in proj_columns:
                 conn.execute("ALTER TABLE projects ADD COLUMN strategic_notes TEXT")
+            if "has_gantt_chart" not in proj_columns:
+                conn.execute("ALTER TABLE projects ADD COLUMN has_gantt_chart INTEGER DEFAULT 0")
 
             # Tabela Status Mappings (Mapeamento de Status para Categorias Unificadas)
             # Tabela Status Mappings (Mapeamento de Status para Categorias Unificadas)

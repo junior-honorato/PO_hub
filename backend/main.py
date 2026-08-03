@@ -141,6 +141,7 @@ class ProjectCreate(BaseModel):
     target_go_live: Optional[str] = None
     executive_summary: Optional[str] = None
     strategic_notes: Optional[str] = None
+    has_gantt_chart: Optional[int] = 0
 
 class ProjectUpdate(BaseModel):
     name: Optional[str] = None
@@ -150,6 +151,7 @@ class ProjectUpdate(BaseModel):
     target_go_live: Optional[str] = None
     executive_summary: Optional[str] = None
     strategic_notes: Optional[str] = None
+    has_gantt_chart: Optional[int] = None
 
 def extract_adf_text(node):
     if not node:
@@ -2134,9 +2136,9 @@ async def create_project(payload: ProjectCreate):
             raise HTTPException(status_code=400, detail="Já existe um projeto com este nome.")
             
         cursor = execute_query(
-            """INSERT INTO projects (name, health_status, progress, sponsor, target_go_live, executive_summary, strategic_notes) 
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (name, payload.health_status, payload.progress, payload.sponsor, payload.target_go_live, payload.executive_summary, payload.strategic_notes),
+            """INSERT INTO projects (name, health_status, progress, sponsor, target_go_live, executive_summary, strategic_notes, has_gantt_chart) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (name, payload.health_status, payload.progress, payload.sponsor, payload.target_go_live, payload.executive_summary, payload.strategic_notes, payload.has_gantt_chart or 0),
             "ativo"
         )
         project_id = cursor.lastrowid

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X, Download } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X, Download, Lock, Tag } from 'lucide-react';
 import RoadmapGraphView from './RoadmapGraphView';
 
 export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
@@ -81,6 +81,228 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const [editNotes, setEditNotes] = useState(false);
   const [notesValue, setNotesValue] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const getTimelineMonths = () => {
+    const months = [];
+    const date = new Date();
+    date.setDate(1);
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(date.getFullYear(), date.getMonth() + i, 1);
+      months.push({
+        label: d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).toUpperCase(),
+        year: d.getFullYear(),
+        month: d.getMonth()
+      });
+    }
+    return months;
+  };
+
+  const getGanttPosition = (demand, months, fallbackIndex) => {
+    if (!demand.planned_start_date || !demand.planned_end_date) {
+      const startCol = (fallbackIndex % 4) + 1;
+      const colSpan = Math.min(6 - startCol + 1, (fallbackIndex % 3) + 2);
+      return { startCol, colSpan, isDefined: false };
+    }
+    try {
+      const sDate = new Date(demand.planned_start_date + 'T00:00:00');
+      const eDate = new Date(demand.planned_end_date + 'T23:59:59');
+      const sYear = sDate.getFullYear();
+      const sMonth = sDate.getMonth();
+      const eYear = eDate.getFullYear();
+      const eMonth = eDate.getMonth();
+      const firstMonth = months[0];
+      let startIdx = (sYear - firstMonth.year) * 12 + (sMonth - firstMonth.month);
+      let endIdx = (eYear - firstMonth.year) * 12 + (eMonth - firstMonth.month);
+      if (startIdx < 0) startIdx = 0;
+      if (endIdx > 5) endIdx = 5;
+      if (startIdx > 5) startIdx = 5;
+      if (endIdx < startIdx) endIdx = startIdx;
+      const startCol = startIdx + 1;
+      const colSpan = endIdx - startIdx + 1;
+      return { startCol, colSpan, isDefined: true };
+    } catch (e) {
+      const startCol = (fallbackIndex % 4) + 1;
+      const colSpan = Math.min(6 - startCol + 1, (fallbackIndex % 3) + 2);
+      return { startCol, colSpan, isDefined: false };
+    }
+  };
+
+  const formatDateBR = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const getTodayLinePosition = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    return ((day / daysInMonth) * 100) / 6;
+  };
+
+  const timelineMonths = getTimelineMonths();
+
+  const sortDemandsByDependency = (list) => {
+    const visited = new Set();
+    const sorted = [];
+    const visit = (demand) => {
+      if (visited.has(demand.externalId)) return;
+      visited.add(demand.externalId);
+      sorted.push(demand);
+      const dependents = list.filter(d => 
+        d.blockers && d.blockers.includes(demand.externalId)
+      );
+      for (const dep of dependents) {
+        visit(dep);
+      }
+    };
+    const idsInList = new Set(list.map(d => d.externalId));
+    for (const demand of list) {
+      const hasLocalBlockers = demand.blockers && demand.blockers.some(b => idsInList.has(b));
+      if (!hasLocalBlockers) {
+        visit(demand);
+      }
+    }
+    for (const demand of list) {
+      if (!visited.has(demand.externalId)) {
+        visit(demand);
+      }
+    }
+    return sorted;
+  };
+
+  const ganttDemandsList = data?.demands
+    ? sortDemandsByDependency(
+        data.demands.filter(d => d.planned_start_date && d.planned_end_date)
+      )
+    : [];
+
+  const idsInGantt = new Set(ganttDemandsList.map(d => d.externalId));
+
+  const renderGanttTab = () => {
+    const todayLinePos = getTodayLinePosition();
+    return (
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 backdrop-blur-md flex flex-col space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-sicoob-text">Cronograma da Iniciativa</h3>
+          <span className="text-xs text-slate-550 font-medium">Visualização Gantt com mapeamento de dependências</span>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <div className="min-w-[700px] relative">
+            {/* Linha indicadora do dia atual (Hoje) */}
+            <div className="grid grid-cols-12 gap-2 absolute inset-0 pointer-events-none z-20">
+              <div className="col-span-5" />
+              <div className="col-span-7 relative h-full">
+                <div 
+                  className="absolute top-0 bottom-0 w-px border-l-2 border-dashed border-red-500 pointer-events-none"
+                  style={{ left: `${todayLinePos}%` }}
+                >
+                  <div className="absolute top-0 -translate-y-3/4 -translate-x-1/2 bg-red-500 text-[8px] text-white px-1.5 py-0.5 rounded font-black tracking-wider uppercase shadow-xs">
+                    Hoje
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cabeçalho da Timeline */}
+            <div className="grid grid-cols-12 gap-2 pb-3 border-b border-slate-200 text-xs font-bold text-slate-550 uppercase tracking-wider">
+              <div className="col-span-5">Demanda & Sub-Projeto</div>
+              <div className="col-span-7 grid grid-cols-6 text-center">
+                {timelineMonths.map((m, i) => (
+                  <div key={i} className="border-l border-slate-100 px-1">{m.label}</div>
+                ))}
+              </div>
+            </div>
+
+            {/* Listagem de Demandas */}
+            <div className="divide-y divide-slate-100">
+              {ganttDemandsList.length === 0 ? (
+                <div className="text-center py-12 text-xs text-slate-400 italic">
+                  Nenhuma entrega deste projeto possui datas de início e fim preenchidas para exibição no cronograma.
+                </div>
+              ) : (
+                ganttDemandsList.map((demand, index) => {
+                  const tag = demand.itemType || demand.origin || 'Entrega';
+                  const { startCol, colSpan, isDefined } = getGanttPosition(demand, timelineMonths, index);
+                  const isBlocked = demand.blockers && demand.blockers.length > 0;
+                  const hasLocalBlockers = demand.blockers && demand.blockers.some(b => idsInGantt.has(b));
+
+                  return (
+                    <div
+                      key={demand.externalId}
+                      onClick={() => onSelectDemand && onSelectDemand(demand.externalId)}
+                      className="grid grid-cols-12 gap-2 py-3.5 items-center hover:bg-slate-50/80 rounded-lg transition-colors cursor-pointer px-1"
+                    >
+                      <div className={`col-span-5 pr-3 space-y-1 relative ${hasLocalBlockers ? 'pl-6' : ''}`}>
+                        {hasLocalBlockers && (
+                          <div className="absolute left-1 -top-3.5 bottom-1/2 w-3 border-l-2 border-b-2 border-amber-400/60 rounded-bl-md pointer-events-none" />
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <Tag className="w-3 h-3 text-emerald-600" />
+                            [{tag}]
+                          </span>
+                          <span className="text-[11px] font-mono font-bold text-slate-500">
+                            {demand.externalId}
+                          </span>
+                          {isDefined && (
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              ({formatDateBR(demand.planned_start_date)} a {formatDateBR(demand.planned_end_date)})
+                            </span>
+                          )}
+                          {isBlocked && (
+                            <span 
+                              className="inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200"
+                              title={`Esta demanda depende de: ${demand.blockers.join(', ')}`}
+                            >
+                              <Lock className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                              Depende de {demand.blockers.join(', ')}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-xs font-semibold text-sicoob-text line-clamp-1 leading-snug">
+                          {demand.title}
+                        </h4>
+                      </div>
+
+                      <div className="col-span-7 grid grid-cols-6 items-center relative h-8">
+                        <div
+                          className={`h-6 rounded-lg text-white text-[10px] font-bold px-2.5 flex items-center justify-center shadow-xs truncate ${
+                            isDefined
+                              ? isBlocked
+                                ? 'bg-gradient-to-r from-amber-500 to-orange-500 border border-amber-600/30'
+                                : 'bg-gradient-to-r from-sicoob-primary to-teal-500'
+                              : 'bg-gradient-to-r from-slate-400 to-slate-500 opacity-80 border border-dashed border-slate-300'
+                          }`}
+                          style={{
+                            gridColumnStart: startCol,
+                            gridColumnEnd: `span ${colSpan}`
+                          }}
+                        >
+                          <span className="text-[9px] bg-white/20 px-1.5 py-0.5 rounded text-white shrink-0 flex items-center gap-1">
+                            {isBlocked && <Lock className="w-2.5 h-2.5" />}
+                            {isDefined ? (demand.mappedStatus || demand.externalStatus || 'Ativa') : 'Datas Pendentes'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const fetchOverview = async () => {
     setLoading(true);
@@ -1288,6 +1510,18 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
           >
             Mapa do Roadmap
           </button>
+          {data?.project?.has_gantt_chart === 1 && (
+            <button
+              onClick={() => setActiveTab('gantt')}
+              className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${
+                activeTab === 'gantt'
+                  ? 'border-sicoob-primary text-sicoob-primary'
+                  : 'border-transparent text-slate-500 hover:text-sicoob-text'
+              }`}
+            >
+              Cronograma
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('ai_summary')}
             className={`px-6 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-1.5 ${
@@ -2349,6 +2583,8 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
           <h3 className="text-base font-bold text-sicoob-text mb-4 shrink-0">Mapa de Dependências e Roadmap</h3>
           <RoadmapGraphView demands={data.demands} onSelectDemand={onSelectDemand} />
         </div>
+      ) : activeTab === 'gantt' ? (
+        renderGanttTab()
       ) : activeTab === 'ai_summary' ? (
         renderAiSummaryTab()
       ) : null}
