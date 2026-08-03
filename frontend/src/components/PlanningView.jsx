@@ -202,6 +202,7 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
 
   const timelineMonths = getTimelineMonths();
   const tacticalDemandsList = demands.filter(d => Boolean(d.in_tactical_planning));
+  const ganttDemandsList = tacticalDemandsList.filter(d => d.planned_start_date && d.planned_end_date);
 
   const filteredModalDemands = demands.filter(d => {
     const query = modalSearch.toLowerCase().trim();
@@ -447,12 +448,12 @@ export default function PlanningView({ demands = [], onSelectDemand, onRefreshDe
               </div>
 
               <div className="divide-y divide-slate-100">
-                {tacticalDemandsList.length === 0 ? (
+                {ganttDemandsList.length === 0 ? (
                   <div className="text-center py-12 text-xs text-slate-400 italic">
                     Nenhuma demanda inclusa no cronograma tático.
                   </div>
                 ) : (
-                  tacticalDemandsList.map((demand, index) => {
+                  ganttDemandsList.map((demand, index) => {
                     const tag = getSubProjectTag(demand);
                     const { startCol, colSpan, isDefined } = getGanttPosition(demand, timelineMonths, index);
 
