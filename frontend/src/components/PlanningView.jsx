@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ListOrdered, Calendar, GripVertical, Layers, Tag, Info, Plus, Search, X, Check, Lock, Link2 } from 'lucide-react';
 
-export default function PlanningView({ demands = [], onSelectDemand, onRefreshDemands }) {
+export default function PlanningView({ demands: rawDemands = [], onSelectDemand, onRefreshDemands }) {
+  const demands = rawDemands.filter(d => d.project_has_gantt !== 1);
   const [activeTab, setActiveTab] = useState('ranking'); // 'ranking' | 'gantt'
   
   // Local state for demand ordering in columns

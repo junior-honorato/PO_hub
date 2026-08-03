@@ -770,9 +770,10 @@ def get_demands_data(db_name="ativo"):
         params = tuple(FINAL_STATUSES)
 
     query = f"""
-        SELECT d.*, group_concat(t.tag) as tags_str
+        SELECT d.*, group_concat(t.tag) as tags_str, p.has_gantt_chart as project_has_gantt
         FROM demands d
         LEFT JOIN tags t ON d.externalId = t.externalId
+        LEFT JOIN projects p ON d.project = p.name
         {where_clause}
         GROUP BY d.externalId
         ORDER BY CASE WHEN d.priority_rank IS NULL THEN 999999 ELSE d.priority_rank END ASC, d.updatedAt DESC
@@ -831,7 +832,8 @@ def get_demands_data(db_name="ativo"):
             "priority_rank": row.get("priority_rank"),
             "in_tactical_planning": row.get("in_tactical_planning") or 0,
             "planned_start_date": row.get("planned_start_date"),
-            "planned_end_date": row.get("planned_end_date")
+            "planned_end_date": row.get("planned_end_date"),
+            "project_has_gantt": row.get("project_has_gantt") or 0
         })
     return demands
 

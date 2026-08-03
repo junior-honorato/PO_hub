@@ -6522,7 +6522,8 @@ const handleSubmit = async (e) => {
     }
 
     // Componente PlanningView
-    function PlanningView({ demands = [], onSelectDemand, onRefreshDemands }) {
+    function PlanningView({ demands: rawDemands = [], onSelectDemand, onRefreshDemands }) {
+      const demands = rawDemands.filter(d => d.project_has_gantt !== 1);
       const [activeTab, setActiveTab] = useState('ranking'); // 'ranking' | 'gantt'
       const [jiraDemands, setJiraDemands] = useState([]);
       const [azureDemands, setAzureDemands] = useState([]);
