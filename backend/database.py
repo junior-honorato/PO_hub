@@ -11,8 +11,13 @@ except ImportError:
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
+DEFAULT_DATABASE_URL = "postgresql://postgres:mmFLYjNfzUhg4oNz@db.hiwzweckrfjmjucbghmp.supabase.co:5432/postgres"
+
+def get_database_url():
+    return os.getenv("DATABASE_URL") or DEFAULT_DATABASE_URL
+
 def is_postgres():
-    url = os.getenv("DATABASE_URL")
+    url = get_database_url()
     return bool(url and url.startswith("postgres") and HAS_PSYCOPG2)
 
 def get_db_paths():
@@ -38,7 +43,7 @@ def get_db_paths():
 def get_connection(db_name="ativo"):
     """Retorna uma conexão configurada com suporte a chaves estrangeiras e dicionários."""
     if is_postgres():
-        url = os.getenv("DATABASE_URL")
+        url = get_database_url()
         conn = psycopg2.connect(url)
         conn.autocommit = True
         return conn
