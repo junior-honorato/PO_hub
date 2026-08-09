@@ -6,6 +6,9 @@ from psycopg2.extras import execute_batch, RealDictCursor
 from dotenv import load_dotenv
 
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, backend_dir)
+from database import get_db_paths
+
 env_path = os.path.join(backend_dir, ".env")
 load_dotenv(dotenv_path=env_path)
 
@@ -91,6 +94,19 @@ tables_schema = [
         mapped_status VARCHAR(50) NOT NULL,
         UNIQUE(origin, external_status)
     );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS project_reports (
+        project_name VARCHAR(100) PRIMARY KEY,
+        report_text TEXT,
+        generated_at VARCHAR(100)
+    );
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS sync_metadata (
+        key VARCHAR(100) PRIMARY KEY,
+        val TEXT
+    );
     """
 ]
 
@@ -98,21 +114,26 @@ for ddl in tables_schema:
     pg_cursor.execute(ddl)
 pg_conn.commit()
 
-db_files = ["database_ativo.db", "database_historico.db"]
+path_ativo, path_historico = get_db_paths()
+print(f"[*] Caminhos de origem identificados:")
+print(f"    - Ativo: {path_ativo}")
+print(f"    - Histórico: {path_historico}")
+
+db_paths = [path_ativo, path_historico]
 
 total_demands = 0
 total_projects = 0
 total_tags = 0
 total_annotations = 0
 total_deps = 0
+total_status_mappings = 0
 
-for db_file in db_files:
-    sqlite_path = os.path.join(backend_dir, db_file)
+for sqlite_path in db_paths:
     if not os.path.exists(sqlite_path):
-        print(f"[!] Arquivo {db_file} não encontrado. Pulando...")
+        print(f"[!] Arquivo {sqlite_path} não encontrado. Pulando...")
         continue
 
-    print(f"[*] Processando arquivo SQLite: {db_file}...")
+    print(f"[*] Processando arquivo SQLite: {sqlite_path}...")
     sqlite_conn = sqlite3.connect(sqlite_path)
     sqlite_conn.row_factory = sqlite3.Row
     sqlite_cursor = sqlite_conn.cursor()
@@ -139,7 +160,7 @@ for db_file in db_files:
             execute_batch(pg_cursor, sql_proj, proj_data)
             total_projects += len(projects)
     except Exception as e:
-        print(f"[!] Aviso em projetos ({db_file}): {e}")
+        print(f"[!] Aviso em projetos ({sqlite_path}): {e}")
 
     # Demands
     try:
@@ -180,7 +201,7 @@ for db_file in db_files:
             execute_batch(pg_cursor, sql_dem, dem_data, page_size=100)
             total_demands += len(demands)
     except Exception as e:
-        print(f"[!] Erro em demandas ({db_file}): {e}")
+        print(f"[!] Erro em demandas ({sqlite_path}): {e}")
 
     # Tags
     try:
@@ -215,16 +236,35 @@ for db_file in db_files:
     except Exception:
         pass
 
+    # Status Mappings
+    try:
+        sqlite_cursor.execute("SELECT * FROM status_mappings")
+        mappings = [dict(r) for r in sqlite_cursor.fetchall()]
+        if mappings:
+            sql_map = """
+                INSERT INTO status_mappings (origin, external_status, mapped_status)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (origin, external_status) DO UPDATE SET
+                    mapped_status = EXCLUDED.mapped_status
+            """
+            map_data = [(m["origin"], m["external_status"], m["mapped_status"]) for m in mappings]
+            execute_batch(pg_cursor, sql_map, map_data)
+            total_status_mappings += len(mappings)
+    except Exception as e:
+        print(f"[!] Erro em status_mappings ({sqlite_path}): {e}")
+
     sqlite_conn.close()
 
 pg_conn.commit()
 pg_cursor.close()
 pg_conn.close()
 
-print(f"[*] RESUMO DA MIGRAÇÃO RÁPIDA PARA SUPABASE POSTGRESQL:")
+print(f"[*] RESUMO DA MIGRAÇÃO PARA SUPABASE POSTGRESQL:")
 print(f"    - Projetos Migrados: {total_projects}")
 print(f"    - Demandas Migradas (Ativas + Histórico): {total_demands}")
 print(f"    - Tags Migradas: {total_tags}")
 print(f"    - Anotações Migradas: {total_annotations}")
 print(f"    - Dependências Migradas: {total_deps}")
-print("[SUCCESS] Migração ultra-rápida finalizada com sucesso!")
+print(f"    - Mapeamentos de Status Migrados: {total_status_mappings}")
+print("[SUCCESS] Migração finalizada com sucesso a partir de Documents/Banco de dados!")
+

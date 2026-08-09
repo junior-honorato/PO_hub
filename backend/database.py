@@ -117,7 +117,45 @@ def init_db():
                     mapped_status VARCHAR(50) NOT NULL,
                     UNIQUE(origin, external_status)
                 );
+                CREATE TABLE IF NOT EXISTS project_reports (
+                    project_name VARCHAR(100) PRIMARY KEY,
+                    report_text TEXT,
+                    generated_at VARCHAR(100)
+                );
+                CREATE TABLE IF NOT EXISTS sync_metadata (
+                    key VARCHAR(100) PRIMARY KEY,
+                    val TEXT
+                );
             """)
+            
+            cursor.execute("SELECT COUNT(*) FROM status_mappings")
+            if cursor.fetchone()[0] == 0:
+                defaults = [
+                    ('Jira', 'To Do', 'Backlog'),
+                    ('Jira', 'Backlog', 'Backlog'),
+                    ('Jira', 'Selected for Development', 'Backlog'),
+                    ('Jira', 'In Progress', 'Desenvolvimento'),
+                    ('Jira', 'Under Review', 'Homologação'),
+                    ('Jira', 'QA', 'Homologação'),
+                    ('Jira', 'Done', 'Entregue'),
+                    ('Azure', 'New', 'Backlog'),
+                    ('Azure', 'Approved', 'Backlog'),
+                    ('Azure', 'Committed', 'Desenvolvimento'),
+                    ('Azure', 'Active', 'Desenvolvimento'),
+                    ('Azure', 'Review', 'Homologação'),
+                    ('Azure', 'QA', 'Homologação'),
+                    ('Azure', 'Resolved', 'Homologação'),
+                    ('Azure', 'Done', 'Entregue'),
+                    ('Azure', 'Closed', 'Entregue'),
+                    ('Negocio', 'To Do', 'Backlog'),
+                    ('Negocio', 'Em andamento', 'Desenvolvimento'),
+                    ('Negocio', 'Concluído', 'Entregue')
+                ]
+                psycopg2.extras.execute_batch(
+                    cursor,
+                    "INSERT INTO status_mappings (origin, external_status, mapped_status) VALUES (%s, %s, %s) ON CONFLICT (origin, external_status) DO NOTHING",
+                    defaults
+                )
             print("Banco de dados Supabase PostgreSQL verificado/inicializado com sucesso.")
         except Exception as e:
             print(f"Erro ao inicializar banco PostgreSQL: {e}")
@@ -405,6 +443,41 @@ def prepare_pg_query(query: str) -> str:
     if "group_concat(" in pg_query:
         pg_query = pg_query.replace("group_concat(t.tag)", "STRING_AGG(t.tag, ',')")
         pg_query = pg_query.replace("group_concat(tag)", "STRING_AGG(tag, ',')")
+
+    if "INSERT OR REPLACE INTO" in pg_query:
+        if "INSERT OR REPLACE INTO status_mappings" in pg_query:
+            pg_query = pg_query.replace("INSERT OR REPLACE INTO status_mappings", "INSERT INTO status_mappings")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (origin, external_status) DO UPDATE SET mapped_status = EXCLUDED.mapped_status"
+        elif "INSERT OR REPLACE INTO sync_metadata" in pg_query:
+            pg_query = pg_query.replace("INSERT OR REPLACE INTO sync_metadata", "INSERT INTO sync_metadata")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (key) DO UPDATE SET val = EXCLUDED.val"
+        elif "INSERT OR REPLACE INTO project_reports" in pg_query:
+            pg_query = pg_query.replace("INSERT OR REPLACE INTO project_reports", "INSERT INTO project_reports")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (project_name) DO UPDATE SET report_text = EXCLUDED.report_text, generated_at = EXCLUDED.generated_at"
+        elif "INSERT OR REPLACE INTO tags" in pg_query:
+            pg_query = pg_query.replace("INSERT OR REPLACE INTO tags", "INSERT INTO tags")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (externalId, tag) DO NOTHING"
+        elif "INSERT OR REPLACE INTO dependencies" in pg_query:
+            pg_query = pg_query.replace("INSERT OR REPLACE INTO dependencies", "INSERT INTO dependencies")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (blocked_id, blocker_id) DO NOTHING"
+        elif "INSERT OR REPLACE INTO annotations" in pg_query:
+            pg_query = pg_query.replace("INSERT OR REPLACE INTO annotations", "INSERT INTO annotations")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (id) DO UPDATE SET externalId = EXCLUDED.externalId, content = EXCLUDED.content, createdAt = EXCLUDED.createdAt"
+        elif "INSERT OR REPLACE INTO demands" in pg_query:
+            pg_query = pg_query.replace("INSERT OR REPLACE INTO demands", "INSERT INTO demands")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (externalId) DO UPDATE SET title = EXCLUDED.title, externalStatus = EXCLUDED.externalStatus, itemType = EXCLUDED.itemType, promisedDate = EXCLUDED.promisedDate, followUpDate = EXCLUDED.followUpDate, managerNotes = EXCLUDED.managerNotes, comments_history = EXCLUDED.comments_history, parentId = EXCLUDED.parentId, localParentId = EXCLUDED.localParentId, blockers = EXCLUDED.blockers, blocked_by = EXCLUDED.blocked_by, ai_summary = EXCLUDED.ai_summary, summary_updated_at = EXCLUDED.summary_updated_at, project = EXCLUDED.project, current_status_notes = EXCLUDED.current_status_notes, blocker_notes = EXCLUDED.blocker_notes, priority_rank = EXCLUDED.priority_rank, in_tactical_planning = EXCLUDED.in_tactical_planning, planned_start_date = EXCLUDED.planned_start_date, planned_end_date = EXCLUDED.planned_end_date"
+        elif "INSERT OR REPLACE INTO projects" in pg_query:
+            pg_query = pg_query.replace("INSERT OR REPLACE INTO projects", "INSERT INTO projects")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, health_status = EXCLUDED.health_status, progress = EXCLUDED.progress, sponsor = EXCLUDED.sponsor, target_go_live = EXCLUDED.target_go_live, executive_summary = EXCLUDED.executive_summary, strategic_notes = EXCLUDED.strategic_notes, has_gantt_chart = EXCLUDED.has_gantt_chart"
+
     return pg_query
 
 def execute_query(query, params=(), db_name="ativo"):

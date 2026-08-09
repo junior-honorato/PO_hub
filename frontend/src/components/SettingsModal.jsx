@@ -13,6 +13,8 @@ export default function SettingsModal({ isOpen, onClose }) {
 
   const [dbPath, setDbPath] = useState('');
   const [defaultDbPath, setDefaultDbPath] = useState('');
+  const [isPostgres, setIsPostgres] = useState(false);
+  const [dbType, setDbType] = useState('');
   const [dbSaveError, setDbSaveError] = useState('');
   const [dbSaveSuccess, setDbSaveSuccess] = useState(false);
   const [isSavingDb, setIsSavingDb] = useState(false);
@@ -34,6 +36,8 @@ export default function SettingsModal({ isOpen, onClose }) {
         const data = await res.json();
         setDbPath(data.db_path !== undefined ? data.db_path : (data.current_path || ''));
         setDefaultDbPath(data.path_ativo || data.default_path || '');
+        setIsPostgres(Boolean(data.is_postgres));
+        setDbType(data.db_type || '');
       }
     } catch (err) {
       console.error("Erro ao carregar caminho do banco:", err);
@@ -347,6 +351,41 @@ export default function SettingsModal({ isOpen, onClose }) {
         ) : activeTab === 'mappings' ? (
           <StatusMapperTab />
         ) : activeTab === 'database' ? (
+          isPostgres ? (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <Settings className="w-3.5 h-3.5 text-emerald-600" /> Armazenamento do Banco de Dados
+                </h3>
+                
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-xs text-emerald-900 space-y-3 leading-relaxed shadow-sm">
+                  <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Conectado ao Supabase PostgreSQL (Nuvem)
+                  </div>
+                  <p>
+                    O <strong>PO Hub</strong> está conectado e operando diretamente com o banco de dados relacional <strong>Supabase PostgreSQL</strong> na nuvem.
+                  </p>
+                  <p>
+                    Todas as demandas, projetos, mapeamentos de status, tags, dependências e apontamentos são persistidos e sincronizados centralmente em tempo real.
+                  </p>
+                  <div className="bg-white/70 border border-emerald-200 rounded-lg p-3 text-[11px] text-emerald-800 font-medium">
+                    💡 <strong>Nota de Arquitetura:</strong> A configuração de pastas locais do SQLite (OneDrive/Rede) fica desativada quando a aplicação opera em modo PostgreSQL Nuvem, garantindo a integridade dos dados sem conflitos de armazenamento local.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-sicoob-primary hover:bg-sicoob-secondary rounded-xl text-xs font-bold text-white transition-colors shadow-sm"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          ) : (
           <form onSubmit={handleSaveDbPath} className="space-y-6">
             <div className="space-y-4">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -409,6 +448,7 @@ export default function SettingsModal({ isOpen, onClose }) {
               </button>
             </div>
           </form>
+          )
         ) : (
           <form onSubmit={handleSaveLlm} className="space-y-6">
             <div className="space-y-4">

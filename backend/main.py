@@ -12,7 +12,7 @@ import requests
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-from database import init_db, execute_query, fetch_all, fetch_one, get_db_paths, CONFIG_PATH
+from database import init_db, execute_query, fetch_all, fetch_one, get_db_paths, CONFIG_PATH, is_postgres
 from auth import (
     get_current_user, get_google_auth_url, exchange_code_for_user_info,
     create_session_token, decode_session_token, COOKIE_NAME, GOOGLE_CLIENT_ID, ALLOWED_EMAILS
@@ -1103,8 +1103,9 @@ def save_status_mapping(payload: StatusMappingCreate):
             raise HTTPException(status_code=400, detail="Status mapeado inválido.")
         
         execute_query("""
-            INSERT OR REPLACE INTO status_mappings (origin, external_status, mapped_status)
+            INSERT INTO status_mappings (origin, external_status, mapped_status)
             VALUES (?, ?, ?)
+            ON CONFLICT (origin, external_status) DO UPDATE SET mapped_status = excluded.mapped_status
         """, (payload.origin, payload.external_status.strip(), payload.mapped_status), "ativo")
         
         load_status_mappings_cache()
@@ -2666,12 +2667,15 @@ async def get_db_path():
         except Exception:
             pass
     default_dir = os.path.dirname(os.path.abspath(__file__))
+    postgres_active = is_postgres()
     return {
         "db_path": db_dir,
         "current_path": db_dir,
         "default_path": default_dir,
         "path_ativo": path_ativo,
-        "path_historico": path_historico
+        "path_historico": path_historico,
+        "is_postgres": postgres_active,
+        "db_type": "PostgreSQL (Supabase Nuvem)" if postgres_active else "SQLite (Local)"
     }
 
 @app.post("/api/settings/db-path")
