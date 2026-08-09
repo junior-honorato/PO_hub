@@ -186,6 +186,7 @@ async def get_current_user_profile(request: Request):
     return {
         "authenticated": True, 
         "auth_mode": "direct_cloud", 
+        "is_postgres": is_postgres(),
         "user": {"email": "arlindo.junior@sicoob.com.br", "name": "Arlindo Junior (PO)"}
     }
 
