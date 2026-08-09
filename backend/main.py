@@ -13,6 +13,10 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 from database import init_db, execute_query, fetch_all, fetch_one, get_db_paths, CONFIG_PATH
+from auth import (
+    get_current_user, get_google_auth_url, exchange_code_for_user_info,
+    create_session_token, decode_session_token, COOKIE_NAME, GOOGLE_CLIENT_ID, ALLOWED_EMAILS
+)
 
 # Desabilita avisos de certificados corporativos autoassinados
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -154,6 +158,65 @@ async def rate_limit_middleware(request, call_next):
         
     request_counts[client_ip].append(now)
     response = await call_next(request)
+    return response
+
+# ==========================================
+# ROTAS DE AUTENTICAÇÃO (Google SSO & JWT)
+# ==========================================
+from fastapi.responses import RedirectResponse
+
+@app.get("/api/auth/me")
+async def get_current_user_profile(request: Request):
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        if not GOOGLE_CLIENT_ID:
+            return {"authenticated": True, "auth_mode": "local", "user": {"email": "local_po_user@sicoob.com.br", "name": "PO User Local"}}
+        return JSONResponse(status_code=401, content={"authenticated": False, "detail": "Não autenticado"})
+    
+    payload = decode_session_token(token)
+    if not payload:
+        return JSONResponse(status_code=401, content={"authenticated": False, "detail": "Sessão expirada"})
+        
+    return {"authenticated": True, "user": payload}
+
+@app.get("/api/auth/login")
+async def google_login(request: Request):
+    host = request.headers.get("host", "localhost:8080")
+    scheme = "https" if "onrender.com" in host or request.headers.get("x-forwarded-proto") == "https" else "http"
+    redirect_uri = f"{scheme}://{host}/api/auth/callback"
+    auth_url = get_google_auth_url(redirect_uri)
+    return RedirectResponse(url=auth_url)
+
+@app.get("/api/auth/callback")
+async def google_callback(request: Request, code: str):
+    host = request.headers.get("host", "localhost:8080")
+    scheme = "https" if "onrender.com" in host or request.headers.get("x-forwarded-proto") == "https" else "http"
+    redirect_uri = f"{scheme}://{host}/api/auth/callback"
+    
+    user_info = exchange_code_for_user_info(code, redirect_uri)
+    user_email = user_info.get("email", "").lower()
+    
+    if ALLOWED_EMAILS and user_email not in ALLOWED_EMAILS:
+        raise HTTPException(status_code=403, detail=f"Acesso negado para o e-mail '{user_email}'. Usuário não autorizado.")
+        
+    token = create_session_token(user_info)
+    is_secure = "onrender.com" in host or request.headers.get("x-forwarded-proto") == "https"
+    
+    response = RedirectResponse(url="/")
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=is_secure,
+        samesite="lax",
+        max_age=28800 # 8 horas
+    )
+    return response
+
+@app.post("/api/auth/logout")
+async def google_logout():
+    response = JSONResponse(content={"status": "logged_out"})
+    response.delete_cookie(key=COOKIE_NAME)
     return response
 
 # Inicializa o banco de dados
