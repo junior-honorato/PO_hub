@@ -4,7 +4,7 @@ import base64
 import urllib3
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -157,6 +157,21 @@ async def rate_limit_middleware(request, call_next):
         )
         
     request_counts[client_ip].append(now)
+    response = await call_next(request)
+    return response
+
+# Middleware para bloquear rotas operacionais da API se o SSO estiver ativo e o usuário não autenticado
+@app.middleware("http")
+async def auth_guard_middleware(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/") and not path.startswith("/api/auth/"):
+        if GOOGLE_CLIENT_ID:
+            token = request.cookies.get(COOKIE_NAME)
+            if not token or not decode_session_token(token):
+                return JSONResponse(
+                    status_code=401,
+                    content={"authenticated": False, "detail": "Acesso não autorizado. Efetue login via Google SSO."}
+                )
     response = await call_next(request)
     return response
 
