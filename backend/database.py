@@ -1,9 +1,19 @@
 import sqlite3
 import os
-
 import json
 
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    HAS_PSYCOPG2 = True
+except ImportError:
+    HAS_PSYCOPG2 = False
+
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+
+def is_postgres():
+    url = os.getenv("DATABASE_URL")
+    return bool(url and url.startswith("postgres") and HAS_PSYCOPG2)
 
 def get_db_paths():
     default_dir = os.path.dirname(os.path.abspath(__file__))
@@ -27,15 +37,94 @@ def get_db_paths():
 
 def get_connection(db_name="ativo"):
     """Retorna uma conexão configurada com suporte a chaves estrangeiras e dicionários."""
-    path_ativo, path_historico = get_db_paths()
-    path = path_historico if db_name == "historico" else path_ativo
-    conn = sqlite3.connect(path, timeout=30.0)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    if is_postgres():
+        url = os.getenv("DATABASE_URL")
+        conn = psycopg2.connect(url)
+        conn.autocommit = True
+        return conn
+    else:
+        path_ativo, path_historico = get_db_paths()
+        path = path_historico if db_name == "historico" else path_ativo
+        conn = sqlite3.connect(path, timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
 
 def init_db():
     """Cria as tabelas caso não existam em ambos os bancos."""
+    if is_postgres():
+        conn = get_connection("ativo")
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS demands (
+                    externalId VARCHAR(100) PRIMARY KEY,
+                    origin VARCHAR(50),
+                    title TEXT NOT NULL,
+                    externalStatus VARCHAR(100) NOT NULL,
+                    itemType VARCHAR(50) DEFAULT 'Outro',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    promisedDate VARCHAR(100),
+                    followUpDate VARCHAR(100),
+                    managerNotes TEXT,
+                    comments_history TEXT,
+                    parentId VARCHAR(100),
+                    localParentId VARCHAR(100),
+                    blockers TEXT,
+                    blocked_by TEXT,
+                    ai_summary TEXT,
+                    summary_updated_at VARCHAR(100),
+                    project VARCHAR(100),
+                    current_status_notes TEXT,
+                    blocker_notes TEXT,
+                    priority_rank INTEGER,
+                    in_tactical_planning INTEGER DEFAULT 0,
+                    planned_start_date VARCHAR(100),
+                    planned_end_date VARCHAR(100)
+                );
+                CREATE TABLE IF NOT EXISTS projects (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(100) UNIQUE NOT NULL,
+                    health_status VARCHAR(20) NOT NULL,
+                    progress INTEGER NOT NULL,
+                    sponsor VARCHAR(100),
+                    target_go_live VARCHAR(100),
+                    executive_summary TEXT,
+                    strategic_notes TEXT,
+                    has_gantt_chart INTEGER DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS annotations (
+                    id SERIAL PRIMARY KEY,
+                    externalId VARCHAR(100) NOT NULL,
+                    content TEXT NOT NULL,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS tags (
+                    externalId VARCHAR(100) NOT NULL,
+                    tag VARCHAR(50) NOT NULL,
+                    PRIMARY KEY (externalId, tag)
+                );
+                CREATE TABLE IF NOT EXISTS dependencies (
+                    blocked_id VARCHAR(100) NOT NULL,
+                    blocker_id VARCHAR(100) NOT NULL,
+                    PRIMARY KEY (blocked_id, blocker_id)
+                );
+                CREATE TABLE IF NOT EXISTS status_mappings (
+                    id SERIAL PRIMARY KEY,
+                    origin VARCHAR(50),
+                    external_status VARCHAR(100) NOT NULL,
+                    mapped_status VARCHAR(50) NOT NULL,
+                    UNIQUE(origin, external_status)
+                );
+            """)
+            print("Banco de dados Supabase PostgreSQL verificado/inicializado com sucesso.")
+        except Exception as e:
+            print(f"Erro ao inicializar banco PostgreSQL: {e}")
+        finally:
+            conn.close()
+        return
+
     for db_name in ["ativo", "historico"]:
         conn = get_connection(db_name)
         try:
@@ -315,12 +404,19 @@ def execute_query(query, params=(), db_name="ativo"):
     """Executa comando que modifica dados (INSERT, UPDATE, DELETE)."""
     conn = get_connection(db_name)
     try:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        conn.commit()
-        return cursor
+        if is_postgres():
+            cursor = conn.cursor()
+            pg_query = query.replace("?", "%s")
+            cursor.execute(pg_query, params)
+            return cursor
+        else:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            conn.commit()
+            return cursor
     except Exception as e:
-        conn.rollback()
+        if not is_postgres() and conn:
+            conn.rollback()
         raise e
     finally:
         conn.close()
@@ -329,10 +425,17 @@ def fetch_all(query, params=(), db_name="ativo"):
     """Busca múltiplos registros e os converte em lista de dicionários."""
     conn = get_connection(db_name)
     try:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        rows = cursor.fetchall()
-        return [dict(row) for row in rows]
+        if is_postgres():
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            pg_query = query.replace("?", "%s")
+            cursor.execute(pg_query, params)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        else:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
     finally:
         conn.close()
 
@@ -340,9 +443,16 @@ def fetch_one(query, params=(), db_name="ativo"):
     """Busca um único registro e o converte em dicionário (ou None)."""
     conn = get_connection(db_name)
     try:
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        row = cursor.fetchone()
-        return dict(row) if row else None
+        if is_postgres():
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            pg_query = query.replace("?", "%s")
+            cursor.execute(pg_query, params)
+            row = cursor.fetchone()
+            return dict(row) if row else None
+        else:
+            cursor = conn.cursor()
+            cursor.execute(query, params)
+            row = cursor.fetchone()
+            return dict(row) if row else None
     finally:
         conn.close()
