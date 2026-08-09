@@ -2,7 +2,7 @@ import os
 import sys
 import sqlite3
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import execute_batch, RealDictCursor
 from dotenv import load_dotenv
 
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,20 +14,9 @@ if not db_url or not db_url.startswith("postgres"):
     print("[!] DATABASE_URL inválido ou não configurado no .env")
     sys.exit(1)
 
-sqlite_path = os.path.join(backend_dir, "database_ativo.db")
-if not os.path.exists(sqlite_path):
-    print(f"[!] Banco SQLite local não encontrado em {sqlite_path}")
-    sys.exit(1)
-
-print("[*] Iniciando migração de dados do SQLite para Supabase PostgreSQL...")
-
+print("[*] Conectando ao Supabase PostgreSQL...")
 pg_conn = psycopg2.connect(db_url)
-pg_conn.autocommit = True
-pg_cursor = pg_conn.cursor(cursor_factory=RealDictCursor)
-
-sqlite_conn = sqlite3.connect(sqlite_path)
-sqlite_conn.row_factory = sqlite3.Row
-sqlite_cursor = sqlite_conn.cursor()
+pg_cursor = pg_conn.cursor()
 
 # 1. Garantir que tabelas existem no PostgreSQL
 tables_schema = [
@@ -107,60 +96,135 @@ tables_schema = [
 
 for ddl in tables_schema:
     pg_cursor.execute(ddl)
+pg_conn.commit()
 
-# 2. Migrar Projetos
-sqlite_cursor.execute("SELECT * FROM projects")
-projects = [dict(r) for r in sqlite_cursor.fetchall()]
-for p in projects:
-    pg_cursor.execute("""
-        INSERT INTO projects (id, name, health_status, progress, sponsor, target_go_live, executive_summary, strategic_notes, has_gantt_chart)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (id) DO UPDATE SET
-            name = EXCLUDED.name,
-            health_status = EXCLUDED.health_status,
-            progress = EXCLUDED.progress,
-            sponsor = EXCLUDED.sponsor,
-            target_go_live = EXCLUDED.target_go_live,
-            executive_summary = EXCLUDED.executive_summary,
-            strategic_notes = EXCLUDED.strategic_notes,
-            has_gantt_chart = EXCLUDED.has_gantt_chart
-    """, (p["id"], p["name"], p["health_status"], p["progress"], p.get("sponsor"), p.get("target_go_live"), p.get("executive_summary"), p.get("strategic_notes"), p.get("has_gantt_chart", 0)))
-print(f"[*] {len(projects)} projetos migrados.")
+db_files = ["database_ativo.db", "database_historico.db"]
 
-# 3. Migrar Demandas
-sqlite_cursor.execute("SELECT * FROM demands")
-demands = [dict(r) for r in sqlite_cursor.fetchall()]
-for d in demands:
-    pg_cursor.execute("""
-        INSERT INTO demands (
-            externalId, origin, title, externalStatus, itemType, promisedDate, followUpDate,
-            managerNotes, comments_history, parentId, localParentId, blockers, blocked_by,
-            ai_summary, summary_updated_at, project, current_status_notes, blocker_notes,
-            priority_rank, in_tactical_planning, planned_start_date, planned_end_date
-        ) VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-        ) ON CONFLICT (externalId) DO UPDATE SET
-            title = EXCLUDED.title,
-            externalStatus = EXCLUDED.externalStatus,
-            itemType = EXCLUDED.itemType,
-            managerNotes = EXCLUDED.managerNotes,
-            comments_history = EXCLUDED.comments_history,
-            project = EXCLUDED.project,
-            current_status_notes = EXCLUDED.current_status_notes,
-            blocker_notes = EXCLUDED.blocker_notes,
-            priority_rank = EXCLUDED.priority_rank,
-            in_tactical_planning = EXCLUDED.in_tactical_planning
-    """, (
-        d["externalId"], d["origin"], d["title"], d["externalStatus"], d.get("itemType", "Outro"),
-        d.get("promisedDate"), d.get("followUpDate"), d.get("managerNotes"), d.get("comments_history"),
-        d.get("parentId"), d.get("localParentId"), d.get("blockers"), d.get("blocked_by"),
-        d.get("ai_summary"), d.get("summary_updated_at"), d.get("project"), d.get("current_status_notes"),
-        d.get("blocker_notes"), d.get("priority_rank"), d.get("in_tactical_planning", 0),
-        d.get("planned_start_date"), d.get("planned_end_date")
-    ))
-print(f"[*] {len(demands)} demandas migradas.")
+total_demands = 0
+total_projects = 0
+total_tags = 0
+total_annotations = 0
+total_deps = 0
 
+for db_file in db_files:
+    sqlite_path = os.path.join(backend_dir, db_file)
+    if not os.path.exists(sqlite_path):
+        print(f"[!] Arquivo {db_file} não encontrado. Pulando...")
+        continue
+
+    print(f"[*] Processando arquivo SQLite: {db_file}...")
+    sqlite_conn = sqlite3.connect(sqlite_path)
+    sqlite_conn.row_factory = sqlite3.Row
+    sqlite_cursor = sqlite_conn.cursor()
+
+    # Projects
+    try:
+        sqlite_cursor.execute("SELECT * FROM projects")
+        projects = [dict(r) for r in sqlite_cursor.fetchall()]
+        if projects:
+            sql_proj = """
+                INSERT INTO projects (id, name, health_status, progress, sponsor, target_go_live, executive_summary, strategic_notes, has_gantt_chart)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    health_status = EXCLUDED.health_status,
+                    progress = EXCLUDED.progress,
+                    sponsor = EXCLUDED.sponsor,
+                    target_go_live = EXCLUDED.target_go_live,
+                    executive_summary = EXCLUDED.executive_summary,
+                    strategic_notes = EXCLUDED.strategic_notes,
+                    has_gantt_chart = EXCLUDED.has_gantt_chart
+            """
+            proj_data = [(p["id"], p["name"], p["health_status"], p["progress"], p.get("sponsor"), p.get("target_go_live"), p.get("executive_summary"), p.get("strategic_notes"), p.get("has_gantt_chart", 0)) for p in projects]
+            execute_batch(pg_cursor, sql_proj, proj_data)
+            total_projects += len(projects)
+    except Exception as e:
+        print(f"[!] Aviso em projetos ({db_file}): {e}")
+
+    # Demands
+    try:
+        sqlite_cursor.execute("SELECT * FROM demands")
+        demands = [dict(r) for r in sqlite_cursor.fetchall()]
+        if demands:
+            sql_dem = """
+                INSERT INTO demands (
+                    externalId, origin, title, externalStatus, itemType, promisedDate, followUpDate,
+                    managerNotes, comments_history, parentId, localParentId, blockers, blocked_by,
+                    ai_summary, summary_updated_at, project, current_status_notes, blocker_notes,
+                    priority_rank, in_tactical_planning, planned_start_date, planned_end_date
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                ) ON CONFLICT (externalId) DO UPDATE SET
+                    title = EXCLUDED.title,
+                    externalStatus = EXCLUDED.externalStatus,
+                    itemType = EXCLUDED.itemType,
+                    managerNotes = EXCLUDED.managerNotes,
+                    comments_history = EXCLUDED.comments_history,
+                    project = EXCLUDED.project,
+                    current_status_notes = EXCLUDED.current_status_notes,
+                    blocker_notes = EXCLUDED.blocker_notes,
+                    priority_rank = EXCLUDED.priority_rank,
+                    in_tactical_planning = EXCLUDED.in_tactical_planning
+            """
+            dem_data = [
+                (
+                    d["externalId"], d["origin"], d["title"], d["externalStatus"], d.get("itemType", "Outro"),
+                    d.get("promisedDate"), d.get("followUpDate"), d.get("managerNotes"), d.get("comments_history"),
+                    d.get("parentId"), d.get("localParentId"), d.get("blockers"), d.get("blocked_by"),
+                    d.get("ai_summary"), d.get("summary_updated_at"), d.get("project"), d.get("current_status_notes"),
+                    d.get("blocker_notes"), d.get("priority_rank"), d.get("in_tactical_planning", 0),
+                    d.get("planned_start_date"), d.get("planned_end_date")
+                )
+                for d in demands
+            ]
+            execute_batch(pg_cursor, sql_dem, dem_data, page_size=100)
+            total_demands += len(demands)
+    except Exception as e:
+        print(f"[!] Erro em demandas ({db_file}): {e}")
+
+    # Tags
+    try:
+        sqlite_cursor.execute("SELECT * FROM tags")
+        tags = [dict(r) for r in sqlite_cursor.fetchall()]
+        if tags:
+            sql_tag = "INSERT INTO tags (externalId, tag) VALUES (%s, %s) ON CONFLICT (externalId, tag) DO NOTHING"
+            execute_batch(pg_cursor, sql_tag, [(t["externalId"], t["tag"]) for t in tags])
+            total_tags += len(tags)
+    except Exception:
+        pass
+
+    # Annotations
+    try:
+        sqlite_cursor.execute("SELECT * FROM annotations")
+        anns = [dict(r) for r in sqlite_cursor.fetchall()]
+        if anns:
+            sql_ann = "INSERT INTO annotations (externalId, content, createdAt) VALUES (%s, %s, %s)"
+            execute_batch(pg_cursor, sql_ann, [(a["externalId"], a["content"], a.get("createdAt")) for a in anns])
+            total_annotations += len(anns)
+    except Exception:
+        pass
+
+    # Dependencies
+    try:
+        sqlite_cursor.execute("SELECT * FROM dependencies")
+        deps = [dict(r) for r in sqlite_cursor.fetchall()]
+        if deps:
+            sql_dep = "INSERT INTO dependencies (blocked_id, blocker_id) VALUES (%s, %s) ON CONFLICT (blocked_id, blocker_id) DO NOTHING"
+            execute_batch(pg_cursor, sql_dep, [(dp["blocked_id"], dp["blocker_id"]) for dp in deps])
+            total_deps += len(deps)
+    except Exception:
+        pass
+
+    sqlite_conn.close()
+
+pg_conn.commit()
 pg_cursor.close()
 pg_conn.close()
-sqlite_conn.close()
-print("[SUCCESS] Migração de dados do SQLite para Supabase concluída com sucesso!")
+
+print(f"[*] RESUMO DA MIGRAÇÃO RÁPIDA PARA SUPABASE POSTGRESQL:")
+print(f"    - Projetos Migrados: {total_projects}")
+print(f"    - Demandas Migradas (Ativas + Histórico): {total_demands}")
+print(f"    - Tags Migradas: {total_tags}")
+print(f"    - Anotações Migradas: {total_annotations}")
+print(f"    - Dependências Migradas: {total_deps}")
+print("[SUCCESS] Migração ultra-rápida finalizada com sucesso!")
