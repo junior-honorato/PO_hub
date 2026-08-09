@@ -11,7 +11,7 @@ except ImportError:
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
 
-DEFAULT_DATABASE_URL = "postgresql://postgres:mmFLYjNfzUhg4oNz@db.hiwzweckrfjmjucbghmp.supabase.co:5432/postgres"
+DEFAULT_DATABASE_URL = "postgresql://postgres:mmFLYjNfzUhg4oNz@db.hiwzweckrfjmjucbghmp.supabase.co:5432/postgres?sslmode=require"
 
 def get_database_url():
     return os.getenv("DATABASE_URL") or DEFAULT_DATABASE_URL
