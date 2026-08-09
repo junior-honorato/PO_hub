@@ -439,7 +439,7 @@ def init_db():
             conn.close()
 
 def prepare_pg_query(query: str) -> str:
-    pg_query = query.replace("?", "%s")
+    pg_query = query.replace("%", "%%").replace("?", "%s")
     if "group_concat(" in pg_query:
         pg_query = pg_query.replace("group_concat(t.tag)", "STRING_AGG(t.tag, ',')")
         pg_query = pg_query.replace("group_concat(tag)", "STRING_AGG(tag, ',')")
@@ -477,6 +477,20 @@ def prepare_pg_query(query: str) -> str:
             pg_query = pg_query.replace("INSERT OR REPLACE INTO projects", "INSERT INTO projects")
             if "ON CONFLICT" not in pg_query:
                 pg_query += " ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, health_status = EXCLUDED.health_status, progress = EXCLUDED.progress, sponsor = EXCLUDED.sponsor, target_go_live = EXCLUDED.target_go_live, executive_summary = EXCLUDED.executive_summary, strategic_notes = EXCLUDED.strategic_notes, has_gantt_chart = EXCLUDED.has_gantt_chart"
+
+    if "INSERT OR IGNORE INTO" in pg_query:
+        if "INSERT OR IGNORE INTO tags" in pg_query:
+            pg_query = pg_query.replace("INSERT OR IGNORE INTO tags", "INSERT INTO tags")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (externalId, tag) DO NOTHING"
+        elif "INSERT OR IGNORE INTO dependencies" in pg_query:
+            pg_query = pg_query.replace("INSERT OR IGNORE INTO dependencies", "INSERT INTO dependencies")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT (blocked_id, blocker_id) DO NOTHING"
+        else:
+            pg_query = pg_query.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+            if "ON CONFLICT" not in pg_query:
+                pg_query += " ON CONFLICT DO NOTHING"
 
     return pg_query
 
