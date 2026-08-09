@@ -964,7 +964,11 @@ def process_sync_for_demands(fetched_demands, origin, jira_creds=None, azure_cre
 def parse_date(date_str):
     if not date_str:
         return None
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f"):
+    if isinstance(date_str, datetime):
+        return date_str
+    if not isinstance(date_str, str):
+        date_str = str(date_str)
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%d"):
         try:
             return datetime.strptime(date_str.strip(), fmt)
         except ValueError:
@@ -1010,7 +1014,7 @@ def get_demands_data(db_name="ativo"):
         LEFT JOIN tags t ON d.externalId = t.externalId
         LEFT JOIN projects p ON d.project = p.name
         {where_clause}
-        GROUP BY d.externalId
+        GROUP BY d.externalId, p.has_gantt_chart
         ORDER BY CASE WHEN d.priority_rank IS NULL THEN 999999 ELSE d.priority_rank END ASC, d.updatedAt DESC
     """
     rows = fetch_all(query, params, db_name=db_name)
@@ -1049,8 +1053,8 @@ def get_demands_data(db_name="ativo"):
             "externalStatus": row["externalStatus"],
             "mappedStatus": get_mapped_status(row["origin"], row["externalStatus"]),
             "itemType": row.get("itemType") or "Outro",
-            "createdAt": row["createdAt"],
-            "updatedAt": row["updatedAt"],
+            "createdAt": str(row["createdAt"]) if row.get("createdAt") is not None else "",
+            "updatedAt": str(row["updatedAt"]) if row.get("updatedAt") is not None else "",
             "promisedDate": row["promisedDate"],
             "followUpDate": row["followUpDate"],
             "managerNotes": row["managerNotes"],

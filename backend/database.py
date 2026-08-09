@@ -428,6 +428,66 @@ def execute_query(query, params=(), db_name="ativo"):
     finally:
         conn.close()
 
+KEY_CASING_MAP = {
+    "externalid": "externalId",
+    "externalstatus": "externalStatus",
+    "itemtype": "itemType",
+    "createdat": "createdAt",
+    "updatedat": "updatedAt",
+    "promiseddate": "promisedDate",
+    "followupdate": "followUpDate",
+    "managernotes": "managerNotes",
+    "parentid": "parentId",
+    "localparentid": "localParentId"
+}
+
+class CaseInsensitiveDict(dict):
+    """Dicionário resiliente que aceita acesso por camelCase, snake_case e lowercase."""
+    def __init__(self, data=None):
+        super().__init__()
+        self._lower_map = {}
+        if data:
+            for k, v in data.items():
+                self[k] = v
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        lk = str(key).lower()
+        if lk not in self._lower_map:
+            self._lower_map[lk] = key
+
+    def __getitem__(self, key):
+        if key in self:
+            return super().__getitem__(key)
+        lk = str(key).lower()
+        if lk in self._lower_map:
+            actual_key = self._lower_map[lk]
+            if actual_key in self:
+                return super().__getitem__(actual_key)
+        raise KeyError(key)
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __contains__(self, key):
+        if super().__contains__(key):
+            return True
+        return str(key).lower() in self._lower_map
+
+def normalize_dict_keys(d: dict) -> dict:
+    if not d:
+        return d
+    res = CaseInsensitiveDict()
+    for k, v in d.items():
+        canonical_key = KEY_CASING_MAP.get(str(k).lower(), k)
+        res[canonical_key] = v
+        if k not in res:
+            res[k] = v
+    return res
+
 def fetch_all(query, params=(), db_name="ativo"):
     """Busca múltiplos registros e os converte em lista de dicionários."""
     conn = get_connection(db_name)
@@ -437,7 +497,7 @@ def fetch_all(query, params=(), db_name="ativo"):
             pg_query = prepare_pg_query(query)
             cursor.execute(pg_query, params)
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]
+            return [normalize_dict_keys(dict(row)) for row in rows]
         else:
             cursor = conn.cursor()
             cursor.execute(query, params)
@@ -455,7 +515,7 @@ def fetch_one(query, params=(), db_name="ativo"):
             pg_query = prepare_pg_query(query)
             cursor.execute(pg_query, params)
             row = cursor.fetchone()
-            return dict(row) if row else None
+            return normalize_dict_keys(dict(row)) if row else None
         else:
             cursor = conn.cursor()
             cursor.execute(query, params)
