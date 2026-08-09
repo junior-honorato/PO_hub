@@ -1,15 +1,48 @@
 # PO Hub - Consolidador de Backlogs Local & PPM (Rebranded Sicoob)
 
-O **PO Hub** é uma aplicação web local focada em consolidar demandas provenientes de duas ferramentas externas de gestão de projetos (**Jira** e **Azure DevOps**) e integrá-las com um módulo de **PPM (Project Portfolio Management)** e **Planejamento Tático**. A interface foi totalmente reconfigurada seguindo a identidade corporativa do **Sicoob**, focada 100% no Modo Claro (Light Mode) de alto contraste e design executivo limpo. O sistema permite visualizar esses backlogs de forma unificada, gerenciar iniciativas estratégicas de portfólio (com faróis de saúde e progresso) e possibilitar a inserção de anotações, histórico temporal, tags customizadas e dependências manuais de forma persistente em um banco de dados local **SQLite**.
+O **PO Hub** é uma aplicação web local focada em consolidar demandas provenientes de duas ferramentas externas de gestão de projetos (**Jira** e **Azure DevOps**) e integrá-las com um módulo de **PPM (Project Portfolio Management)** e **Planejamento Tático**.
+
+A interface foi totalmente reconfigurada seguindo a identidade corporativa do **Sicoob**, focada 100% no Modo Claro (Light Mode) de alto contraste e design executivo limpo. O sistema permite visualizar esses backlogs de forma unificada, gerenciar iniciativas estratégicas de portfólio (com faróis de saúde e progresso) e possibilitar a inserção de anotações, histórico temporal, tags customizadas, dependências manuais e parametrização de IA de forma persistente em um banco de dados local **SQLite**.
+
+---
+
+## 🚀 Destaques e Novas Funcionalidades (Atualizado)
+
+1. **⚡ Inicialização Automática em 1 Clique (`iniciar_hub.bat`)**:
+   - Script batch nativo para Windows que localiza automaticamente o Python no sistema (PATH, Microsoft Store ou AppData).
+   - Cria e valida o ambiente virtual (`venv`), instala/atualiza dependências do `requirements.txt`.
+   - Inicia o servidor FastAPI na porta `8080` e abre o navegador automaticamente em `http://localhost:8080`.
+
+2. **📁 Armazenamento Personalizado do Banco de Dados (OneDrive / Rede)**:
+   - Configuração dinâmica da pasta do banco de dados SQLite (`database_ativo.db` e `database_historico.db`).
+   - Gerenciamento acessível pela aba **Configurações > Banco de Dados** na interface web ou pelo arquivo `backend/config.json`.
+   - Permite vincular pastas locais sincronizadas pelo OneDrive para espelhamento automático na nuvem entre notebooks.
+
+3. **🤖 Inteligência Artificial Multi-Provedor (Gemini & OpenAI)**:
+   - Resumo Inteligente de Projetos e Status Reports semanais via LLM.
+   - Alternância dinâmica entre **Google Gemini** e **OpenAI (GPT)** diretamente nas configurações do painel.
+   - Parametrização de modelos (`gemini-2.5-flash`, `gpt-4o-mini`), chaves de API e prompts do sistema persistidos em `backend/llm_config.json`.
+
+4. **📊 Planejamento Tático com Stack Ranking & Cronograma Gantt**:
+   - **Stack Ranking Side-by-Side:** Priorização paralela entre demandas **Sicoob TI (Jira)** e **MAG (Azure)** com reordenação por Drag & Drop.
+   - **Cronograma Gantt de Alta Precisão:** Linha do tempo interativa baseada nas datas planejadas de início e fim.
+
+5. **💼 Portfólio Executivo (PPM) & Report Semanal**:
+   - Gestão de iniciativas estratégicas com cálculo automático de progresso baseado no status unificado das demandas.
+   - Visão Geral por Projeto com Kanban de Trilhas, Resumos IA e Exportação de slides executivos em **PowerPoint (.pptx)** e **Excel (.xls)**.
+
+6. **🔒 Segurança e Isolamento de Credenciais**:
+   - Arquivos `.env`, `credentials.json`, `llm_config.json` e bancos SQLite `.db` devidamente protegidos no `.gitignore` contra vazamento em repositórios.
 
 ---
 
 ## 🛠️ Stack Tecnológica
 
-- **Backend:** Python (FastAPI) + SQLite para banco de dados local.
-- **Frontend:** React + Tailwind CSS + Lucide Icons + React Flow + Dagre (para auto-layout do mapa de dependências).
-  - *Desenvolvimento modular:* Estrutura pronta do Vite/React em `/frontend`.
-  - *Execução integrada:* Servida estaticamente pelo FastAPI em `/backend/static` a partir de uma compilação baseada em CDNs para rodar imediatamente sem necessidade do comando `npm`.
+- **Backend:** Python 3.10+ (FastAPI, Uvicorn, Pydantic, Requests, Python-Dotenv, Google Generative AI).
+- **Banco de Dados:** SQLite3 (Arquitetura de Dois Bancos: `database_ativo.db` e `database_historico.db`).
+- **Frontend:** React + Vite + Tailwind CSS + Lucide Icons + React Flow + Dagre (para auto-layout do mapa de dependências).
+  - *Versão Integrada Servida pelo Backend:* Arquivo bundle consolidado em `/backend/static` pronto para execução sem dependência do Node.js/npm.
+  - *Versão Modular para Dev:* Código fonte desacoplado em `/frontend`.
 
 ---
 
@@ -17,127 +50,109 @@ O **PO Hub** é uma aplicação web local focada em consolidar demandas provenie
 
 ```
 po-hub/
+├── iniciar_hub.bat       # Script de inicialização automática de 1-clique para Windows
 ├── backend/
-│   ├── database.py       # Gerenciador de conexão SQLite e tabelas locais (Python)
-│   ├── main.py           # Servidor FastAPI com endpoints REST e serviço estático (Python)
-│   ├── static/           # Aplicação frontend consolidada servida pelo backend
-│   │   └── index.html    # Dashboard consolidado em React (versão integrada)
-│   ├── run_e2e_test.py   # Script de testes End-to-End com Selenium WebDriver
-│   └── database_ativo.db # Banco de dados SQLite criado automaticamente no boot
-├── frontend/             # Código fonte modular para desenvolvimento futuro com Vite
+│   ├── database.py       # Gerenciador de conexão SQLite, esquema de tabelas e migrações
+│   ├── main.py           # Servidor FastAPI com rotas REST, middlewares de segurança e arquivos estáticos
+│   ├── config.json       # Configuração do caminho personalizado da pasta do banco SQLite
+│   ├── llm_config.json   # Configurações locais de IA (Gemini/OpenAI) - [Ignorado no Git]
+│   ├── credentials.json  # Credenciais de APIs de integradores - [Ignorado no Git]
+│   ├── static/           # Aplicação frontend consolidada servida pelo backend FastAPI
+│   │   └── index.html    # Dashboard React consolidado
+│   ├── requirements.txt  # Dependências Python do backend
+│   └── database_ativo.db # Banco de dados SQLite de demandas ativas
+├── frontend/             # Código fonte modular React/Vite para desenvolvimento
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── Sidebar.jsx
-│   │   │   ├── DemandTable.jsx
-│   │   │   ├── DemandDrawer.jsx
-│   │   │   ├── RoadmapGraphView.jsx
-│   │   │   ├── PortfolioView.jsx       # Tela de Portfólio Executivo (PPM)
-│   │   │   ├── ProjectOverview.jsx     # Visão Geral de Iniciativa & Board de Trilhas
-│   │   │   └── PlanningView.jsx        # Tela de Planejamento Tático (Stack Ranking & Gantt)
+│   │   ├── components/   # Componentes (DemandTable, PlanningView, PortfolioView, SettingsModal, etc.)
 │   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   └── index.css
+│   │   └── main.jsx
 │   ├── package.json
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── postcss.config.js
+│   └── vite.config.js
 ├── .env.example          # Modelo de variáveis de ambiente
-└── README.md             # Este arquivo
+├── .gitignore            # Regras de exclusão de arquivos sensíveis e locais
+└── README.md             # Documentação do projeto
 ```
 
 ---
 
-## 🔒 Configuração e Segurança
+## 🚀 Como Rodar a Aplicação
 
-O PO Hub possui um sistema de persistência híbrido e robusto para gerenciar e salvar suas chaves de API e parametrizações de Inteligência Artificial de forma segura e portátil:
+### Método 1: Execução Automática (Recomendado)
 
-1. **Persistência no Servidor (`credentials.json` e `llm_config.json`)**:
-   - **Credenciais**: Salvas em `backend/credentials.json` via interface de configurações (Jira e Azure).
-   - **Inteligência Artificial**: Configurações de provedor (Gemini ou OpenAI), chaves de API, modelos ativos de cada provedor e instruções do sistema são salvas localmente em `backend/llm_config.json`.
-   - *Ambos os arquivos são automaticamente ignorados no `.gitignore`* para assegurar que segredos e chaves de API locais nunca sejam expostos no repositório Git.
-2. **Importação e Fallback Automático (`.env`)**: Se as chaves do Gemini ou chaves de integradores não estiverem presentes nos arquivos locais, o servidor lerá os valores definidos no arquivo `backend/.env`. Copie o modelo `.env.example`:
-   ```bash
-   cp .env.example backend/.env
-   ```
-   E preencha com suas variáveis (`JIRA_API_URL`, `JIRA_USER_EMAIL`, `JIRA_PAT`, `AZURE_API_URL`, `AZURE_PAT`, `GEMINI_API_KEY` e `GEMINI_MODEL_NAME`).
-3. **Resolução de Conflitos e Portabilidade**: Se você acessar a aplicação sob um novo IP, nova porta, ou navegador diferente, o front-end carregará automaticamente as chaves salvas no servidor no carregamento inicial. Se outro usuário configurar chaves personalizadas no navegador dele, as chaves dele terão prioridade em sua própria sessão.
-4. **Fallback (Mock)**: Caso nenhuma credencial seja configurada (tanto no servidor quanto na interface), o sistema continuará funcionando utilizando demandas mockadas locais para demonstração.
+Basta dar um **duplo clique** no arquivo `iniciar_hub.bat` na raiz do projeto.
+
+O script cuidará de:
+1. Detectar o Python no seu sistema.
+2. Criar e atualizar o ambiente virtual `venv`.
+3. Instalar/verificar as dependências do `requirements.txt`.
+4. Iniciar o servidor FastAPI na porta `8080`.
+5. Abrir automaticamente a aplicação no seu navegador padrão em **`http://localhost:8080`**.
 
 ---
 
-## 🚀 Como Iniciar a Aplicação (Rodar Localmente)
+### Método 2: Execução Manual do Backend
 
-1. No terminal, navegue para o diretório `/po-hub/backend`:
-   ```powershell
-   cd po-hub/backend
-   ```
-2. Inicialize o servidor usando o interpretador do ambiente virtual da raiz:
-   ```powershell
-   ..\..\rag-ia\venv\Scripts\python -m uvicorn main:app --host 0.0.0.0 --port 8080 --reload
-   ```
-3. Acesse no navegador:
-   👉 **[http://localhost:8080](http://localhost:8080)**
+```powershell
+# Navigate to the backend directory
+cd backend
 
----
+# Create and activate virtual environment (if not created)
+python -m venv venv
+.\venv\Scripts\activate
 
-## 🛢️ Arquitetura de Dados (SQLite Schema - Dois Bancos)
+# Install requirements
+pip install -r requirements.txt
 
-Implementamos a arquitetura de **Dois Bancos** (`database_ativo.db` e `database_historico.db`) para manter a performance da listagem e a separação de escopos de demandas ativas e de histórico, sincronizados de forma atômica.
-
-### 1. `projects` (Tabela PPM)
-Armazena as iniciativas estratégicas cadastradas pelo usuário.
-- `id` (INTEGER PRIMARY KEY AUTOINCREMENT)
-- `name` (TEXT UNIQUE) - Nome da iniciativa (Ex: "CRM de Vendas").
-- `health_status` (TEXT) - Farol de saúde: `'Verde'`, `'Amarelo'`, ou `'Vermelho'`.
-- `progress` (INTEGER) - Porcentagem de progresso real da iniciativa (0 a 100).
-- `sponsor` (TEXT) - Patrocinador executivo responsável.
-- `target_go_live` (TEXT) - Previsão de lançamento (Ex: "Dezembro 2026").
-- `executive_summary` (TEXT) - Resumo executivo (Status Report) semanal.
-- `strategic_notes` (TEXT) - Notas de cobrança de alinhamento com times externos.
-
-### 2. `demands`
-Armazena as demandas. Atualizada com suporte a projeto, canal local, campos de Status Report e Planejamento Tático.
-- `externalId` (TEXT PRIMARY KEY) - Ex: `JIRA-101`, `AZ-501`, `BIZ-178321`.
-- `origin` (TEXT) - `'Jira'`, `'Azure'`, ou `'Negocio'`.
-- `title` (TEXT) - Título da demanda.
-- `externalStatus` (TEXT) - Status reportado (Ex: `'To Do'`, `'Done'`).
-- `itemType` (TEXT) - Categoria do item (Ex: `Feature`, `Bug`, `User Story`).
-- `updatedAt` (TEXT) - Timestamp de atualização.
-- `promisedDate` (TEXT) / `followUpDate` (TEXT) - Gestão local de prazos.
-- `managerNotes` (TEXT) - Notas semanais da reunião de status.
-- `project` (TEXT) - Nome da iniciativa vinculada na tabela `projects`.
-- `current_status_notes` (TEXT) - Situação atual e evolução da demanda para o Report Semanal.
-- `blocker_notes` (TEXT) - Impedimentos e riscos da demanda para o Report Semanal.
-- `priority_rank` (INTEGER) - Posição de prioridade absoluta no Stack Ranking tático.
-- `in_tactical_planning` (INTEGER DEFAULT 0) - Flag de inclusão da demanda no Planejamento Tático (0: Oculta, 1: Visível).
-- `planned_start_date` (TEXT) - Data Início Planejada para o Cronograma Tático (`YYYY-MM-DD`).
-- `planned_end_date` (TEXT) - Data Fim Planejada para o Cronograma Tático (`YYYY-MM-DD`).
+# Run the FastAPI server
+python main.py
+```
+Acesse no navegador: 👉 **`http://localhost:8080`**
 
 ---
 
-## 🎯 Principais Funcionalidades da Interface UI/UX
+### Método 3: Modo de Desenvolvimento Frontend (Vite Reloading)
 
-1. **Portfólio Executivo (PPM):** Dashboard centralizado com cards horizontais de projetos detalhados, exibindo progresso (com barra de progresso horizontal colorida), sponsor, previsão de lançamento e farol de saúde (Verde, Amarelo, Vermelho) dinâmico e inteligente.
-2. **Resumo Geral de Portfólio com IA (Gemini):** Nova aba integrada **"Resumo IA"** dentro da Visão Geral de cada projeto executivo:
-   - **Status Report Automatizado:** Análise avançada via LLM (Gemini) que varre e condensa todos os comentários de evolução, impedimentos, notas locais, anotações de cobrança, promessas de entrega e notas de gestora das demandas associadas ao projeto.
-   - **Visualização em Duas Colunas:** Exibição do relatório em markdown na coluna esquerda (com recursos de cópia rápida e atualização forçada) e listagem das demandas enviadas como fonte de contexto à direita (com badges de promessas de entrega e status detalhados).
-3. **Parametrização da LLM diretamente na Interface:** Aba **"Inteligência Artificial"** nas Configurações do Painel para configurar e gerenciar chaves do Gemini e OpenAI, alternar o provedor de LLM ativo, definir os modelos correspondentes (ex: `gemini-2.5-flash` ou `gpt-4o-mini`) e personalizar as instruções de sistema (prompt principal) de forma portátil e individual.
-4. **UX/UI Aprimorado das Configurações**:
-   - **Modal de Altura Constante**: Altura física do modal fixada em `680px` com área interna rolável para evitar tremulações ou redimensionamentos visuais desconfortáveis ao navegar nas abas.
-   - **Simetria nas Abas**: Alinhamento de abas à esquerda com largura estritamente padronizada (`w-48`) para garantir que os títulos permaneçam legíveis e sem quebras de linha em qualquer dispositivo.
-5. **Criação de Demandas de Negócio com ID Curto Sequencial:** Nova nomenclatura para demandas de negócio locais no formato curto sequencial (`BIZ-0001` a `BIZ-9999`), facilitando a memorização e leitura rápida de demandas no portfólio.
-6. **Planejamento Tático:** Tela dedicada à priorização e acompanhamento temporal tático:
-   - **Stack Ranking (Priorização Paralela):** Grid de 2 colunas verticais (**Sicoob TI (Jira)** e **MAG (Azure)**) com destaque numérico de prioridade (`1º`, `2º`, `3º`...), suporte a reordenação por Drag and Drop nativo em HTML5 e persistência instantânea no SQLite (`PUT /demands/reorder`).
-   - **Cronograma Gantt de Alta Precisão:** Linha do tempo de 6 meses que posiciona e dimensiona dinamicamente a barra de cada demanda com base nas datas reais de **Início Planejado** (`planned_start_date`) e **Fim Planejado** (`planned_end_date`).
-   - **Gestão Condicional de Datas:** Chave de alternância *"Exibir no Planejamento Tático"* nos detalhes da demanda (`DemandDrawer`) que exibe/oculta os inputs de datas planejadas e botão de inclusão rápida *"+ Incluir Demanda"* no Planejamento Tático.
-7. **Visão Geral do Projeto em Abas (Dashboard & Slide):** A visão de iniciativa do portfólio é organizada em duas abas:
-   - **Gestão Operacional**: Kanban board de trilhas side-by-side agrupados por origem (**TI - Jira**, **TI - Azure**, e **Go-To-Market / Negócios**) com contadores de impedimentos e destaque visual de cards travados.
-   - **Report Executivo**: Tabela executiva horizontal de status semanal que consolida automaticamente as demandas em andamento, situação atual/evolução (`current_status_notes`) e impedimentos/riscos (`blocker_notes`), agrupados por Epics (Jira/Azure) ou Eixos (Negócios) e com badges de promessa de entrega formatados (ex: "Jun/26").
-8. **Modelo Híbrido de Curadoria Refinado:** Regras de negócio aprimoradas para exibição inteligente de demandas no Report Executivo:
-   - *Condição de Curadoria do PO:* Qualquer demanda com o campo `blocker_notes` preenchido é exibida, independentemente do seu `State` atual.
-   - *Regra de Exclusão:* Demandas inativas sem `current_status_notes` são automaticamente ocultadas.
-9. **Modal Centralizado Amplo de Detalhes:** Gaveta lateral (Drawer) estruturada em duas colunas com suporte a notas, tags, histórico, chave de Planejamento Tático e campos de datas de cronograma.
-10. **Modo Apresentação Premium & Fullscreen Real:** Projeção do relatório cobrindo 100% da viewport de forma absoluta (`fixed inset-0 z-[100] bg-slate-900 w-screen h-screen overflow-y-auto p-4 sm:p-8 lg:p-12`), ocultando menus com atalho `ESC`.
-11. **Mapeamento e Unificação de Status (Status Mapper):** Regras locais de mapeamento de status por canal (Jira, Azure DevOps, Negócio) integradas ao banco de dados SQLite (`status_mappings`).
-12. **Sincronização Incremental (Delta Sync) e Diagnóstico de Erros:** Sincronização rápida salvando banda, com tratamento e exibição explicativa de erros HTTP (ex: HTTP 401 para tokens expirados e HTTP 403 para permissões de projeto).
-13. **Exportação PowerPoint (.pptx) & Excel (.xls):** Relatórios em PPTX (estilo Sicoob widescreen 16:9 via `PptxGenJS`) e planilhas em Excel formatadas.
+Para alterar componentes React em tempo real:
+```powershell
+# Terminal 1: Backend
+cd backend
+venv\Scripts\python main.py
+
+# Terminal 2: Frontend
+cd frontend
+npm install
+npm run dev
+```
+Acesse no navegador: 👉 **`http://localhost:5173`**
+
+---
+
+## 🛢️ Gerenciamento do Banco de Dados SQLite
+
+O PO Hub utiliza uma estrutura de **Dois Bancos** (`database_ativo.db` e `database_historico.db`) para garantir alto desempenho na navegação:
+
+- **Demandas Ativas (`database_ativo.db`)**: Mantém demandas em andamento, backlog e planejamento tático.
+- **Histórico (`database_historico.db`)**: Armazena demandas entregues, concluídas ou canceladas.
+
+### 🌐 Configuração do Caminho do Banco (OneDrive / Rede)
+
+Você pode alterar a localização do banco SQLite para sincronizar entre notebooks:
+- **Pela Interface Web:** Vá em **Configurações > Banco de Dados**, informe o caminho da pasta local (ex: `C:\Users\seu_usuario\OneDrive - Empresa\PO_HUB`) e clique em **Salvar e Migrar Banco**.
+- **Pelo Arquivo:** Altere a propriedade `"db_path"` em `backend/config.json`. Deixar em branco (`""`) faz o sistema utilizar a pasta padrão `backend/`.
+
+---
+
+## 🔒 Variáveis de Ambiente & Segurança
+
+O PO Hub possui isolamento de segredos para garantir que credenciais corporativas nunca sejam commitadas:
+1. **`credentials.json`**: Guarda URLs e Tokens do Jira/Azure DevOps configurados pelo painel.
+2. **`llm_config.json`**: Guarda Chaves de API do Gemini/OpenAI e parametrização do Prompt.
+3. **`backend/.env`**: Fallback para variáveis de ambiente padrão.
+
+Todos esses arquivos estão incluídos no `.gitignore`.
+
+---
+
+## 📄 Licença e Uso Corporativo
+
+Desenvolvido para consolidação e gestão executiva de backlogs de produtos, integrando ecossistemas de TI e Negócios com suporte a Inteligência Artificial e Governança Local.
