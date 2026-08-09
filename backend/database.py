@@ -29,7 +29,7 @@ def get_connection(db_name="ativo"):
     """Retorna uma conexão configurada com suporte a chaves estrangeiras e dicionários."""
     path_ativo, path_historico = get_db_paths()
     path = path_historico if db_name == "historico" else path_ativo
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
@@ -300,6 +300,9 @@ def init_db():
 
             # Exclui qualquer demanda remanescente do projeto TST
             conn.execute("DELETE FROM demands WHERE externalId LIKE 'TST-%'")
+
+            # Índices adicionais para performance de cálculo de progresso
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_demands_proj_orig ON demands (project, origin)")
 
             conn.commit()
             print(f"Banco de dados SQLite {db_name} inicializado com sucesso.")

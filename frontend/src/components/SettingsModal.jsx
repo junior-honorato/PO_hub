@@ -32,8 +32,8 @@ export default function SettingsModal({ isOpen, onClose }) {
       const res = await fetch('/api/settings/db-path');
       if (res.ok) {
         const data = await res.json();
-        setDbPath(data.current_path || '');
-        setDefaultDbPath(data.default_path || '');
+        setDbPath(data.db_path !== undefined ? data.db_path : (data.current_path || ''));
+        setDefaultDbPath(data.path_ativo || data.default_path || '');
       }
     } catch (err) {
       console.error("Erro ao carregar caminho do banco:", err);

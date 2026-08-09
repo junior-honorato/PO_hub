@@ -66,8 +66,11 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
   }, [demandId, isOpen]);
 
   const handleDeleteDemand = async () => {
-    if (!demandId) return;
-    const confirmed = window.confirm("Tem certeza de que deseja excluir permanentemente esta demanda local?");
+    if (!demandId || !demand) return;
+    const msg = demand.origin === 'Negocio'
+      ? "Tem certeza de que deseja excluir permanentemente esta demanda local?"
+      : `Tem certeza de que deseja excluir permanentemente a demanda ${demandId} (${demand.origin}) do banco local?\n\nUse esta opção apenas se ela foi removida ou cancelada no sistema de origem (Jira/Azure).`;
+    const confirmed = window.confirm(msg);
     if (!confirmed) return;
     
     try {
@@ -929,19 +932,17 @@ export default function DemandDrawer({ demandId, isOpen, onClose, onRefreshDeman
                   </div>
                 </div>
 
-                {/* Excluir Demanda (apenas para Negocio) */}
-                {demand.origin === 'Negocio' && (
-                  <div className="pt-4 border-t border-slate-150">
-                    <button
-                      type="button"
-                      onClick={handleDeleteDemand}
-                      className="w-full py-2.5 px-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-350 active:scale-95 text-rose-700 text-xs font-bold transition-all flex items-center justify-center gap-2 select-none"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      Excluir Demanda
-                    </button>
-                  </div>
-                )}
+                {/* Excluir Demanda */}
+                <div className="pt-4 border-t border-slate-150">
+                  <button
+                    type="button"
+                    onClick={handleDeleteDemand}
+                    className="w-full py-2.5 px-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-350 active:scale-95 text-rose-700 text-xs font-bold transition-all flex items-center justify-center gap-2 select-none"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Excluir Demanda
+                  </button>
+                </div>
               </div>
             </div>
           </div>

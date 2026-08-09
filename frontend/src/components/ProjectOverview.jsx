@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X, Download, Lock, Tag } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Briefcase, Calendar, Target, Activity, FileText, CheckCircle2, Clock, Sparkles, Edit3, AlertCircle, Play, X, Download, Lock, Tag, Link } from 'lucide-react';
 import RoadmapGraphView from './RoadmapGraphView';
 
 export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
@@ -12,6 +12,17 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
       clean = clean.replace(regex, '');
     }
     return clean.trim();
+  };
+
+  const getStatusBadgeClass = (status) => {
+    if (!status) return 'bg-slate-100 text-slate-500 border border-slate-300/60';
+    const s = status.trim();
+    if (s === 'Backlog') return 'bg-slate-100 text-slate-500 border border-slate-300/60';
+    if (s === 'Em Refinamento') return 'bg-purple-50 text-purple-700 border border-purple-100';
+    if (s === 'Desenvolvimento') return 'bg-amber-500/10 text-amber-455 border border-amber-500/20';
+    if (s === 'Homologação' || s === 'Homologaǜo' || s === 'Homologacao') return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+    if (s === 'Entregue') return 'bg-emerald-50 text-emerald-700 border border-emerald-100';
+    return 'bg-amber-50 text-amber-700 border border-amber-100';
   };
 
   const [data, setData] = useState(null);
@@ -152,10 +163,30 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
   const sortDemandsByDependency = (list) => {
     const visited = new Set();
     const sorted = [];
+    
+    // Group children by parentId for quick hierarchical lookup
+    const childrenMap = {};
+    list.forEach(d => {
+      if (d.parentId) {
+        if (!childrenMap[d.parentId]) {
+          childrenMap[d.parentId] = [];
+        }
+        childrenMap[d.parentId].push(d);
+      }
+    });
+
     const visit = (demand) => {
       if (visited.has(demand.externalId)) return;
       visited.add(demand.externalId);
       sorted.push(demand);
+
+      // 1. Visit children first to group them directly below the parent
+      const children = childrenMap[demand.externalId] || [];
+      children.forEach(child => {
+        visit(child);
+      });
+
+      // 2. Visit blocker dependents
       const dependents = list.filter(d => 
         d.blockers && d.blockers.includes(demand.externalId)
       );
@@ -163,18 +194,33 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         visit(dep);
       }
     };
+
     const idsInList = new Set(list.map(d => d.externalId));
+
+    // First visit items that are true roots (no local parent and no local blockers)
     for (const demand of list) {
+      const hasLocalParent = demand.parentId && idsInList.has(demand.parentId);
       const hasLocalBlockers = demand.blockers && demand.blockers.some(b => idsInList.has(b));
-      if (!hasLocalBlockers) {
+      if (!hasLocalParent && !hasLocalBlockers) {
         visit(demand);
       }
     }
+
+    // Then visit items that are roots but might have blockers (still no local parent)
+    for (const demand of list) {
+      const hasLocalParent = demand.parentId && idsInList.has(demand.parentId);
+      if (!hasLocalParent) {
+        visit(demand);
+      }
+    }
+
+    // Catch-all for any cyclic dependencies
     for (const demand of list) {
       if (!visited.has(demand.externalId)) {
         visit(demand);
       }
     }
+
     return sorted;
   };
 
@@ -234,6 +280,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   const { startCol, colSpan, isDefined } = getGanttPosition(demand, timelineMonths, index);
                   const isBlocked = demand.blockers && demand.blockers.length > 0;
                   const hasLocalBlockers = demand.blockers && demand.blockers.some(b => idsInGantt.has(b));
+                  const hasLocalParent = demand.parentId && idsInGantt.has(demand.parentId);
 
                   return (
                     <div
@@ -241,10 +288,12 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                       onClick={() => onSelectDemand && onSelectDemand(demand.externalId)}
                       className="grid grid-cols-12 gap-2 py-3.5 items-center hover:bg-slate-50/80 rounded-lg transition-colors cursor-pointer px-1"
                     >
-                      <div className={`col-span-5 pr-3 space-y-1 relative ${hasLocalBlockers ? 'pl-6' : ''}`}>
-                        {hasLocalBlockers && (
+                      <div className={`col-span-5 pr-3 space-y-1 relative ${(hasLocalBlockers || hasLocalParent) ? 'pl-6' : ''}`}>
+                        {hasLocalBlockers ? (
                           <div className="absolute left-1 -top-3.5 bottom-1/2 w-3 border-l-2 border-b-2 border-amber-400/60 rounded-bl-md pointer-events-none" />
-                        )}
+                        ) : hasLocalParent ? (
+                          <div className="absolute left-1 -top-3.5 bottom-1/2 w-3 border-l-2 border-b-2 border-blue-400/60 rounded-bl-md pointer-events-none" />
+                        ) : null}
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <Tag className="w-3 h-3 text-emerald-600" />
@@ -256,6 +305,15 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                           {isDefined && (
                             <span className="text-[10px] text-slate-400 font-medium">
                               ({formatDateBR(demand.planned_start_date)} a {formatDateBR(demand.planned_end_date)})
+                            </span>
+                          )}
+                          {demand.parentId && (
+                            <span 
+                              className="inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200"
+                              title={`Sub-item do Epic/Feature: ${demand.parentId}`}
+                            >
+                              <Link className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+                              Pai: {demand.parentId}
                             </span>
                           )}
                           {isBlocked && (
@@ -488,7 +546,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               try { bList = JSON.parse(bList); } catch(e) { bList = []; }
             }
             const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-            const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+            const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${epic.mappedStatus || epic.externalStatus})`;
             notes.push(`Impedimento [${epic.externalId}]: ${bMsg}`);
           }
 
@@ -505,7 +563,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                 try { bList = JSON.parse(bList); } catch(e) { bList = []; }
               }
               const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-              const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+              const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${c.mappedStatus || c.externalStatus})`;
               notes.push(`Impedimento [${c.externalId}]: ${bMsg}`);
             }
           });
@@ -515,7 +573,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
           }
 
           const col1 = cleanTitle(epic.title, epic.externalId);
-          const col2 = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
+          const col2 = epic.mappedStatus || epic.externalStatus || "Não Iniciada";
           const col3 = notes.map(n => `• ${n}`).join('\n') || "-";
 
           const maxLines = Math.max(
@@ -544,7 +602,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                 try { bList = JSON.parse(bList); } catch(e) { bList = []; }
               }
               const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-              const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+              const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${c.mappedStatus || c.externalStatus})`;
               notes.push(`Impedimento [${c.externalId}]: ${bMsg}`);
             }
           });
@@ -596,7 +654,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
           if (children.length === 0 && notes.length === 0) return;
 
           const col1 = cleanTitle(epic.title, epic.externalId);
-          const col2 = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
+          const col2 = epic.mappedStatus || epic.externalStatus || "Não Iniciada";
           const col3 = notes.map(n => `• ${n}`).join('\n') || "-";
 
           const maxLines = Math.max(
@@ -739,7 +797,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
 
       if (childrenList.length > 0) {
         row1 += `<td>${escapeHtml(`[${childrenList[0].externalId}] ${childrenList[0].title}`)}</td>`;
-        row1 += `<td>${escapeHtml(childrenList[0].externalStatus || '-')}</td>`;
+        row1 += `<td>${escapeHtml(childrenList[0].mappedStatus || childrenList[0].externalStatus || '-')}</td>`;
       } else {
         row1 += `<td>Nenhuma demanda ativa vinculada.</td>`;
         row1 += `<td>-</td>`;
@@ -754,7 +812,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
       for (let i = 1; i < childrenList.length; i++) {
         let rowI = `<tr ${isZebra}>`;
         rowI += `<td>${escapeHtml(`[${childrenList[i].externalId}] ${childrenList[i].title}`)}</td>`;
-        rowI += `<td>${escapeHtml(childrenList[i].externalStatus || '-')}</td>`;
+        rowI += `<td>${escapeHtml(childrenList[i].mappedStatus || childrenList[i].externalStatus || '-')}</td>`;
         rowI += `</tr>`;
         rowsHtmlArray.push(rowI);
       }
@@ -786,7 +844,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               try { bList = JSON.parse(bList); } catch(e) { bList = []; }
             }
             const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-            const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+            const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${epic.mappedStatus || epic.externalStatus})`;
             impedimentsList.push({ id: epic.externalId, text: bMsg });
           }
         }
@@ -800,7 +858,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               try { bList = JSON.parse(bList); } catch(e) { bList = []; }
             }
             const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-            const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+            const bMsg = bStr ? `Bloqueado por: ${bStr}` : `Bloqueado (Status: ${c.mappedStatus || c.externalStatus})`;
             impedimentsList.push({ id: c.externalId, text: bMsg });
           }
         });
@@ -810,7 +868,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         }
 
         const colEpic = cleanTitle(epic.title, epic.externalId);
-        const colEpicStatus = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
+        const colEpicStatus = epic.mappedStatus || epic.externalStatus || "Não Iniciada";
         
         const colStatus = statusNotesList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
         const colImpediments = impedimentsList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
@@ -868,7 +926,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         if (epic.blocker_notes?.trim()) {
           impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
         } else if (isDemandBlocked(epic)) {
-          impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+          impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.mappedStatus || epic.externalStatus})` });
         }
         children.forEach(c => {
           if (c.blocker_notes?.trim()) {
@@ -884,7 +942,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
         });
 
         const colEpic = cleanTitle(epic.title, epic.externalId);
-        const colEpicStatus = epic.externalStatus || epic.mappedStatus || "Não Iniciada";
+        const colEpicStatus = epic.mappedStatus || epic.externalStatus || "Não Iniciada";
         
         const colStatus = statusNotesList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
         const colImpediments = impedimentsList.map(n => `• [${n.id}]: ${n.text}`).join('\n') || "-";
@@ -1681,7 +1739,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                         try { bList = JSON.parse(bList); } catch(e) { bList = []; }
                       }
                       const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-                      const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+                      const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.mappedStatus || epic.externalStatus})`;
                       impedimentsList.push({ id: epic.externalId, text: bMsg });
                     }
                   }
@@ -1696,7 +1754,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                         try { bList = JSON.parse(bList); } catch(e) { bList = []; }
                       }
                       const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-                      const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+                      const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.mappedStatus || c.externalStatus})`;
                       impedimentsList.push({ id: c.externalId, text: bMsg });
                     }
                   });
@@ -1716,9 +1774,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                         >
                           <span className="text-sicoob-text text-sm font-semibold tracking-tight leading-snug block hover:underline">{epic.title}</span>
                           <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
-                          {epic.externalStatus && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2">
-                              {epic.externalStatus}
+                          {(epic.mappedStatus || epic.externalStatus) && (
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold ml-2 ${getStatusBadgeClass(epic.mappedStatus || epic.externalStatus)}`}>
+                              {epic.mappedStatus || epic.externalStatus}
                             </span>
                           )}
                         </div>
@@ -1737,9 +1795,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                                 <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                                   <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                                   {c.title}
-                                  {c.externalStatus && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
-                                      {c.externalStatus}
+                                  {(c.mappedStatus || c.externalStatus) && (
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold ml-2 select-none ${getStatusBadgeClass(c.mappedStatus || c.externalStatus)}`}>
+                                      {c.mappedStatus || c.externalStatus}
                                     </span>
                                   )}
                                 </span>
@@ -1840,9 +1898,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                                 <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                                   <span className="text-slate-500 font-bold mr-1">[{d.externalId}]</span>
                                   {d.title}
-                                  {d.externalStatus && (
-                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
-                                      {d.externalStatus}
+                                  {(d.mappedStatus || d.externalStatus) && (
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold ml-2 select-none ${getStatusBadgeClass(d.mappedStatus || d.externalStatus)}`}>
+                                      {d.mappedStatus || d.externalStatus}
                                     </span>
                                   )}
                                 </span>
@@ -1924,7 +1982,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                     try { bList = JSON.parse(bList); } catch(e) { bList = []; }
                   }
                   const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-                  const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.externalStatus})`;
+                  const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${epic.mappedStatus || epic.externalStatus})`;
                   impedimentsList.push({ id: epic.externalId, text: bMsg });
                 }
               }
@@ -1938,7 +1996,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                     try { bList = JSON.parse(bList); } catch(e) { bList = []; }
                   }
                   const bStr = (Array.isArray(bList) && bList.length > 0) ? bList.join(', ') : '';
-                  const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.externalStatus})`;
+                  const bMsg = bStr ? `Bloqueado pela demanda ${bStr}` : `Bloqueado (Status: ${c.mappedStatus || c.externalStatus})`;
                   impedimentsList.push({ id: c.externalId, text: bMsg });
                 }
               });
@@ -1972,9 +2030,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                             <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                               <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                               {c.title}
-                              {c.externalStatus && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
-                                  {c.externalStatus}
+                              {(c.mappedStatus || c.externalStatus) && (
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold ml-2 select-none ${getStatusBadgeClass(c.mappedStatus || c.externalStatus)}`}>
+                                  {c.mappedStatus || c.externalStatus}
                                 </span>
                               )}
                             </span>
@@ -2178,7 +2236,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                   if (epic.blocker_notes && epic.blocker_notes.trim()) {
                     impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
                   } else if (isDemandBlocked(epic)) {
-                    impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+                    impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.mappedStatus || epic.externalStatus})` });
                   }
                   children.forEach(c => {
                     if (c.blocker_notes && c.blocker_notes.trim()) {
@@ -2203,9 +2261,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                         >
                           <span className="text-sicoob-text text-sm font-semibold tracking-tight leading-snug block hover:underline">{epic.title}</span>
                           <span className="text-[10px] text-slate-500 font-bold font-mono">[{epic.externalId}]</span>
-                          {epic.externalStatus && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2">
-                              {epic.externalStatus}
+                          {(epic.mappedStatus || epic.externalStatus) && (
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold ml-2 ${getStatusBadgeClass(epic.mappedStatus || epic.externalStatus)}`}>
+                              {epic.mappedStatus || epic.externalStatus}
                             </span>
                           )}
                         </div>
@@ -2223,9 +2281,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                               <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                                 <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                                 {c.title}
-                                {c.externalStatus && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
-                                    {c.externalStatus}
+                                {(c.mappedStatus || c.externalStatus) && (
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold ml-2 select-none ${getStatusBadgeClass(c.mappedStatus || c.externalStatus)}`}>
+                                    {c.mappedStatus || c.externalStatus}
                                   </span>
                                 )}
                               </span>
@@ -2319,9 +2377,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                               <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                                 <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                                 {c.title}
-                                {c.externalStatus && (
-                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
-                                    {c.externalStatus}
+                                {(c.mappedStatus || c.externalStatus) && (
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold ml-2 select-none ${getStatusBadgeClass(c.mappedStatus || c.externalStatus)}`}>
+                                    {c.mappedStatus || c.externalStatus}
                                   </span>
                                 )}
                               </span>
@@ -2393,7 +2451,7 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
               if (epic.blocker_notes && epic.blocker_notes.trim()) {
                 impedimentsList.push({ id: epic.externalId, text: epic.blocker_notes.trim() });
               } else if (isDemandBlocked(epic)) {
-                impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.externalStatus})` });
+                impedimentsList.push({ id: epic.externalId, text: `Travada (Status: ${epic.mappedStatus || epic.externalStatus})` });
               }
               children.forEach(c => {
                 if (c.blocker_notes && c.blocker_notes.trim()) {
@@ -2432,9 +2490,9 @@ export default function ProjectOverview({ projectId, onBack, onSelectDemand }) {
                           <span className="text-xs text-sicoob-text font-medium hover:underline flex-1 leading-relaxed">
                             <span className="text-slate-500 font-bold mr-1">[{c.externalId}]</span>
                             {c.title}
-                            {c.externalStatus && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-100 ml-2 select-none">
-                                {c.externalStatus}
+                            {(c.mappedStatus || c.externalStatus) && (
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-bold ml-2 select-none ${getStatusBadgeClass(c.mappedStatus || c.externalStatus)}`}>
+                                {c.mappedStatus || c.externalStatus}
                               </span>
                             )}
                           </span>

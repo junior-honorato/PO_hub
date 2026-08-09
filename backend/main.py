@@ -7,12 +7,12 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import requests
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-from database import init_db, execute_query, fetch_all, fetch_one
+from database import init_db, execute_query, fetch_all, fetch_one, get_db_paths, CONFIG_PATH
 
 # Desabilita avisos de certificados corporativos autoassinados
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -63,94 +63,176 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_API_KEY:
     genai.configure(api_key=GEMINI_API_KEY)
 
-app = FastAPI(title="PO Hub API", version="1.0.0")
+# Desabilita Swagger Docs em produção para mitigar vazamento de metadados da API (SEC-14)
+docs_url = "/docs"
+redoc_url = "/redoc"
+openapi_url = "/openapi.json"
 
-# Habilita CORS para desenvolvimento do frontend
+if os.getenv("DEPLOY_ENV") == "production":
+    docs_url = None
+    redoc_url = None
+    openapi_url = None
+
+app = FastAPI(
+    title="PO Hub API",
+    version="1.0.0",
+    docs_url=docs_url,
+    redoc_url=redoc_url,
+    openapi_url=openapi_url
+)
+
+# Força redirecionamento HTTPS em produção (SEC-08)
+if os.getenv("DEPLOY_ENV") == "production":
+    from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+    app.add_middleware(HTTPSRedirectMiddleware)
+
+# Habilita CORS configurável para maior segurança
+allowed_origins_raw = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if allowed_origins_raw:
+    origins = [orig.strip() for orig in allowed_origins_raw.split(",") if orig.strip()]
+else:
+    # Origens padrão para desenvolvimento local
+    origins = [
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Middleware para injetar cabeçalhos de segurança HTTP (SEC-08)
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    # Content Security Policy (permite assets locais e fontes externas utilizadas)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' data: https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self' *;"
+    )
+    # HSTS ativo apenas em conexões seguras HTTPS ou em ambiente de produção
+    if request.url.scheme == "https" or os.getenv("DEPLOY_ENV") == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+
+# Rate Limiter em memória para proteção contra DoS (SEC-09)
+from collections import defaultdict
+import time
+from fastapi.responses import JSONResponse
+
+# Permite no máximo 200 requisições por minuto por IP do cliente
+RATE_LIMIT_REQUESTS = 200
+RATE_LIMIT_WINDOW = 60  # segundos
+request_counts = defaultdict(list)
+
+@app.middleware("http")
+async def rate_limit_middleware(request, call_next):
+    client_ip = request.headers.get("x-forwarded-for") or request.client.host
+    
+    now = time.time()
+    # Mantém apenas timestamps dentro da janela temporal de 60 segundos
+    request_counts[client_ip] = [t for t in request_counts[client_ip] if now - t < RATE_LIMIT_WINDOW]
+    
+    if len(request_counts[client_ip]) >= RATE_LIMIT_REQUESTS:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Muitas requisições. Por favor, aguarde antes de tentar novamente."}
+        )
+        
+    request_counts[client_ip].append(now)
+    response = await call_next(request)
+    return response
+
 # Inicializa o banco de dados
 init_db()
 
-# Define se verifica SSL (Padrão: False para suportar proxies corporativos)
-VERIFY_SSL = os.getenv("SSL_VERIFY", "false").lower() in ("true", "1", "yes")
+# Define se verifica SSL (Padrão: True para maior segurança em produção)
+VERIFY_SSL = os.getenv("SSL_VERIFY", "true").lower() in ("true", "1", "yes")
 
 # Modelos Pydantic para validação
 class AnnotationCreate(BaseModel):
-    content: str
+    content: str = Field(..., max_length=5000)
 
 class TagCreate(BaseModel):
-    tag: str
+    tag: str = Field(..., max_length=50)
 
 class DependencyCreate(BaseModel):
-    blocker_id: str
+    blocker_id: str = Field(..., max_length=50)
 
 class SyncRequest(BaseModel):
-    jiraUrl: Optional[str] = None
-    jiraEmail: Optional[str] = None
-    jiraToken: Optional[str] = None
-    azureOrg: Optional[str] = None
-    azureProject: Optional[str] = None
-    azureToken: Optional[str] = None
+    jiraUrl: Optional[str] = Field(None, max_length=500)
+    jiraEmail: Optional[str] = Field(None, max_length=254)
+    jiraToken: Optional[str] = Field(None, max_length=500)
+    azureOrg: Optional[str] = Field(None, max_length=500)
+    azureProject: Optional[str] = Field(None, max_length=500)
+    azureToken: Optional[str] = Field(None, max_length=500)
     force_refresh: Optional[bool] = False
 
 class SyncByIdRequest(BaseModel):
-    externalId: str
-    jiraUrl: Optional[str] = None
-    jiraEmail: Optional[str] = None
-    jiraToken: Optional[str] = None
-    azureOrg: Optional[str] = None
-    azureProject: Optional[str] = None
-    azureToken: Optional[str] = None
+    externalId: str = Field(..., max_length=50)
+    jiraUrl: Optional[str] = Field(None, max_length=500)
+    jiraEmail: Optional[str] = Field(None, max_length=254)
+    jiraToken: Optional[str] = Field(None, max_length=500)
+    azureOrg: Optional[str] = Field(None, max_length=500)
+    azureProject: Optional[str] = Field(None, max_length=500)
+    azureToken: Optional[str] = Field(None, max_length=500)
 
 class ProjectSummaryRequest(BaseModel):
-    project_name: str
+    project_name: str = Field(..., max_length=100)
     demand_ids: Optional[list[str]] = None
     force_refresh: Optional[bool] = False
 
 
 class DemandUpdate(BaseModel):
-    title: Optional[str] = None
-    promisedDate: Optional[str] = None
-    followUpDate: Optional[str] = None
-    managerNotes: Optional[str] = None
-    localParentId: Optional[str] = None
-    project: Optional[str] = None
-    current_status_notes: Optional[str] = None
-    blocker_notes: Optional[str] = None
-    externalStatus: Optional[str] = None
+    title: Optional[str] = Field(None, max_length=200)
+    promisedDate: Optional[str] = Field(None, max_length=100)
+    followUpDate: Optional[str] = Field(None, max_length=100)
+    managerNotes: Optional[str] = Field(None, max_length=5000)
+    localParentId: Optional[str] = Field(None, max_length=50)
+    project: Optional[str] = Field(None, max_length=100)
+    current_status_notes: Optional[str] = Field(None, max_length=5000)
+    blocker_notes: Optional[str] = Field(None, max_length=5000)
+    externalStatus: Optional[str] = Field(None, max_length=100)
     in_tactical_planning: Optional[int] = None
     priority_rank: Optional[int] = None
-    planned_start_date: Optional[str] = None
-    planned_end_date: Optional[str] = None
+    planned_start_date: Optional[str] = Field(None, max_length=100)
+    planned_end_date: Optional[str] = Field(None, max_length=100)
 
 class DemandManualCreate(BaseModel):
-    title: str
-    project_name: Optional[str] = None
+    title: str = Field(..., max_length=200)
+    project_name: Optional[str] = Field(None, max_length=100)
 
 class ProjectCreate(BaseModel):
-    name: str
-    health_status: str
+    name: str = Field(..., max_length=100)
+    health_status: str = Field(..., max_length=20)
     progress: int
-    sponsor: Optional[str] = None
-    target_go_live: Optional[str] = None
-    executive_summary: Optional[str] = None
-    strategic_notes: Optional[str] = None
+    sponsor: Optional[str] = Field(None, max_length=100)
+    target_go_live: Optional[str] = Field(None, max_length=100)
+    executive_summary: Optional[str] = Field(None, max_length=5000)
+    strategic_notes: Optional[str] = Field(None, max_length=5000)
     has_gantt_chart: Optional[int] = 0
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
-    health_status: Optional[str] = None
+    name: Optional[str] = Field(None, max_length=100)
+    health_status: Optional[str] = Field(None, max_length=20)
     progress: Optional[int] = None
-    sponsor: Optional[str] = None
-    target_go_live: Optional[str] = None
-    executive_summary: Optional[str] = None
-    strategic_notes: Optional[str] = None
+    sponsor: Optional[str] = Field(None, max_length=100)
+    target_go_live: Optional[str] = Field(None, max_length=100)
+    executive_summary: Optional[str] = Field(None, max_length=5000)
+    strategic_notes: Optional[str] = Field(None, max_length=5000)
     has_gantt_chart: Optional[int] = None
 
 def extract_adf_text(node):
@@ -257,7 +339,7 @@ def get_mapped_status(origin, external_status):
         
     if is_final_status(external_status):
         return "Entregue"
-    elif status_key in {"review", "under review", "qa", "test", "testing", "homologação", "homologacao", "validando", "resolved"}:
+    elif status_key in {"review", "under review", "qa", "test", "testing", "homologação", "homologacao", "validando", "resolved", "em homologação", "em homologacao"}:
         return "Homologação"
     elif status_key in {"to do", "new", "approved", "backlog", "a fazer", "selecionado", "selected"}:
         return "Backlog"
@@ -269,6 +351,54 @@ try:
     load_status_mappings_cache()
 except Exception:
     pass
+
+def calculate_project_progress(project_name: str) -> int:
+    """
+    Calcula automaticamente o progresso do projeto com base no status unificado
+    de suas demandas ativas e históricas, filtrando apenas demandas de origem
+    Jira e Azure (exclui Negocio).
+    
+    Pesos de progresso:
+    - Backlog: 0%
+    - Em Refinamento: 15%
+    - Desenvolvimento: 50%
+    - Homologação: 85%
+    - Entregue: 100%
+    """
+    if not project_name:
+        return 0
+        
+    query = """
+        SELECT externalStatus, origin
+        FROM demands
+        WHERE project = ? AND origin IN ('Jira', 'Azure')
+    """
+    try:
+        rows_ativo = fetch_all(query, (project_name,), "ativo")
+        rows_historico = fetch_all(query, (project_name,), "historico")
+        rows = [dict(r) for r in rows_ativo] + [dict(r) for r in rows_historico]
+    except Exception as e:
+        print(f"Erro ao buscar demandas para calcular progresso do projeto {project_name}: {e}")
+        return 0
+        
+    total_demands = len(rows)
+    if total_demands == 0:
+        return 0
+        
+    STATUS_WEIGHTS = {
+        "Backlog": 0,
+        "Em Refinamento": 15,
+        "Desenvolvimento": 50,
+        "Homologação": 85,
+        "Entregue": 100
+    }
+    
+    sum_progress = 0
+    for row in rows:
+        mapped = get_mapped_status(row.get("origin"), row.get("externalStatus"))
+        sum_progress += STATUS_WEIGHTS.get(mapped, 0)
+        
+    return int(round(sum_progress / total_demands))
 
 def migrate_to_history(external_id):
     # Fetch from active
@@ -435,7 +565,7 @@ def fetch_jira_issue_details(key, jira_url_raw=None, user_email=None, pat=None):
             "Accept": "application/json"
         }
         params = {
-            "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated"
+            "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated,subtasks"
         }
         res = requests.get(detail_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
         if res.status_code == 200:
@@ -512,6 +642,24 @@ def parse_jira_issue(issue):
     issuetype_field = fields.get("issuetype")
     item_type = issuetype_field.get("name", "Outro") if isinstance(issuetype_field, dict) else "Outro"
     
+    raw_status = fields.get("status", {}).get("name", "Sem Status") if isinstance(fields.get("status"), dict) else "Sem Status"
+    
+    # Reclassificação de status se houver subtarefas de homologação ativas (Business rule)
+    if not is_final_status(raw_status):
+        subtasks = fields.get("subtasks") or []
+        has_homologation_subtask = False
+        for sub in subtasks:
+            if isinstance(sub, dict):
+                sub_fields = sub.get("fields") or {}
+                sub_status = sub_fields.get("status") or {}
+                sub_status_name = sub_status.get("name", "").strip().lower()
+                if sub_status_name in {"em homologação", "em homologacao", "homologação", "homologacao", "em teste", "em testes", "testing", "qa"}:
+                    has_homologation_subtask = True
+                    break
+        if has_homologation_subtask:
+            print(f"[*] Reclassificando demanda {issue.get('key') or issue.get('id')} para 'Em homologação' devido a subtarefa de teste ativa.")
+            raw_status = "Em homologação"
+
     updated_at_raw = fields.get("updated")
     updated_at = ""
     if updated_at_raw:
@@ -524,7 +672,7 @@ def parse_jira_issue(issue):
         "origin": "Jira",
         "externalId": issue.get("key") or f"JIRA-{issue.get('id')}",
         "title": fields.get("summary", "Sem título"),
-        "externalStatus": fields.get("status", {}).get("name", "Sem Status") if isinstance(fields.get("status"), dict) else "Sem Status",
+        "externalStatus": raw_status,
         "itemType": item_type,
         "comments_history": comments_history,
         "parentId": parent_id,
@@ -840,9 +988,9 @@ def get_demands_data(db_name="ativo"):
 # FastAPI API Endpoints
 
 class StatusMappingCreate(BaseModel):
-    origin: str
-    external_status: str
-    mapped_status: str
+    origin: str = Field(..., max_length=50)
+    external_status: str = Field(..., max_length=100)
+    mapped_status: str = Field(..., max_length=100)
 
 @app.get("/api/status-mappings")
 def get_status_mappings():
@@ -968,7 +1116,7 @@ def sync_demands(req: SyncRequest = Body(...)):
                 params = {
                     "jql": jql,
                     "maxResults": max_results,
-                    "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated"
+                    "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated,subtasks"
                 }
                 if next_page_token:
                     params["nextPageToken"] = next_page_token
@@ -1206,7 +1354,7 @@ def sync_demand_by_id(req: SyncByIdRequest):
                 "Accept": "application/json"
             }
             params = {
-                "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated"
+                "fields": "key,summary,status,comment,parent,issuelinks,issuetype,updated,subtasks"
             }
             
             res = requests.get(detail_url, headers=headers, params=params, verify=VERIFY_SSL, timeout=12)
@@ -1218,7 +1366,7 @@ def sync_demand_by_id(req: SyncByIdRequest):
                 raise HTTPException(status_code=403, detail="Acesso negado no Jira. Sua conta/token não possui permissão para este projeto ou demanda.")
             elif res.status_code != 200:
                 print(f"Jira HTTP error: {res.status_code} - {res.text}")
-                raise HTTPException(status_code=502, detail=f"Erro na API do Jira (HTTP {res.status_code}): {res.text[:150]}")
+                raise HTTPException(status_code=502, detail="Erro na API do Jira. Verifique se o ID existe e se as credenciais estão corretas.")
                 
             issue_data = res.json()
             demand = parse_jira_issue(issue_data)
@@ -1247,7 +1395,7 @@ def sync_demand_by_id(req: SyncByIdRequest):
             raise he
         except Exception as e:
             print(f"Erro ao conectar ao Jira: {e}")
-            raise HTTPException(status_code=502, detail=f"Erro ao conectar ao Jira: {str(e)}")
+            raise HTTPException(status_code=502, detail="Erro de conexão ao Jira. Verifique a URL e a conectividade de rede.")
     else:
         # Azure DevOps
         azure_org = req.azureOrg
@@ -1293,7 +1441,7 @@ def sync_demand_by_id(req: SyncByIdRequest):
                 raise HTTPException(status_code=403, detail="Acesso negado no Azure DevOps. Sua conta/token não possui permissão para este projeto ou item.")
             elif res.status_code != 200:
                 print(f"Azure HTTP error: {res.status_code} - {res.text}")
-                raise HTTPException(status_code=502, detail=f"Erro na API do Azure DevOps (HTTP {res.status_code}): {res.text[:150]}")
+                raise HTTPException(status_code=502, detail="Erro na API do Azure DevOps. Verifique se o ID existe e se as credenciais estão corretas.")
                 
             item_data = res.json()
             demand = parse_azure_item(item_data, azure_url, headers)
@@ -1322,7 +1470,7 @@ def sync_demand_by_id(req: SyncByIdRequest):
             raise he
         except Exception as e:
             print(f"Erro ao conectar ao Azure DevOps: {e}")
-            raise HTTPException(status_code=502, detail=f"Erro ao conectar ao Azure DevOps: {str(e)}")
+            raise HTTPException(status_code=502, detail="Erro de conexão ao Azure DevOps. Verifique a URL e a conectividade de rede.")
 
 @app.get("/api/demands")
 def list_demands():
@@ -1536,11 +1684,11 @@ Responda de forma direta, clara e profissional em português. Não adicione intr
                 }
                 res = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=30)
                 if res.status_code != 200:
-                    raise HTTPException(status_code=res.status_code, detail=f"Erro da API da OpenAI: {res.text}")
+                    raise HTTPException(status_code=res.status_code, detail="Erro retornado pela API da OpenAI.")
                 data = res.json()
                 new_summary = data["choices"][0]["message"]["content"]
             except Exception as ex:
-                raise HTTPException(status_code=500, detail=f"Erro ao chamar OpenAI: {str(ex)}")
+                raise HTTPException(status_code=500, detail="Erro ao processar chamada na OpenAI.")
         else:
             api_key = llm_config.get("geminiApiKey")
             model_name = llm_config.get("geminiModelName") or "gemini-1.5-flash"
@@ -1574,7 +1722,7 @@ Responda de forma direta, clara e profissional em português. Não adicione intr
         raise he
     except Exception as e:
         print(f"Erro ao gerar resumo da demanda {external_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro interno ao gerar resumo: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro interno ao gerar resumo da demanda.")
 
 @app.post("/api/projects/summary")
 def generate_project_summary(payload: ProjectSummaryRequest):
@@ -1690,11 +1838,11 @@ def generate_project_summary(payload: ProjectSummaryRequest):
                 }
                 res = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
                 if res.status_code != 200:
-                    raise HTTPException(status_code=res.status_code, detail=f"Erro da API da OpenAI: {res.text}")
+                    raise HTTPException(status_code=res.status_code, detail="Erro retornado pela API da OpenAI.")
                 data = res.json()
                 report_text = data["choices"][0]["message"]["content"]
             except Exception as ex:
-                raise HTTPException(status_code=500, detail=f"Erro ao chamar OpenAI: {str(ex)}")
+                raise HTTPException(status_code=500, detail="Erro ao processar chamada na OpenAI.")
         else:
             api_key = llm_config.get("geminiApiKey")
             model_name = llm_config.get("geminiModelName") or "gemini-1.5-flash"
@@ -1732,7 +1880,7 @@ def generate_project_summary(payload: ProjectSummaryRequest):
         raise he
     except Exception as e:
         print(f"Erro ao gerar status report do projeto: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro interno ao gerar status report: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro interno ao gerar status report do projeto.")
 
 @app.post("/api/demands/{external_id}/annotations")
 def add_annotation(external_id: str, payload: AnnotationCreate):
@@ -1946,10 +2094,7 @@ def delete_demand(external_id: str):
         if not demand:
             raise HTTPException(status_code=404, detail="Demanda não encontrada no banco local.")
         
-        # Apenas permite excluir demandas com origem 'Negocio' (locais/manuais)
-        if demand["origin"] != "Negocio":
-            raise HTTPException(status_code=400, detail="Apenas demandas locais (com origem 'Negocio') podem ser excluídas.")
-            
+        # Permite excluir qualquer demanda do banco local (útil para itens removidos no sistema de origem)
         execute_query("DELETE FROM annotations WHERE externalId = ?", (external_id,), db_name)
         execute_query("DELETE FROM tags WHERE externalId = ?", (external_id,), db_name)
         execute_query("DELETE FROM dependencies WHERE blocked_id = ? OR blocker_id = ?", (external_id, external_id), db_name)
@@ -1967,7 +2112,15 @@ def delete_demand(external_id: str):
 async def get_projects():
     try:
         projects = fetch_all("SELECT * FROM projects ORDER BY id DESC", db_name="ativo")
-        return projects
+        updated_projects = []
+        for proj in projects:
+            proj_dict = dict(proj)
+            calc_progress = calculate_project_progress(proj_dict["name"])
+            if proj_dict["progress"] != calc_progress:
+                execute_query("UPDATE projects SET progress = ? WHERE id = ?", (calc_progress, proj_dict["id"]), "ativo")
+                proj_dict["progress"] = calc_progress
+            updated_projects.append(proj_dict)
+        return updated_projects
     except Exception as e:
         print(f"Erro ao buscar projetos: {e}")
         raise HTTPException(status_code=500, detail="Erro interno ao buscar projetos.")
@@ -2077,6 +2230,10 @@ async def get_project_overview(project_id: int):
         has_close_to_deadline = False
         
         for d in demands:
+            # IGNORA itens de Negócio no cálculo da Saúde do projeto
+            if d.get("origin") not in ("Jira", "Azure"):
+                continue
+
             status_lower = d.get("externalStatus").strip().lower() if d.get("externalStatus") else ""
             is_blocked = False
             if status_lower == "blocked":
@@ -2089,8 +2246,8 @@ async def get_project_overview(project_id: int):
                 
             if d.get("promisedDate"):
                 promised_str = d["promisedDate"].strip()
-                # Resolved é considerado ainda em andamento. Closed é que a demanda foi efetivamente concluída.
-                is_completed = status_lower in ("concluido", "concluído", "done", "closed", "fechado")
+                # Critério unificado usando o mappedStatus
+                is_completed = (d.get("mappedStatus") == "Entregue")
                 
                 if not is_completed:
                     try:
@@ -2098,7 +2255,7 @@ async def get_project_overview(project_id: int):
                         if promised_str < today_str:
                             has_overdue = True
                         else:
-                            is_in_progress = status_lower not in ("backlog", "a fazer", "to do")
+                            is_in_progress = d.get("mappedStatus") not in ("Backlog", "Em Refinamento")
                             if is_in_progress:
                                 diff_days = (promised_date - today).days
                                 if 0 <= diff_days <= 3:
@@ -2115,6 +2272,12 @@ async def get_project_overview(project_id: int):
         if project_dict.get("health_status") != calculated_health:
             execute_query("UPDATE projects SET health_status = ? WHERE id = ?", (calculated_health, project_id), "ativo")
             project_dict["health_status"] = calculated_health
+            
+        # Recalcula e atualiza o progresso automaticamente (apenas Jira/Azure)
+        calculated_progress = calculate_project_progress(project_name)
+        if project_dict.get("progress") != calculated_progress:
+            execute_query("UPDATE projects SET progress = ? WHERE id = ?", (calculated_progress, project_id), "ativo")
+            project_dict["progress"] = calculated_progress
             
         return {
             "project": project_dict,
@@ -2141,10 +2304,12 @@ async def create_project(payload: ProjectCreate):
         if existing:
             raise HTTPException(status_code=400, detail="Já existe um projeto com este nome.")
             
+        # Calcula progresso inicial automaticamente (geralmente 0)
+        calculated_progress = calculate_project_progress(name)
         cursor = execute_query(
             """INSERT INTO projects (name, health_status, progress, sponsor, target_go_live, executive_summary, strategic_notes, has_gantt_chart) 
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (name, payload.health_status, payload.progress, payload.sponsor, payload.target_go_live, payload.executive_summary, payload.strategic_notes, payload.has_gantt_chart or 0),
+            (name, payload.health_status, calculated_progress, payload.sponsor, payload.target_go_live, payload.executive_summary, payload.strategic_notes, payload.has_gantt_chart or 0),
             "ativo"
         )
         project_id = cursor.lastrowid
@@ -2164,8 +2329,16 @@ async def update_project(project_id: int, payload: ProjectUpdate):
             raise HTTPException(status_code=404, detail="Projeto não encontrado.")
             
         update_data = payload.dict(exclude_unset=True)
+        # Ignora progresso manual enviado no payload
+        update_data.pop("progress", None)
+        
         if not update_data:
-            return project
+            # Garante recálculo mesmo sem outras alterações
+            project_name = project["name"]
+            calculated_progress = calculate_project_progress(project_name)
+            execute_query("UPDATE projects SET progress = ? WHERE id = ?", (calculated_progress, project_id), "ativo")
+            updated_project = fetch_one("SELECT * FROM projects WHERE id = ?", (project_id,), "ativo")
+            return updated_project
             
         if "name" in update_data:
             name = update_data["name"].strip()
@@ -2179,9 +2352,6 @@ async def update_project(project_id: int, payload: ProjectUpdate):
         if "health_status" in update_data and update_data["health_status"] not in ('Verde', 'Amarelo', 'Vermelho'):
             raise HTTPException(status_code=400, detail="health_status inválido. Valores aceitos: 'Verde', 'Amarelo', 'Vermelho'")
             
-        if "progress" in update_data and not (0 <= update_data["progress"] <= 100):
-            raise HTTPException(status_code=400, detail="progress deve ser um valor inteiro entre 0 e 100.")
-            
         fields = []
         values = []
         for k, v in update_data.items():
@@ -2190,6 +2360,11 @@ async def update_project(project_id: int, payload: ProjectUpdate):
             
         values.append(project_id)
         execute_query(f"UPDATE projects SET {', '.join(fields)} WHERE id = ?", tuple(values), "ativo")
+        
+        # Recalcula e atualiza o progresso automaticamente após atualização
+        project_name = update_data.get("name", project["name"])
+        calculated_progress = calculate_project_progress(project_name)
+        execute_query("UPDATE projects SET progress = ? WHERE id = ?", (calculated_progress, project_id), "ativo")
         
         updated_project = fetch_one("SELECT * FROM projects WHERE id = ?", (project_id,), "ativo")
         return updated_project
@@ -2240,24 +2415,8 @@ def load_llm_config_from_file():
         "openaiModelName": "gpt-4o-mini",
         "systemInstruction": DEFAULT_SYSTEM_INSTRUCTION
     }
-    # Fallbacks from environment variables if present
-    env_provider = os.getenv("LLM_PROVIDER", "")
-    env_key = os.getenv("GEMINI_API_KEY", "")
-    env_model = os.getenv("GEMINI_MODEL_NAME", "")
-    env_openai_key = os.getenv("OPENAI_API_KEY", "")
-    env_openai_model = os.getenv("OPENAI_MODEL_NAME", "")
     
-    if env_provider:
-        config["llmProvider"] = env_provider
-    if env_key:
-        config["geminiApiKey"] = env_key
-    if env_model:
-        config["geminiModelName"] = env_model
-    if env_openai_key:
-        config["openaiApiKey"] = env_openai_key
-    if env_openai_model:
-        config["openaiModelName"] = env_openai_model
-        
+    # 1. Carrega do arquivo se existir
     if os.path.exists(LLM_CONFIG_PATH):
         try:
             with open(LLM_CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -2277,6 +2436,24 @@ def load_llm_config_from_file():
         except Exception as e:
             print(f"Erro ao carregar llm_config.json: {e}")
             
+    # 2. Sobrescreve com as variáveis de ambiente (prioridade para produção/nuvem)
+    env_provider = os.getenv("LLM_PROVIDER", "")
+    env_key = os.getenv("GEMINI_API_KEY", "")
+    env_model = os.getenv("GEMINI_MODEL_NAME", "")
+    env_openai_key = os.getenv("OPENAI_API_KEY", "")
+    env_openai_model = os.getenv("OPENAI_MODEL_NAME", "")
+    
+    if env_provider:
+        config["llmProvider"] = env_provider.strip()
+    if env_key:
+        config["geminiApiKey"] = env_key.strip()
+    if env_model:
+        config["geminiModelName"] = env_model.strip()
+    if env_openai_key:
+        config["openaiApiKey"] = env_openai_key.strip()
+    if env_openai_model:
+        config["openaiModelName"] = env_openai_model.strip()
+        
     return config
 
 def save_llm_config_to_file(config: dict):
@@ -2291,13 +2468,59 @@ def save_llm_config_to_file(config: dict):
 CREDENTIALS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "credentials.json")
 
 def load_credentials_from_file():
+    creds = {
+        "jiraUrl": "",
+        "jiraEmail": "",
+        "jiraToken": "",
+        "azureOrg": "",
+        "azureProject": "",
+        "azureToken": ""
+    }
+    
+    # 1. Carrega do arquivo se existir
     if os.path.exists(CREDENTIALS_PATH):
         try:
             with open(CREDENTIALS_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
+                loaded = json.load(f)
+                for k in creds.keys():
+                    if k in loaded:
+                        creds[k] = loaded[k]
         except Exception as e:
             print(f"Erro ao carregar credentials.json: {e}")
-    return {}
+            
+    # 2. Sobrescreve com as variáveis de ambiente (prioridade para produção/nuvem)
+    env_jira_url = os.getenv("JIRA_API_URL", "")
+    env_jira_email = os.getenv("JIRA_USER_EMAIL", "")
+    env_jira_token = os.getenv("JIRA_PAT", "")
+    env_azure_url = os.getenv("AZURE_API_URL", "")
+    env_azure_pat = os.getenv("AZURE_PAT", "")
+    
+    if env_jira_url:
+        creds["jiraUrl"] = env_jira_url.strip()
+    if env_jira_email:
+        creds["jiraEmail"] = env_jira_email.strip()
+    if env_jira_token:
+        creds["jiraToken"] = env_jira_token.strip()
+        
+    if env_azure_url or env_azure_pat:
+        azure_org = ""
+        azure_project = ""
+        if env_azure_url:
+            try:
+                parts = env_azure_url.replace("https://", "").replace("http://", "").split("/")
+                if "dev.azure.com" in parts[0] and len(parts) >= 3:
+                    azure_org = parts[1]
+                    azure_project = parts[2]
+            except Exception:
+                pass
+        if azure_org:
+            creds["azureOrg"] = azure_org
+        if azure_project:
+            creds["azureProject"] = azure_project
+        if env_azure_pat:
+            creds["azureToken"] = env_azure_pat.strip()
+            
+    return creds
 
 def save_credentials_to_file(creds: dict):
     try:
@@ -2309,47 +2532,16 @@ def save_credentials_to_file(creds: dict):
         return False
 
 class CredentialsUpdate(BaseModel):
-    jiraUrl: Optional[str] = ""
-    jiraEmail: Optional[str] = ""
-    jiraToken: Optional[str] = ""
-    azureOrg: Optional[str] = ""
-    azureProject: Optional[str] = ""
-    azureToken: Optional[str] = ""
+    jiraUrl: Optional[str] = Field("", max_length=500)
+    jiraEmail: Optional[str] = Field("", max_length=254)
+    jiraToken: Optional[str] = Field("", max_length=500)
+    azureOrg: Optional[str] = Field("", max_length=500)
+    azureProject: Optional[str] = Field("", max_length=500)
+    azureToken: Optional[str] = Field("", max_length=500)
 
 @app.get("/api/settings/credentials")
 def get_credentials():
-    creds = load_credentials_from_file()
-    # Migração automática: se credentials.json estiver vazio, tenta carregar do .env
-    if not creds:
-        jira_url = os.getenv("JIRA_API_URL", "")
-        jira_email = os.getenv("JIRA_USER_EMAIL", "")
-        jira_token = os.getenv("JIRA_PAT", "")
-        
-        azure_url_raw = os.getenv("AZURE_API_URL", "")
-        azure_pat = os.getenv("AZURE_PAT", "")
-        azure_org = ""
-        azure_project = ""
-        if azure_url_raw:
-            try:
-                parts = azure_url_raw.replace("https://", "").replace("http://", "").split("/")
-                if "dev.azure.com" in parts[0] and len(parts) >= 3:
-                    azure_org = parts[1]
-                    azure_project = parts[2]
-            except Exception:
-                pass
-        
-        if jira_url or jira_email or jira_token or azure_org or azure_project or azure_pat:
-            creds = {
-                "jiraUrl": jira_url,
-                "jiraEmail": jira_email,
-                "jiraToken": jira_token,
-                "azureOrg": azure_org,
-                "azureProject": azure_project,
-                "azureToken": azure_pat
-            }
-            save_credentials_to_file(creds)
-            
-    return creds
+    return load_credentials_from_file()
 
 @app.post("/api/settings/credentials")
 def update_credentials(payload: CredentialsUpdate):
@@ -2366,94 +2558,56 @@ def update_credentials(payload: CredentialsUpdate):
     raise HTTPException(status_code=500, detail="Erro ao salvar credenciais no servidor.")
 
 class DbPathRequest(BaseModel):
-    db_path: str
+    db_path: Optional[str] = Field("", max_length=500)
 
 @app.get("/api/settings/db-path")
 async def get_db_path():
+    path_ativo, path_historico = get_db_paths()
+    db_dir = ""
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                db_dir = cfg.get("db_path", "")
+        except Exception:
+            pass
+    default_dir = os.path.dirname(os.path.abspath(__file__))
+    return {
+        "db_path": db_dir,
+        "current_path": db_dir,
+        "default_path": default_dir,
+        "path_ativo": path_ativo,
+        "path_historico": path_historico
+    }
+
+@app.post("/api/settings/db-path")
+async def update_db_path(req: DbPathRequest):
+    new_path = (req.db_path or "").strip()
+    if new_path and not os.path.isdir(new_path):
+        raise HTTPException(status_code=400, detail="O caminho especificado não existe ou não é uma pasta válida no sistema.")
+    
     try:
-        from database import CONFIG_PATH
-        default_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        cfg_path = ""
+        cfg = {}
         if os.path.exists(CONFIG_PATH):
             try:
                 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                     cfg = json.load(f)
-                    cfg_path = cfg.get("db_path", "")
             except Exception:
-                pass
-                
-        return {
-            "current_path": cfg_path,
-            "default_path": default_dir
-        }
-    except Exception as e:
-        print(f"Erro ao obter caminho do banco: {e}")
-        raise HTTPException(status_code=500, detail="Erro ao obter caminho do banco.")
-
-@app.post("/api/settings/db-path")
-async def update_db_path(req: DbPathRequest):
-    try:
-        import shutil
-        from database import CONFIG_PATH, get_db_paths, init_db
-        path_str = req.db_path.strip()
-        
-        if path_str:
-            if not os.path.exists(path_str):
-                raise HTTPException(status_code=400, detail="O caminho especificado não existe no servidor.")
-            if not os.path.isdir(path_str):
-                raise HTTPException(status_code=400, detail="O caminho especificado não é uma pasta válida.")
-                
-        # 1. Pegar caminhos atuais
-        old_ativo, old_historico = get_db_paths()
-        
-        # 2. Calcular novo destino
-        default_dir = os.path.dirname(os.path.abspath(__file__))
-        if path_str:
-            new_ativo = os.path.join(path_str, "database_ativo.db")
-            new_historico = os.path.join(path_str, "database_historico.db")
-        else:
-            new_ativo = os.path.join(default_dir, "database_ativo.db")
-            new_historico = os.path.join(default_dir, "database_historico.db")
-            
-        # 3. Se os novos arquivos não existirem, copia os antigos para o novo local
-        if old_ativo != new_ativo and os.path.exists(old_ativo) and not os.path.exists(new_ativo):
-            try:
-                shutil.copy2(old_ativo, new_ativo)
-                print(f"Banco ativo copiado de {old_ativo} para {new_ativo}")
-            except Exception as copy_err:
-                print(f"Erro ao copiar banco ativo: {copy_err}")
-                
-        if old_historico != new_historico and os.path.exists(old_historico) and not os.path.exists(new_historico):
-            try:
-                shutil.copy2(old_historico, new_historico)
-                print(f"Banco historico copiado de {old_historico} para {new_historico}")
-            except Exception as copy_err:
-                print(f"Erro ao copiar banco histórico: {copy_err}")
-                
-        # 4. Gravar config.json permanentemente
-        new_config = {"db_path": path_str}
+                cfg = {}
+        cfg["db_path"] = new_path
         with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-            json.dump(new_config, f, indent=4, ensure_ascii=False)
-            
-        # 5. Executar init_db para garantir tabelas prontas se for nova pasta vazia
-        init_db()
-        
-        return {"success": True, "db_path": path_str}
-        
-    except HTTPException as he:
-        raise he
+            json.dump(cfg, f, indent=4, ensure_ascii=False)
+        return {"success": True, "db_path": new_path}
     except Exception as e:
-        print(f"Erro ao atualizar caminho do banco: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar caminho no config.json: {e}")
 
 class LlmConfigUpdate(BaseModel):
-    llmProvider: Optional[str] = "gemini"
-    geminiApiKey: Optional[str] = ""
-    geminiModelName: Optional[str] = ""
-    openaiApiKey: Optional[str] = ""
-    openaiModelName: Optional[str] = ""
-    systemInstruction: Optional[str] = ""
+    llmProvider: Optional[str] = Field("gemini", max_length=50)
+    geminiApiKey: Optional[str] = Field("", max_length=500)
+    geminiModelName: Optional[str] = Field("", max_length=100)
+    openaiApiKey: Optional[str] = Field("", max_length=500)
+    openaiModelName: Optional[str] = Field("", max_length=100)
+    systemInstruction: Optional[str] = Field("", max_length=5000)
 
 @app.get("/api/settings/llm")
 def get_llm_settings():
@@ -2481,7 +2635,7 @@ def update_llm_settings(payload: LlmConfigUpdate):
         raise he
     except Exception as e:
         print(f"Erro ao salvar configurações da LLM: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro interno ao salvar configurações da LLM.")
 
 # Monta o diretório static na raiz `/` (DEVE vir após as rotas da API)
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")

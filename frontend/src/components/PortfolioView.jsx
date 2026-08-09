@@ -329,10 +329,12 @@ const handleSubmit = async (e) => {
                   </div>
 
                   {/* Progress */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between">
+                  <div className="space-y-1.5 opacity-80">
+                    <div className="flex justify-between items-center">
                       <label className="text-xs font-bold text-slate-550 uppercase tracking-wider">Progresso</label>
-                      <span className="text-xs font-bold text-sicoob-primary">{progress}%</span>
+                      <span className="text-xs font-bold text-sicoob-primary flex items-center gap-1 bg-sicoob-primary/5 px-2 py-0.5 rounded-full">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> {progress}% (Calculado automaticamente)
+                      </span>
                     </div>
                     <div className="flex items-center gap-3">
                       <input
@@ -340,19 +342,16 @@ const handleSubmit = async (e) => {
                         min="0"
                         max="100"
                         value={progress}
-                        onChange={(e) => setProgress(parseInt(e.target.value, 10))}
-                        className="flex-1 accent-sicoob-primary h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer border border-slate-250"
+                        disabled
+                        className="flex-1 accent-sicoob-primary h-2 bg-slate-100 rounded-lg appearance-none cursor-not-allowed border border-slate-200"
                       />
                       <input
                         type="number"
                         min="0"
                         max="100"
                         value={progress}
-                        onChange={(e) => {
-                          const val = Math.min(Math.max(parseInt(e.target.value, 10) || 0, 0), 100);
-                          setProgress(val);
-                        }}
-                        className="w-16 bg-white border border-slate-350 rounded-xl py-1.5 text-center text-sm text-sicoob-text"
+                        disabled
+                        className="w-16 bg-slate-50 border border-slate-200 rounded-xl py-1.5 text-center text-sm text-slate-400 cursor-not-allowed"
                       />
                     </div>
                   </div>

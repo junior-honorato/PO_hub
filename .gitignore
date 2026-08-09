@@ -2,23 +2,32 @@
 backend/database.db
 backend/database_ativo.db
 backend/database_historico.db
+backend/*.db
+*.db
 
-# Environments
+# Environments & Sensitive Configs
 backend/.env
 frontend/.env
 .env
 backend/credentials.json
 backend/llm_config.json
 
+# Virtual Environments & Packages
+venv/
+**/venv/
+backend/venv/
+
 # Python Cache
 **/__pycache__/
 *.pyc
+*.pyo
 
 # Node dependencies and builds
 **/node_modules/
 **/dist/
 **/build/
 
-# Operating System files
+# Operating System files & Logs
 .DS_Store
 Thumbs.db
+*.log

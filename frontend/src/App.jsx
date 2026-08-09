@@ -11,8 +11,12 @@ import ProjectOverview from './components/ProjectOverview';
 import PlanningView from './components/PlanningView';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('portfolio');
-  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('po-hub-active-tab') || 'portfolio');
+  const [selectedProjectId, setSelectedProjectId] = useState(() => {
+    const saved = localStorage.getItem('po-hub-selected-project-id');
+    if (!saved || saved === 'null') return null;
+    return /^\d+$/.test(saved) ? parseInt(saved, 10) : saved;
+  });
   const [demands, setDemands] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedDemandId, setSelectedDemandId] = useState(null);
@@ -20,6 +24,18 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [lastSyncStatus, setLastSyncStatus] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('po-hub-active-tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (selectedProjectId !== null && selectedProjectId !== undefined) {
+      localStorage.setItem('po-hub-selected-project-id', selectedProjectId);
+    } else {
+      localStorage.removeItem('po-hub-selected-project-id');
+    }
+  }, [selectedProjectId]);
 
   const fetchAndSyncCredentials = async () => {
     try {

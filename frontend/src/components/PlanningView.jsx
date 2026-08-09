@@ -216,10 +216,30 @@ export default function PlanningView({ demands: rawDemands = [], onSelectDemand,
   const sortDemandsByDependency = (list) => {
     const visited = new Set();
     const sorted = [];
+    
+    // Group children by parentId for quick hierarchical lookup
+    const childrenMap = {};
+    list.forEach(d => {
+      if (d.parentId) {
+        if (!childrenMap[d.parentId]) {
+          childrenMap[d.parentId] = [];
+        }
+        childrenMap[d.parentId].push(d);
+      }
+    });
+
     const visit = (demand) => {
       if (visited.has(demand.externalId)) return;
       visited.add(demand.externalId);
       sorted.push(demand);
+
+      // 1. Visit children first to group them directly below the parent
+      const children = childrenMap[demand.externalId] || [];
+      children.forEach(child => {
+        visit(child);
+      });
+
+      // 2. Visit blocker dependents
       const dependents = list.filter(d => 
         d.blockers && d.blockers.includes(demand.externalId)
       );
@@ -227,23 +247,56 @@ export default function PlanningView({ demands: rawDemands = [], onSelectDemand,
         visit(dep);
       }
     };
+
     const idsInList = new Set(list.map(d => d.externalId));
+
+    // First visit items that are true roots (no local parent and no local blockers)
     for (const demand of list) {
+      const hasLocalParent = demand.parentId && idsInList.has(demand.parentId);
       const hasLocalBlockers = demand.blockers && demand.blockers.some(b => idsInList.has(b));
-      if (!hasLocalBlockers) {
+      if (!hasLocalParent && !hasLocalBlockers) {
         visit(demand);
       }
     }
+
+    // Then visit items that are roots but might have blockers (still no local parent)
+    for (const demand of list) {
+      const hasLocalParent = demand.parentId && idsInList.has(demand.parentId);
+      if (!hasLocalParent) {
+        visit(demand);
+      }
+    }
+
+    // Catch-all for any cyclic dependencies
     for (const demand of list) {
       if (!visited.has(demand.externalId)) {
         visit(demand);
       }
     }
+
     return sorted;
   };
 
+  // Ordena as demandas conforme a organização do Stack Ranking: Jira primeiro (por priority_rank), depois Azure (por priority_rank)
+  const sortDemandsByStackRanking = (list) => {
+    const originOrder = { 'Jira': 1, 'Azure': 2 };
+    return [...list].sort((a, b) => {
+      const orderA = originOrder[a.origin] || 99;
+      const orderB = originOrder[b.origin] || 99;
+      if (orderA !== orderB) return orderA - orderB;
+      
+      const rankA = a.priority_rank !== null && a.priority_rank !== undefined ? a.priority_rank : 999999;
+      const rankB = b.priority_rank !== null && b.priority_rank !== undefined ? b.priority_rank : 999999;
+      if (rankA !== rankB) return rankA - rankB;
+      
+      return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+    });
+  };
+
   const ganttDemandsList = sortDemandsByDependency(
-    tacticalDemandsList.filter(d => d.planned_start_date && d.planned_end_date)
+    sortDemandsByStackRanking(
+      tacticalDemandsList.filter(d => d.planned_start_date && d.planned_end_date)
+    )
   );
   const idsInGantt = new Set(ganttDemandsList.map(d => d.externalId));
 
@@ -515,6 +568,7 @@ export default function PlanningView({ demands: rawDemands = [], onSelectDemand,
                     const { startCol, colSpan, isDefined } = getGanttPosition(demand, timelineMonths, index);
                     const isBlocked = demand.blockers && demand.blockers.length > 0;
                     const hasLocalBlockers = demand.blockers && demand.blockers.some(b => idsInGantt.has(b));
+                    const hasLocalParent = demand.parentId && idsInGantt.has(demand.parentId);
 
                     return (
                       <div
@@ -522,10 +576,12 @@ export default function PlanningView({ demands: rawDemands = [], onSelectDemand,
                         onClick={() => onSelectDemand && onSelectDemand(demand.externalId)}
                         className="grid grid-cols-12 gap-2 py-3.5 items-center hover:bg-slate-50/80 rounded-lg transition-colors cursor-pointer px-1"
                       >
-                        <div className={`col-span-5 pr-3 space-y-1 relative ${hasLocalBlockers ? 'pl-6' : ''}`}>
-                          {hasLocalBlockers && (
+                        <div className={`col-span-5 pr-3 space-y-1 relative ${(hasLocalBlockers || hasLocalParent) ? 'pl-6' : ''}`}>
+                          {hasLocalBlockers ? (
                             <div className="absolute left-1 -top-3.5 bottom-1/2 w-3 border-l-2 border-b-2 border-amber-400/60 rounded-bl-md pointer-events-none" />
-                          )}
+                          ) : hasLocalParent ? (
+                            <div className="absolute left-1 -top-3.5 bottom-1/2 w-3 border-l-2 border-b-2 border-blue-400/60 rounded-bl-md pointer-events-none" />
+                          ) : null}
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <Tag className="w-3 h-3 text-emerald-600" />
@@ -537,6 +593,15 @@ export default function PlanningView({ demands: rawDemands = [], onSelectDemand,
                             {isDefined && (
                               <span className="text-[10px] text-slate-400 font-medium">
                                 ({formatDateBR(demand.planned_start_date)} a {formatDateBR(demand.planned_end_date)})
+                              </span>
+                            )}
+                            {demand.parentId && (
+                              <span 
+                                className="inline-flex items-center gap-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200"
+                                title={`Sub-item do Epic/Feature: ${demand.parentId}`}
+                              >
+                                <Link2 className="w-2.5 h-2.5 text-blue-600 shrink-0" />
+                                Pai: {demand.parentId}
                               </span>
                             )}
                             {isBlocked && (
