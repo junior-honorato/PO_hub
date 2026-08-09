@@ -208,26 +208,34 @@ async def google_login(request: Request):
 
 @app.get("/api/auth/callback")
 async def google_callback(request: Request, code: str):
-    redirect_uri = build_redirect_uri(request)
-    user_info = exchange_code_for_user_info(code, redirect_uri)
-    user_email = user_info.get("email", "").lower()
-    
-    if ALLOWED_EMAILS and user_email not in ALLOWED_EMAILS:
-        raise HTTPException(status_code=403, detail=f"Acesso negado para o e-mail '{user_email}'. Usuário não autorizado.")
+    try:
+        host = request.headers.get("host", "localhost:8080")
+        redirect_uri = build_redirect_uri(request)
+        user_info = exchange_code_for_user_info(code, redirect_uri)
+        user_email = user_info.get("email", "").lower()
         
-    token = create_session_token(user_info)
-    is_secure = "onrender.com" in host or request.headers.get("x-forwarded-proto") == "https"
-    
-    response = RedirectResponse(url="/")
-    response.set_cookie(
-        key=COOKIE_NAME,
-        value=token,
-        httponly=True,
-        secure=is_secure,
-        samesite="lax",
-        max_age=28800 # 8 horas
-    )
-    return response
+        if ALLOWED_EMAILS and user_email not in ALLOWED_EMAILS:
+            raise HTTPException(status_code=403, detail=f"Acesso negado para o e-mail '{user_email}'. Usuário não autorizado.")
+            
+        token = create_session_token(user_info)
+        is_secure = "onrender.com" in host or request.headers.get("x-forwarded-proto") == "https"
+        
+        response = RedirectResponse(url="/")
+        response.set_cookie(
+            key=COOKIE_NAME,
+            value=token,
+            httponly=True,
+            secure=is_secure,
+            samesite="lax",
+            max_age=28800 # 8 horas
+        )
+        return response
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Erro no callback de autenticação: {str(e)}")
 
 @app.post("/api/auth/logout")
 async def google_logout():
