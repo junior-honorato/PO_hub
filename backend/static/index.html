@@ -411,7 +411,7 @@
       const itemsPerPage = 10;
 
       // Extrai todas as tags únicas
-      const allTags = Array.from(new Set(demands.flatMap(d => d.tags)));
+      const allTags = Array.from(new Set(demands.flatMap(d => d.tags || [])));
       // Extrai todos os status únicos
       const allStatuses = Array.from(new Set(demands.map(d => d.externalStatus).filter(Boolean)));
       // Extrai todos os tipos de item únicos
@@ -443,20 +443,24 @@
       };
 
       const filteredDemands = demands.filter(d => {
-        const matchesSearch = d.title.toLowerCase().includes(search.toLowerCase()) || d.externalId.toLowerCase().includes(search.toLowerCase());
+        const titleStr = d.title ? String(d.title) : '';
+        const idStr = d.externalId ? String(d.externalId) : '';
+        const matchesSearch = titleStr.toLowerCase().includes(search.toLowerCase()) || idStr.toLowerCase().includes(search.toLowerCase());
         const matchesOrigin = originFilter === 'All' || d.origin === originFilter;
-        const matchesTag = !selectedTag || d.tags.includes(selectedTag);
+        const matchesTag = !selectedTag || (d.tags && Array.isArray(d.tags) && d.tags.includes(selectedTag));
         const matchesStatus = selectedStatus.length === 0 || selectedStatus.includes(d.externalStatus);
         const matchesItemType = itemTypeFilter === 'All' || d.itemType === itemTypeFilter;
         return matchesSearch && matchesOrigin && matchesTag && matchesStatus && matchesItemType;
       });
 
       const sortedDemands = [...filteredDemands].sort((a, b) => {
+        const dateA = a.updatedAt ? new Date(String(a.updatedAt).replace(' ', 'T')) : new Date(0);
+        const dateB = b.updatedAt ? new Date(String(b.updatedAt).replace(' ', 'T')) : new Date(0);
         if (sortBy === 'updated-desc') {
-          return new Date(b.updatedAt.replace(' ', 'T')) - new Date(a.updatedAt.replace(' ', 'T'));
+          return dateB - dateA;
         }
         if (sortBy === 'updated-asc') {
-          return new Date(a.updatedAt.replace(' ', 'T')) - new Date(b.updatedAt.replace(' ', 'T'));
+          return dateA - dateB;
         }
         if (sortBy === 'title-asc') {
           return a.title.localeCompare(b.title, 'pt-BR');
