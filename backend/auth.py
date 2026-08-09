@@ -85,7 +85,13 @@ def exchange_code_for_user_info(code: str, redirect_uri: str) -> dict:
     resp = requests.post(token_url, data=data, timeout=10)
     if resp.status_code != 200:
         print(f"[!] Erro ao obter token do Google: {resp.text}")
-        raise HTTPException(status_code=400, detail="Falha na autenticação com o servidor do Google.")
+        err_desc = resp.text
+        try:
+            err_json = resp.json()
+            err_desc = err_json.get("error_description") or err_json.get("error") or resp.text
+        except Exception:
+            pass
+        raise HTTPException(status_code=400, detail=f"Falha no Google OAuth ({resp.status_code}): {err_desc}")
         
     token_data = resp.json()
     access_token = token_data.get("access_token")

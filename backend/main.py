@@ -194,20 +194,21 @@ async def get_current_user_profile(request: Request):
         
     return {"authenticated": True, "user": payload}
 
+def build_redirect_uri(request: Request) -> str:
+    host = request.headers.get("host", "localhost:8080")
+    if "onrender.com" in host or request.headers.get("x-forwarded-proto") == "https":
+        return f"https://{host}/api/auth/callback"
+    return f"http://{host}/api/auth/callback"
+
 @app.get("/api/auth/login")
 async def google_login(request: Request):
-    host = request.headers.get("host", "localhost:8080")
-    scheme = "https" if "onrender.com" in host or request.headers.get("x-forwarded-proto") == "https" else "http"
-    redirect_uri = f"{scheme}://{host}/api/auth/callback"
+    redirect_uri = build_redirect_uri(request)
     auth_url = get_google_auth_url(redirect_uri)
     return RedirectResponse(url=auth_url)
 
 @app.get("/api/auth/callback")
 async def google_callback(request: Request, code: str):
-    host = request.headers.get("host", "localhost:8080")
-    scheme = "https" if "onrender.com" in host or request.headers.get("x-forwarded-proto") == "https" else "http"
-    redirect_uri = f"{scheme}://{host}/api/auth/callback"
-    
+    redirect_uri = build_redirect_uri(request)
     user_info = exchange_code_for_user_info(code, redirect_uri)
     user_email = user_info.get("email", "").lower()
     
