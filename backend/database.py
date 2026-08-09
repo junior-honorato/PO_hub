@@ -400,13 +400,20 @@ def init_db():
         finally:
             conn.close()
 
+def prepare_pg_query(query: str) -> str:
+    pg_query = query.replace("?", "%s")
+    if "group_concat(" in pg_query:
+        pg_query = pg_query.replace("group_concat(t.tag)", "STRING_AGG(t.tag, ',')")
+        pg_query = pg_query.replace("group_concat(tag)", "STRING_AGG(tag, ',')")
+    return pg_query
+
 def execute_query(query, params=(), db_name="ativo"):
     """Executa comando que modifica dados (INSERT, UPDATE, DELETE)."""
     conn = get_connection(db_name)
     try:
         if is_postgres():
             cursor = conn.cursor()
-            pg_query = query.replace("?", "%s")
+            pg_query = prepare_pg_query(query)
             cursor.execute(pg_query, params)
             return cursor
         else:
@@ -427,7 +434,7 @@ def fetch_all(query, params=(), db_name="ativo"):
     try:
         if is_postgres():
             cursor = conn.cursor(cursor_factory=RealDictCursor)
-            pg_query = query.replace("?", "%s")
+            pg_query = prepare_pg_query(query)
             cursor.execute(pg_query, params)
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
@@ -445,7 +452,7 @@ def fetch_one(query, params=(), db_name="ativo"):
     try:
         if is_postgres():
             cursor = conn.cursor(cursor_factory=RealDictCursor)
-            pg_query = query.replace("?", "%s")
+            pg_query = prepare_pg_query(query)
             cursor.execute(pg_query, params)
             row = cursor.fetchone()
             return dict(row) if row else None
