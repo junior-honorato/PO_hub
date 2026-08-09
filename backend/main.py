@@ -10,7 +10,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 import requests
 from dotenv import load_dotenv
-import google.generativeai as genai
+import sys
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 from database import init_db, execute_query, fetch_all, fetch_one, get_db_paths, CONFIG_PATH, is_postgres
 from auth import (
