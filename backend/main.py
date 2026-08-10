@@ -396,7 +396,7 @@ def get_external_url(origin: str, external_id: str):
 
 # Resolved não é considerado concluído (continua em andamento).
 # Apenas Closed (ou equivalente final) indica que foi efetivamente concluído.
-FINAL_STATUSES = {"Concluído", "Done", "Closed", "Improcedente", "Cancelado"}
+FINAL_STATUSES = {"Concluído", "Concluido", "Done", "Closed", "Improcedente", "Cancelado", "Canceled", "Entregue", "Finalizado", "Removido", "Removed"}
 FINAL_STATUSES_LOWER = {s.lower() for s in FINAL_STATUSES}
 
 def is_final_status(status):
@@ -1009,9 +1009,12 @@ def get_demands_data(db_name="ativo"):
 
     where_clause = ""
     params = ()
+    placeholders = ", ".join(["?"] * len(FINAL_STATUSES))
     if db_name == "historico":
-        placeholders = ", ".join(["?"] * len(FINAL_STATUSES))
         where_clause = f"WHERE d.externalStatus IN ({placeholders})"
+        params = tuple(FINAL_STATUSES)
+    else:
+        where_clause = f"WHERE d.externalStatus NOT IN ({placeholders}) OR d.externalStatus IS NULL"
         params = tuple(FINAL_STATUSES)
 
     query = f"""
