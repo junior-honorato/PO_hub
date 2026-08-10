@@ -40,25 +40,31 @@ def get_db_paths():
         
     return path_ativo, path_historico
 
+def is_pg_conn(conn):
+    return HAS_PSYCOPG2 and isinstance(conn, psycopg2.extensions.connection)
+
 def get_connection(db_name="ativo"):
-    """Retorna uma conexão configurada com suporte a chaves estrangeiras e dicionários."""
+    """Retorna uma conexão configurada (PostgreSQL se disponível/alcançável, ou SQLite local)."""
     if is_postgres():
         url = get_database_url()
-        conn = psycopg2.connect(url)
-        conn.autocommit = True
-        return conn
-    else:
-        path_ativo, path_historico = get_db_paths()
-        path = path_historico if db_name == "historico" else path_ativo
-        conn = sqlite3.connect(path, timeout=30.0)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
+        try:
+            conn = psycopg2.connect(url, connect_timeout=4)
+            conn.autocommit = True
+            return conn
+        except Exception as e:
+            print(f"[Database Warning] Falha na conexão PostgreSQL ({e}). Usando fallback para SQLite local.")
+
+    path_ativo, path_historico = get_db_paths()
+    path = path_historico if db_name == "historico" else path_ativo
+    conn = sqlite3.connect(path, timeout=30.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
 
 def init_db():
     """Cria as tabelas caso não existam em ambos os bancos."""
-    if is_postgres():
-        conn = get_connection("ativo")
+    conn = get_connection("ativo")
+    if is_pg_conn(conn):
         try:
             cursor = conn.cursor()
             cursor.execute("""
@@ -503,7 +509,7 @@ def execute_query(query, params=(), db_name="ativo"):
     """Executa comando que modifica dados (INSERT, UPDATE, DELETE)."""
     conn = get_connection(db_name)
     try:
-        if is_postgres():
+        if is_pg_conn(conn):
             cursor = conn.cursor()
             pg_query = prepare_pg_query(query)
             cursor.execute(pg_query, params)
@@ -514,7 +520,7 @@ def execute_query(query, params=(), db_name="ativo"):
             conn.commit()
             return cursor
     except Exception as e:
-        if not is_postgres() and conn:
+        if not is_pg_conn(conn) and conn:
             conn.rollback()
         raise e
     finally:
@@ -584,7 +590,7 @@ def fetch_all(query, params=(), db_name="ativo"):
     """Busca múltiplos registros e os converte em lista de dicionários."""
     conn = get_connection(db_name)
     try:
-        if is_postgres():
+        if is_pg_conn(conn):
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             pg_query = prepare_pg_query(query)
             cursor.execute(pg_query, params)
@@ -602,7 +608,7 @@ def fetch_one(query, params=(), db_name="ativo"):
     """Busca um único registro e o converte em dicionário (ou None)."""
     conn = get_connection(db_name)
     try:
-        if is_postgres():
+        if is_pg_conn(conn):
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             pg_query = prepare_pg_query(query)
             cursor.execute(pg_query, params)

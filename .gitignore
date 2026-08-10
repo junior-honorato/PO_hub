@@ -1,9 +1,8 @@
 # Local databases
 backend/database.db
-backend/database_ativo.db
-backend/database_historico.db
-backend/*.db
-*.db
+!backend/database_ativo.db
+!backend/database_historico.db
+
 
 # Environments & Sensitive Configs
 backend/.env
