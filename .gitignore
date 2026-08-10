@@ -1,5 +1,6 @@
 # Local databases
 backend/database.db
+backend/ativo.db
 !backend/database_ativo.db
 !backend/database_historico.db
 

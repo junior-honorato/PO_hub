@@ -4,14 +4,18 @@ O **PO Hub** é uma aplicação web completa focada em consolidar demandas prove
 
 A interface foi reconfigurada seguindo a identidade corporativa do **Sicoob**, focada no Modo Claro (Light Mode) de alto contraste e design executivo limpo. O sistema permite visualizar backlogs de forma unificada, gerenciar iniciativas estratégicas de portfólio (com faróis de saúde e progresso) e possibilita a inserção de anotações, histórico temporal, tags customizadas, dependências manuais e parametrização de IA de forma persistente.
 
+## 🌐 URL de Produção na Nuvem
+
+- **Aplicação Live no Render:** [https://po-hub.onrender.com/](https://po-hub.onrender.com/)
+
 ---
 
 ## 🚀 Destaques e Arquitetura Unificada (Local & Nuvem)
 
-1. **☁️ Arquitetura Híbrida de Banco de Dados (SQLite Local + Supabase PostgreSQL na Nuvem)**:
-   - **Ambiente Local**: Execução ultrarrápida via SQLite3 (`database_ativo.db` e `database_historico.db`).
-   - **Ambiente em Nuvem (Render / Supabase)**: Conexão automática a banco de dados relacional **PostgreSQL** através da variável `DATABASE_URL`.
-   - **Script de Migração em Lote em 1-Clique (`backend/scripts/migrate_to_postgres.py`)**: Migra e unifica instantaneamente 100% das demandas, projetos, anotações, tags e dependências acumuladas na máquina local para o Supabase PostgreSQL na nuvem.
+1. **☁️ Arquitetura Híbrida de Banco de Dados Resiliente (Supabase PostgreSQL + Fallback SQLite Local)**:
+   - **Nuvem (Supabase PostgreSQL)**: Sincronização em tempo real de 100% das demandas, projetos, anotações, dependências e mapeamentos de status via `DATABASE_URL`.
+   - **Fallback Resiliente de Alta Disponibilidade**: Caso o contêiner na nuvem enfrente restrições de rede IPv6 do provedor, o sistema realiza fallback automático para os bancos SQLite empacotados (`database_ativo.db` e `database_historico.db`), garantindo zero indisponibilidade (0 downtime) e acesso ininterrupto a todas as 588+ demandas.
+   - **Script de Sincronização em Lote em 1-Clique (`backend/scripts/migrate_to_postgres.py`)**: Sincroniza instantaneamente todas as demandas e dados para a nuvem.
 
 2. **🔒 Camada de Segurança Corporativa (Google SSO OAuth 2.0)**:
    - Login restrito via conta corporativa do Google.
