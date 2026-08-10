@@ -2760,5 +2760,9 @@ if __name__ == "__main__":
         print(f"[*] Disponível na rede interna:  http://{host}:{port}", flush=True)
     print("===================================================", flush=True)
     
-    uvicorn.run("main:app", host=host, port=port, reload=True)
+    is_dev = os.getenv("ENV", "production").lower() in ("development", "dev")
+    if is_dev:
+        uvicorn.run("main:app", host=host, port=port, reload=True)
+    else:
+        uvicorn.run(app, host=host, port=port, reload=False)
 

@@ -15,5 +15,5 @@ ENV HOST=0.0.0.0
 
 EXPOSE 8080
 
-# Executa o servidor FastAPI
-CMD ["python", "main.py"]
+# Executa o servidor FastAPI diretamente com Uvicorn sem reloader em produção
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
