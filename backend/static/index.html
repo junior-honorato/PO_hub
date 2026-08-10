@@ -1159,6 +1159,8 @@
 
       const [dbPath, setDbPath] = React.useState('');
       const [defaultDbPath, setDefaultDbPath] = React.useState('');
+      const [isPostgres, setIsPostgres] = React.useState(false);
+      const [dbType, setDbType] = React.useState('');
       const [dbSaveError, setDbSaveError] = React.useState('');
       const [dbSaveSuccess, setDbSaveSuccess] = React.useState(false);
       const [isSavingDb, setIsSavingDb] = React.useState(false);
@@ -1181,6 +1183,7 @@
             setDbPath(data.db_path !== undefined ? data.db_path : (data.current_path || ''));
             setDefaultDbPath(data.path_ativo || data.default_path || '');
             setIsPostgres(Boolean(data.is_postgres));
+            if (data.db_type) setDbType(data.db_type);
           }
         } catch (err) {
           console.error("Erro ao carregar caminho do banco:", err);
