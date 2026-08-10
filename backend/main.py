@@ -15,6 +15,13 @@ backend_dir = os.path.dirname(os.path.abspath(__file__))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
+try:
+    import google.generativeai as genai
+    HAS_GENAI = True
+except Exception:
+    genai = None
+    HAS_GENAI = False
+
 from database import init_db, execute_query, fetch_all, fetch_one, get_db_paths, CONFIG_PATH, is_postgres
 from auth import (
     get_current_user, get_google_auth_url, exchange_code_for_user_info,
@@ -67,7 +74,7 @@ def resolve_azure_url(org: Optional[str], project: Optional[str], fallback_url: 
 
 # Configura o cliente do Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY:
+if GEMINI_API_KEY and genai:
     genai.configure(api_key=GEMINI_API_KEY)
 
 # Desabilita Swagger Docs em produção para mitigar vazamento de metadados da API (SEC-14)
